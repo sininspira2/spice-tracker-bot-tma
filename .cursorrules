@@ -1,0 +1,106 @@
+# Cursor Rules for Spice Tracker Bot
+
+## General Development Principles
+- Write clean, readable, and maintainable code
+- Follow Python PEP 8 style guidelines
+- Use type hints for all function parameters and return values
+- Write comprehensive docstrings for all functions and classes
+- Keep functions small and focused (single responsibility principle)
+- Use meaningful variable and function names
+- Avoid magic numbers and hardcoded values
+
+## Dependencies & Package Management
+- Always use the latest stable versions of dependencies
+- Prefer `uv` over pip for dependency management (as indicated by uv.lock)
+- Keep requirements.txt updated with exact versions
+- Use virtual environments for development
+- Regularly update dependencies for security patches
+- Prefer well-maintained, popular packages over niche alternatives
+
+## Code Quality & Testing
+- Write unit tests for all new functionality
+- Aim for at least 80% test coverage
+- Use pytest for testing framework
+- Mock external dependencies in tests
+- Use linting tools (flake8, black, isort)
+- Run tests before committing code
+
+## Database & Data Management
+- Use parameterized queries to prevent SQL injection
+- Implement proper error handling for database operations
+- Use connection pooling for production deployments
+- Implement database migrations for schema changes
+- Use transactions for multi-step operations
+- Implement proper logging for database operations
+
+## Bot Development Best Practices
+- Implement rate limiting for API calls
+- Use async/await for I/O operations
+- Implement proper error handling and user feedback
+- Log all bot interactions for debugging
+- Use environment variables for sensitive configuration
+- Implement graceful shutdown handling
+
+## Security Considerations
+- Never commit API keys or sensitive credentials
+- Use environment variables for configuration
+- Validate and sanitize all user inputs
+- Implement proper permission checks
+- Use HTTPS for all external API calls
+- Regularly audit dependencies for vulnerabilities
+
+## Performance & Scalability
+- Use async operations where appropriate
+- Implement caching for frequently accessed data
+- Use connection pooling for database connections
+- Implement proper logging levels
+- Monitor memory usage and implement cleanup
+- Use background tasks for long-running operations
+
+## Error Handling & Logging
+- Implement comprehensive error handling
+- Use structured logging with appropriate levels
+- Include context in error messages
+- Implement graceful degradation
+- Log all errors with stack traces
+- Use custom exception classes for specific error types
+
+## Documentation
+- Keep README.md updated with setup instructions
+- Document all environment variables
+- Include usage examples in docstrings
+- Document API endpoints and their parameters
+- Keep deployment instructions current
+- Document database schema and relationships
+
+## Git & Version Control
+- Write clear, descriptive commit messages
+- Use conventional commit format
+- Create feature branches for new development
+- Review code before merging
+- Keep commits atomic and focused
+- Use meaningful branch names
+
+## Deployment & DevOps
+- Use environment-specific configuration files
+- Implement health checks for the bot
+- Use proper logging for production debugging
+- Implement monitoring and alerting
+- Use containerization when possible
+- Implement proper backup strategies
+
+## Code Review Guidelines
+- Review for security vulnerabilities
+- Check for proper error handling
+- Verify test coverage
+- Ensure code follows style guidelines
+- Check for performance issues
+- Verify documentation is updated
+
+## When Adding New Features
+- Consider backward compatibility
+- Update tests and documentation
+- Consider impact on existing functionality
+- Implement proper logging and monitoring
+- Add appropriate error handling
+- Consider security implications
