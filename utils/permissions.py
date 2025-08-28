@@ -2,99 +2,58 @@ import discord
 import os
 from typing import List
 
-def get_admin_role_ids() -> List[int]:
-    """Get admin role IDs from environment variable"""
-    admin_roles_str = os.getenv('ADMIN_ROLE_IDS', '')
-    if not admin_roles_str:
+def _parse_role_ids(env_var: str) -> List[int]:
+    """Parse comma-separated role IDs from environment variable"""
+    if not env_var:
         return []
     
     try:
-        # Parse comma-separated role IDs
-        role_ids = [int(role_id.strip()) for role_id in admin_roles_str.split(',') if role_id.strip()]
+        role_ids = []
+        for role_id in env_var.split(','):
+            role_id = role_id.strip()
+            if role_id and role_id.isdigit():
+                role_ids.append(int(role_id))
         return role_ids
     except ValueError:
-        # If parsing fails, return empty list
         return []
+
+def get_admin_role_ids() -> List[int]:
+    """Get admin role IDs from environment variable"""
+    return _parse_role_ids(os.getenv('ADMIN_ROLE_IDS', ''))
 
 def get_allowed_role_ids() -> List[int]:
     """Get allowed role IDs from environment variable"""
-    allowed_roles_str = os.getenv('ALLOWED_ROLE_IDS', '')
-    if not allowed_roles_str:
-        return []
-    
-    try:
-        # Parse comma-separated role IDs
-        role_ids = [int(role_id.strip()) for role_id in allowed_roles_str.split(',') if role_id.strip()]
-        return role_ids
-    except ValueError:
-        # If parsing fails, return empty list
-        return []
+    return _parse_role_ids(os.getenv('ALLOWED_ROLE_IDS', ''))
 
 def has_role(user: discord.User | discord.Member, role_id: int) -> bool:
     """Check if a user has a specific role ID"""
-    if not hasattr(user, 'roles'):
-        return False
-    
-    return any(role.id == role_id for role in user.roles)
+    return hasattr(user, 'roles') and any(role.id == role_id for role in user.roles)
 
 def check_admin_role_permission(user: discord.User | discord.Member) -> bool:
     """Check if a user has any of the admin role IDs"""
-    admin_role_ids = get_admin_role_ids()
-    
-    # Check if user has any of the admin roles
-    for role_id in admin_role_ids:
-        if has_role(user, role_id):
-            return True
-    
-    return False
+    return any(has_role(user, role_id) for role_id in get_admin_role_ids())
 
 def check_admin_permission(user: discord.User | discord.Member) -> bool:
     """Check if a user has administrator permissions or admin role"""
-    # Check if member has administrator permission
-    if hasattr(user, 'guild_permissions') and user.guild_permissions.administrator:
-        return True
-    
-    # Check if member has any of the admin roles
-    if check_admin_role_permission(user):
-        return True
-    
-    return False
+    return (hasattr(user, 'guild_permissions') and user.guild_permissions.administrator) or \
+           check_admin_role_permission(user)
 
 def check_allowed_role_permission(user: discord.User | discord.Member) -> bool:
     """Check if a user has any of the allowed role IDs"""
-    allowed_role_ids = get_allowed_role_ids()
-    
-    # If no allowed roles are configured, allow all users
-    if not allowed_role_ids:
-        return True
-    
-    # Check if user has any of the allowed roles
-    for role_id in allowed_role_ids:
-        if has_role(user, role_id):
-            return True
-    
-    return False
+    allowed_roles = get_allowed_role_ids()
+    return not allowed_roles or any(has_role(user, role_id) for role_id in allowed_roles)
 
 def check_permissions(user: discord.User | discord.Member, permissions: discord.Permissions) -> bool:
     """Check if a user has specific permissions"""
-    if not hasattr(user, 'guild_permissions'):
-        return False
-    
-    return user.guild_permissions >= permissions
+    return hasattr(user, 'guild_permissions') and user.guild_permissions >= permissions
 
 def check_owner_permission(user: discord.User | discord.Member, guild: discord.Guild) -> bool:
     """Check if a user is the server owner"""
-    if not guild:
-        return False
-    
-    return guild.owner_id == user.id
+    return guild and guild.owner_id == user.id
 
 def check_manage_server_permission(user: discord.User | discord.Member) -> bool:
     """Check if a user has manage server permissions"""
-    if not hasattr(user, 'guild_permissions'):
-        return False
-    
-    return user.guild_permissions.manage_guild
+    return hasattr(user, 'guild_permissions') and user.guild_permissions.manage_guild
 
 def get_permission_level(user: discord.User | discord.Member, guild: discord.Guild) -> str:
     """Get permission level description for a user"""
@@ -105,10 +64,7 @@ def get_permission_level(user: discord.User | discord.Member, guild: discord.Gui
         return 'Server Owner'
     
     if check_admin_permission(user):
-        # Check if it's from admin roles or Discord permissions
-        if check_admin_role_permission(user):
-            return 'Admin Role'
-        return 'Administrator'
+        return 'Admin Role' if check_admin_role_permission(user) else 'Administrator'
     
     if check_manage_server_permission(user):
         return 'Server Manager'
