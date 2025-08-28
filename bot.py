@@ -726,7 +726,45 @@ async def on_command_error(ctx, error):
 async def on_error(event, *args, **kwargs):
     print(f'Discord event error: {event}')
 
+# Railway health check endpoint (optional - for monitoring)
+import http.server
+import socketserver
+import threading
+
+def start_health_server():
+    """Start a simple HTTP server for Railway health checks"""
+    class HealthHandler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            if self.path == '/health':
+                self.send_response(200)
+                self.send_header('Content-type', 'text/plain')
+                self.end_headers()
+                self.wfile.write(b'OK')
+            else:
+                self.send_response(404)
+                self.end_headers()
+        
+        def log_message(self, format, *args):
+            # Suppress HTTP server logs
+            pass
+    
+    try:
+        with socketserver.TCPServer(("", int(os.getenv('PORT', 8080))), HealthHandler) as httpd:
+            print(f"Health check server started on port {os.getenv('PORT', 8080)}")
+            httpd.serve_forever()
+    except Exception as e:
+        print(f"Health server failed to start: {e}")
+
 # Run the bot
 if __name__ == '__main__':
-    token = os.getenv('DISCORD_TOKEN', 'MTQxMDQxMTMyNDU0MjAyNTgxOA.GdpsQ4.s_ucBHn-8Tm5E4PIHRTSVBzT3kolG7GqW2KK6E')
+    # Start health check server in a separate thread for Railway
+    health_thread = threading.Thread(target=start_health_server, daemon=True)
+    health_thread.start()
+    
+    token = os.getenv('DISCORD_TOKEN')
+    if not token:
+        print("❌ ERROR: DISCORD_TOKEN environment variable is not set!")
+        print("Please set the DISCORD_TOKEN environment variable in Railway or your .env file")
+        exit(1)
+    print("Starting Discord bot...")
     bot.run(token)
