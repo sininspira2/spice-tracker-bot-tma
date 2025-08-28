@@ -468,16 +468,6 @@ async def spicesplit(interaction: discord.Interaction, total_sand: int, particip
             icon_url=interaction.user.display_avatar.url
         )
         
-        # Record this split in history
-        await database.record_spice_split(
-            str(interaction.user.id),
-            interaction.user.display_name,
-            total_sand,
-            participants,
-            harvester_percentage,
-            sand_per_melange
-        )
-        
         # Send the message
         await interaction.response.send_message(embed=embed)
         
@@ -494,238 +484,6 @@ async def spicesplit(interaction: discord.Interaction, total_sand: int, particip
                 ephemeral=True
             )
 
-@bot.tree.command(name="splithistory", description="View recent spice split operations and statistics")
-async def splithistory(interaction: discord.Interaction):
-    # Check rate limit
-    if not rate_limiter.check_rate_limit(str(interaction.user.id), 'splithistory'):
-        await interaction.response.send_message(
-            "⏰ Please wait before using this command again.",
-            ephemeral=True
-        )
-        return
-
-    try:
-        # Get recent splits and stats
-        recent_splits = await database.get_spice_split_history(10)
-        stats = await database.get_spice_split_stats()
-        
-        # Create embed
-        embed = discord.Embed(
-            title="📊 Spice Split History",
-            description="Recent team spice operations and statistics",
-            color=0xE67E22,
-            timestamp=interaction.created_at
-        )
-        
-        # Add summary statistics
-        embed.add_field(
-            name="📈 Overall Statistics",
-            value=f"**Total Operations:** {stats['total_splits']:,}\n**Total Sand Processed:** {stats['total_sand_processed']:,}\n**Average Team Size:** {stats['average_participants']}",
-            inline=False
-        )
-        
-        # Add recent splits
-        if recent_splits:
-            history_text = ""
-            for split in recent_splits[:10]:  # Show last 10
-                # Parse date
-                from datetime import datetime
-                created_date = datetime.fromisoformat(split['created_at'].replace('Z', '+00:00')) if 'Z' in split['created_at'] else datetime.fromisoformat(split['created_at'])
-                date_str = created_date.strftime("%m/%d %H:%M")
-                
-                # Calculate individual share
-                harvester_sand = int(split['total_sand'] * (split['harvester_percentage'] / 100))
-                remaining_sand = split['total_sand'] - harvester_sand
-                individual_sand = remaining_sand // split['participants']
-                individual_melange = individual_sand // split['sand_per_melange']
-                
-                history_text += f"**{date_str}** - {split['initiator_username']}\n"
-                history_text += f"└ {split['total_sand']:,} sand → {split['participants']} members → {individual_melange:,} melange each\n\n"
-                
-                if len(history_text) > 900:  # Discord field limit
-                    history_text = history_text[:900] + "..."
-                    break
-            
-            embed.add_field(
-                name="🕒 Recent Operations",
-                value=history_text if history_text else "No recent operations found.",
-                inline=False
-            )
-        else:
-            embed.add_field(
-                name="🕒 Recent Operations",
-                value="No spice split operations recorded yet.",
-                inline=False
-            )
-        
-        embed.set_footer(
-            text=f"Requested by {interaction.user.display_name}",
-            icon_url=interaction.user.display_avatar.url
-        )
-        
-        await interaction.response.send_message(embed=embed)
-        
-    except Exception as error:
-        print(f'Error in splithistory command: {error}')
-        await interaction.response.send_message(
-            "❌ An error occurred while retrieving split history. Please try again later.",
-            ephemeral=True
-        )
-
-@bot.tree.command(name="paid", description="Record a payment made to a user for their spice deposits")
-@discord.app_commands.describe(
-    user="The user who received payment",
-    melange_amount="Amount of melange paid",
-    notes="Optional notes about the payment"
-)
-async def paid(interaction: discord.Interaction, user: discord.Member, melange_amount: int, notes: str = None):
-    # Check rate limit
-    if not rate_limiter.check_rate_limit(str(interaction.user.id), 'paid'):
-        await interaction.response.send_message(
-            "⏰ Please wait before using this command again.",
-            ephemeral=True
-        )
-        return
-
-    # Validate inputs
-    if melange_amount < 1:
-        await interaction.response.send_message(
-            "❌ Melange amount must be at least 1.",
-            ephemeral=True
-        )
-        return
-
-    try:
-        # Get conversion rate to calculate sand equivalent
-        sand_per_melange = await database.get_setting('sand_per_melange')
-        sand_per_melange = int(sand_per_melange) if sand_per_melange else 50
-        sand_equivalent = melange_amount * sand_per_melange
-
-        # Record the payment
-        await database.record_payment(
-            str(user.id),
-            user.display_name,
-            sand_equivalent,
-            melange_amount,
-            str(interaction.user.id),
-            interaction.user.display_name,
-            notes
-        )
-
-        # Create embed
-        embed = discord.Embed(
-            title="💰 Payment Recorded",
-            description=f"Payment successfully recorded for {user.display_name}",
-            color=0x27AE60,
-            timestamp=interaction.created_at
-        )
-
-        embed.add_field(
-            name="💎 Payment Details",
-            value=f"**Recipient:** {user.display_name}\n**Amount:** {melange_amount:,} melange\n**Sand Equivalent:** {sand_equivalent:,} sand",
-            inline=True
-        )
-
-        embed.add_field(
-            name="📝 Transaction Info",
-            value=f"**Paid By:** {interaction.user.display_name}\n**Notes:** {notes if notes else 'None'}",
-            inline=True
-        )
-
-        embed.set_footer(
-            text=f"Payment recorded by {interaction.user.display_name} • Conversion: {sand_per_melange} sand = 1 melange",
-            icon_url=interaction.user.display_avatar.url
-        )
-
-        await interaction.response.send_message(embed=embed)
-
-    except Exception as error:
-        print(f'Error in paid command: {error}')
-        await interaction.response.send_message(
-            "❌ An error occurred while recording the payment. Please try again later.",
-            ephemeral=True
-        )
-
-@bot.tree.command(name="payments", description="View recent payment history")
-@discord.app_commands.describe(
-    user="Optional: View payments for a specific user"
-)
-async def payments(interaction: discord.Interaction, user: discord.Member = None):
-    # Check rate limit
-    if not rate_limiter.check_rate_limit(str(interaction.user.id), 'payments'):
-        await interaction.response.send_message(
-            "⏰ Please wait before using this command again.",
-            ephemeral=True
-        )
-        return
-
-    try:
-        # Get payment history and stats
-        user_id = str(user.id) if user else None
-        recent_payments = await database.get_payment_history(user_id, 10)
-        stats = await database.get_payment_stats()
-
-        # Create embed
-        title = f"💰 Payment History - {user.display_name}" if user else "💰 Payment History"
-        embed = discord.Embed(
-            title=title,
-            description="Recent payment records for spice deposits",
-            color=0x27AE60,
-            timestamp=interaction.created_at
-        )
-
-        # Add summary statistics (only if viewing all payments)
-        if not user:
-            embed.add_field(
-                name="📊 Payment Statistics",
-                value=f"**Total Payments:** {stats['total_payments']:,}\n**Total Melange Paid:** {stats['total_melange_paid']:,}\n**Total Sand Paid:** {stats['total_sand_paid']:,}",
-                inline=False
-            )
-
-        # Add recent payments
-        if recent_payments:
-            history_text = ""
-            for payment in recent_payments[:10]:  # Show last 10
-                # Parse date
-                from datetime import datetime
-                created_date = datetime.fromisoformat(payment['created_at'].replace('Z', '+00:00')) if 'Z' in payment['created_at'] else datetime.fromisoformat(payment['created_at'])
-                date_str = created_date.strftime("%m/%d %H:%M")
-
-                history_text += f"**{date_str}** - {payment['username']}\n"
-                history_text += f"└ {payment['melange_amount']:,} melange paid by {payment['paid_by_username']}"
-                if payment['notes']:
-                    history_text += f" • {payment['notes']}"
-                history_text += "\n\n"
-
-                if len(history_text) > 900:  # Discord field limit
-                    history_text = history_text[:900] + "..."
-                    break
-
-            embed.add_field(
-                name="🕒 Recent Payments",
-                value=history_text if history_text else "No recent payments found.",
-                inline=False
-            )
-        else:
-            embed.add_field(
-                name="🕒 Recent Payments",
-                value="No payments recorded yet.",
-                inline=False
-            )
-
-        embed.set_footer(
-            text=f"Requested by {interaction.user.display_name}",
-            icon_url=interaction.user.display_avatar.url
-        )
-
-        await interaction.response.send_message(embed=embed)
-
-    except Exception as error:
-        print(f'Error in payments command: {error}')
-        await interaction.response.send_message(
-            "❌ An error occurred while retrieving payment history. Please try again later.",
-            ephemeral=True
-        )
 
 async def update_split_message(message, split_data):
     """Update the split message with current participants and their shares"""
@@ -841,24 +599,10 @@ async def help_command(interaction: discord.Interaction):
                 "View your total sand, melange, and progress to next conversion.\n\n"
                 "**`/leaderboard [limit]`**\n"
                 "Show top refiners by melange earned (5-25 users).\n\n"
+                "**`/spicesplit [total_sand] [harvester_%]`**\n"
+                "Split spice among team members. React with 🛩️ (pilots) or 🛻 (crawlers).\n\n"
                 "**`/help`**\n"
                 "Display this help message with all commands."
-            ),
-            inline=False
-        )
-        
-        # Team commands
-        embed.add_field(
-            name="👥 Team Commands",
-            value=(
-                "**`/spicesplit [sand] [participants] [harvester_%]`**\n"
-                "Calculate spice splits for team operations with specified participants.\n\n"
-                "**`/splithistory`**\n"
-                "View recent spice split operations and statistics.\n\n"
-                "**`/paid @user [melange] [notes]`**\n"
-                "Record a payment made to a user for their spice deposits.\n\n"
-                "**`/payments [user]`**\n"
-                "View payment history (all payments or for specific user)."
             ),
             inline=False
         )
@@ -888,10 +632,8 @@ async def help_command(interaction: discord.Interaction):
             value=(
                 "• `/logsolo 250` - Deposit 250 sand\n"
                 "• `/myrefines` - Check your stats\n"
-                "• `/spicesplit 50000 5 25` - Split 50k sand among 5 members, 25% to harvester\n"
-                "• `/paid @JohnDoe 150 Weekly payout` - Record 150 melange payment\n"
-                "• `/splithistory` - View recent operations\n"
-                "• `/payments @user` - Check payment history"
+                "• `/leaderboard 15` - Show top 15 refiners\n"
+                "• `/spicesplit 1000 30` - Split 1000 sand, 30% to harvester"
             ),
             inline=False
         )
