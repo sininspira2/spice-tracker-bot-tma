@@ -11,7 +11,7 @@ rate_limiter = RateLimiter()
 def command_handler(command_name, rate_limit=True, admin_only=False, description=None):
     """Decorator that handles common command setup, logging, rate limiting, and error handling"""
     def decorator(func):
-        @discord.app_commands.command(name=command_name, description=description or func.__doc__)
+        # Create a wrapper function that handles the command logic
         async def wrapper(interaction: discord.Interaction, *args, **kwargs):
             start_time = time.time()
             user_id = str(interaction.user.id)
@@ -24,7 +24,7 @@ def command_handler(command_name, rate_limit=True, admin_only=False, description
                 'user_id': user_id,
                 'username': username,
                 'guild_id': guild_id,
-                'guild_name': guild_name
+                'guild_name': guild_id
             }
             # Add command-specific parameters
             if args:
@@ -94,5 +94,6 @@ def command_handler(command_name, rate_limit=True, admin_only=False, description
                 else:
                     await interaction.followup.send(error_msg, ephemeral=True)
         
+        # Return the wrapper function - the bot will register it manually
         return wrapper
     return decorator

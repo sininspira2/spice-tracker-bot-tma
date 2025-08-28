@@ -155,7 +155,7 @@ class TestRateLimiter(unittest.TestCase):
     def test_rate_limit_check(self):
         """Test basic rate limit checking"""
         user_id = "12345"
-        command = "logsolo"
+        command = "spicesolo"
         
         # First 10 uses should be allowed
         for i in range(10):
@@ -169,7 +169,7 @@ class TestRateLimiter(unittest.TestCase):
     def test_rate_limit_reset(self):
         """Test rate limit reset functionality"""
         user_id = "12345"
-        command = "logsolo"
+        command = "spicesolo"
         
         # Use up the limit
         for i in range(10):
@@ -186,9 +186,9 @@ class TestRateLimiter(unittest.TestCase):
         """Test that different commands have separate rate limits"""
         user_id = "12345"
         
-        # Use up logsolo limit
+        # Use up spicesolo limit
         for i in range(10):
-            self.rate_limiter.check_rate_limit(user_id, "logsolo")
+            self.rate_limiter.check_rate_limit(user_id, "spicesolo")
         
         # Should still be able to use myrefines
         result = self.rate_limiter.check_rate_limit(user_id, "myrefines")
@@ -197,7 +197,7 @@ class TestRateLimiter(unittest.TestCase):
     def test_remaining_uses(self):
         """Test remaining uses calculation"""
         user_id = "12345"
-        command = "logsolo"
+        command = "spicesolo"
         
         # Check initial remaining uses
         remaining, reset_time = self.rate_limiter.get_remaining_uses(user_id, command)

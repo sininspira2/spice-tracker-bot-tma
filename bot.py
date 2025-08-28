@@ -20,6 +20,57 @@ bot = commands.Bot(command_prefix='!', intents=intents)
 # Initialize database
 database = Database()
 
+# Register commands with the bot's command tree
+def register_commands():
+    """Register all decorated commands with the bot's command tree"""
+    
+    # spicesolo command
+    @bot.tree.command(name="spicesolo", description="Log sand deposits and calculate melange conversion")
+    @discord.app_commands.describe(amount="Amount of sand to deposit")
+    async def spicesolo_cmd(interaction: discord.Interaction, amount: int):
+        return await spicesolo(interaction, amount)
+    
+    # myrefines command
+    @bot.tree.command(name="myrefines", description="Show your total sand and melange statistics")
+    async def myrefines_cmd(interaction: discord.Interaction):
+        return await myrefines(interaction)
+    
+    # leaderboard command
+    @bot.tree.command(name="leaderboard", description="Display top refiners by melange earned")
+    @discord.app_commands.describe(limit="Number of top users to display (default: 10)")
+    async def leaderboard_cmd(interaction: discord.Interaction, limit: int = 10):
+        return await leaderboard(interaction, limit)
+    
+    # setrate command
+    @bot.tree.command(name="setrate", description="Set the sand to melange conversion rate (Admin only)")
+    @discord.app_commands.describe(sand_per_melange="Amount of sand required for 1 melange")
+    async def setrate_cmd(interaction: discord.Interaction, sand_per_melange: int):
+        return await setrate(interaction, sand_per_melange)
+    
+    # spicesplit command
+    @bot.tree.command(name="spicesplit", description="Split spice sand among team members")
+    @discord.app_commands.describe(
+        total_sand="Total spice sand collected to split",
+        participants="Number of team members participating",
+        harvester_percentage="Percentage for harvester (default: 15%)"
+    )
+    async def spicesplit_cmd(interaction: discord.Interaction, total_sand: int, participants: int, harvester_percentage: float = None):
+        return await spicesplit(interaction, total_sand, participants, harvester_percentage)
+    
+    # help command
+    @bot.tree.command(name="help", description="Show all available commands and their descriptions")
+    async def help_cmd(interaction: discord.Interaction):
+        return await help_command(interaction)
+    
+    # resetstats command
+    @bot.tree.command(name="resetstats", description="Reset all user statistics (Admin only - USE WITH CAUTION)")
+    @discord.app_commands.describe(confirm="Confirm that you want to delete all user data")
+    async def resetstats_cmd(interaction: discord.Interaction, confirm: bool):
+        return await resetstats(interaction, confirm)
+
+# Register all commands
+register_commands()
+
 @bot.event
 async def on_ready():
     if bot.user:
@@ -48,8 +99,8 @@ async def on_ready():
         logger.bot_event("Command sync failed", error=str(error))
         print(f'Failed to sync commands: {error}')
 
-@command_handler("logsolo", rate_limit=True)
-async def logsolo(interaction: discord.Interaction, amount: int):
+@command_handler("spicesolo", rate_limit=True)
+async def spicesolo(interaction: discord.Interaction, amount: int):
     """Log sand deposits and calculate melange conversion"""
     # Validate amount
     if not 1 <= amount <= 10000:
@@ -98,7 +149,7 @@ async def myrefines(interaction: discord.Interaction):
     
     if not user:
         embed = (EmbedBuilder("📊 Your Refining Statistics", color=0x95A5A6, timestamp=interaction.created_at)
-                 .set_description("🏜️ You haven't deposited any sand yet! Use `/logsolo` to start tracking your deposits.")
+                 .set_description("🏜️ You haven't deposited any sand yet! Use `/spicesolo` to start tracking your deposits.")
                  .set_footer(f"Requested by {interaction.user.display_name}", interaction.user.display_avatar.url))
         await interaction.response.send_message(embed.build(), ephemeral=True)
         return
@@ -142,7 +193,7 @@ async def leaderboard(interaction: discord.Interaction, limit: int = 10):
     
     if not leaderboard_data:
         embed = EmbedBuilder("🏆 Melange Refining Leaderboard", color=0x95A5A6, timestamp=interaction.created_at)
-        embed.set_description("🏜️ No refiners found yet! Be the first to start depositing sand with `/logsolo`.")
+        embed.set_description("🏜️ No refiners found yet! Be the first to start depositing sand with `/spicesolo`.")
         await interaction.response.send_message(embed.build())
         return
     
@@ -258,7 +309,7 @@ async def help_command(interaction: discord.Interaction):
                           description="Track your sand deposits and melange refining progress!",
                           color=0xF39C12, timestamp=interaction.created_at)
              .add_field("📊 User Commands", 
-                       "**`/logsolo [amount]`**\nLog sand deposits (1-10,000). Automatically converts to melange.\n\n"
+                       "**`/spicesolo [amount]`**\nLog sand deposits (1-10,000). Automatically converts to melange.\n\n"
                        "**`/myrefines`**\nView your total sand, melange, and progress to next conversion.\n\n"
                        "**`/leaderboard [limit]`**\nShow top refiners by melange earned (5-25 users).\n\n"
                        "**`/spicesplit [total_sand] [harvester_%]`**\nSplit spice among team members. Harvester % is optional (uses default if not specified).\n\n"
@@ -268,7 +319,7 @@ async def help_command(interaction: discord.Interaction):
                        "**`/resetstats confirm:True`**\nReset all user statistics (requires confirmation).", inline=False)
              .add_field("📋 Current Settings", f"**Conversion Rate:** {sand_per_melange} sand = 1 melange\n**Default Harvester %:** {os.getenv('DEFAULT_HARVESTER_PERCENTAGE', '25.0')}%", inline=False)
              .add_field("💡 Example Usage", 
-                       "• `/logsolo 250` - Deposit 250 sand\n"
+                       "• `/spicesolo 250` - Deposit 250 sand\n"
                        "• `/myrefines` - Check your stats\n"
                        "• `/leaderboard 15` - Show top 15 refiners\n"
                        "• `/spicesplit 1000 30` - Split 1000 sand, 30% to harvester\n"

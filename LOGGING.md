@@ -27,9 +27,9 @@ Your Spice Tracker Bot now includes comprehensive logging optimized for Railway 
 All logs use a clean, Railway-friendly format that won't be misinterpreted:
 
 ```
-2024-01-15 10:30:45 | INFO | [INFO] Command executed: logsolo | user=PlayerName | user_id=123456789 | guild=Dune Guild | amount=2,500
-2024-01-15 10:30:46 | INFO | [INFO] Command completed: logsolo | user=PlayerName | user_id=123456789 | time=0.045s | total_sand=5,000 | new_melange=50
-2024-01-15 10:30:47 | WARNING | [WARNING] Rate limit hit: logsolo | user=PlayerName | user_id=123456789
+2024-01-15 10:30:45 | INFO | [INFO] Command executed: spicesolo | user=PlayerName | user_id=123456789 | guild=Dune Guild | amount=2,500
+2024-01-15 10:30:46 | INFO | [INFO] Command completed: spicesolo | user=PlayerName | user_id=123456789 | time=0.045s | total_sand=5,000 | new_melange=50
+2024-01-15 10:30:47 | WARNING | [WARNING] Rate limit hit: spicesolo | user=PlayerName | user_id=123456789
 ```
 
 ### Key Features

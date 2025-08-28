@@ -6,7 +6,7 @@ class RateLimiter:
     def __init__(self):
         # Command limits: (max_uses, time_window_seconds)
         self.limits = {
-            'logsolo': (10, 60),      # 10 uses per 60 seconds
+            'spicesolo': (10, 60),      # 10 uses per 60 seconds
             'myrefines': (5, 30),     # 5 uses per 30 seconds
             'leaderboard': (3, 60),   # 3 uses per 60 seconds
             'spicesplit': (2, 120),   # 2 uses per 2 minutes

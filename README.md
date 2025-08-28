@@ -109,7 +109,7 @@ Your bot automatically deploys to Railway when you push working code to main bra
 ## 🤖 Commands
 
 ### User Commands
-- `/logsolo <amount>` - Log spice sand you've collected
+- `/spicesolo <amount>` - Log spice sand you've collected
 - `/spicesplit <sand> <participants> [harvester%]` - Calculate spice splits for team operations
 - `/myrefines` - View your personal spice statistics
 - `/leaderboard` - See top spice collectors in the server
@@ -123,7 +123,7 @@ Your bot automatically deploys to Railway when you push working code to main bra
 
 ### Individual Spice Logging
 ```
-/logsolo 2500
+/spicesolo 2500
 ```
 *Logs 2,500 spice sand (converts to 50 melange at default rate)*
 
