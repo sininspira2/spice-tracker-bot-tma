@@ -2,9 +2,8 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main ]
   pull_request:
-    branches: [ main, master ]
 
 jobs:
   test:
@@ -13,7 +12,7 @@ jobs:
     
     strategy:
       matrix:
-        python-version: [3.11, 3.12, "3.13"]
+        python-version: [3.11, 3.13]
     
     steps:
     - name: Checkout code
