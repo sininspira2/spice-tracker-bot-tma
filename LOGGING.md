@@ -24,35 +24,32 @@ Your Spice Tracker Bot now includes comprehensive logging optimized for Railway 
 
 ## 📋 Log Format
 
-All logs are structured in JSON format for easy parsing in Railway:
+All logs use a clean, Railway-friendly format that won't be misinterpreted:
 
-```json
-{
-  "timestamp": "2024-01-15T10:30:45.123456",
-  "level": "INFO",
-  "message": "Command executed: logsolo",
-  "event_type": "command_executed",
-  "command": "logsolo",
-  "user_id": "123456789",
-  "username": "PlayerName",
-  "guild_id": "987654321",
-  "guild_name": "Dune Guild",
-  "amount": 2500
-}
 ```
+2024-01-15 10:30:45 | INFO | [INFO] Command executed: logsolo | user=PlayerName | user_id=123456789 | guild=Dune Guild | amount=2,500
+2024-01-15 10:30:46 | INFO | [INFO] Command completed: logsolo | user=PlayerName | user_id=123456789 | time=0.045s | total_sand=5,000 | new_melange=50
+2024-01-15 10:30:47 | WARNING | [WARNING] Rate limit hit: logsolo | user=PlayerName | user_id=123456789
+```
+
+### Key Features
+- **Clean formatting** - No JSON or special characters
+- **Easy to read** - Pipe-separated fields
+- **Railway compatible** - Won't trigger false error detection
+- **Structured data** - Key=value pairs for easy parsing
 
 ## 🔍 Log Types
 
 ### Command Logs
-- `command_executed` - Command started
-- `command_success` - Command completed successfully
-- `command_error` - Command failed with error details
+- **Command execution** - When commands start
+- **Command completion** - Successful command results
+- **Command errors** - Failed commands with error details
 
 ### System Logs
-- `bot_event` - Bot lifecycle events
-- `database_operation` - Database operations
-- `rate_limit_hit` - Rate limiting violations
-- `permission_denied` - Access control failures
+- **Bot events** - Lifecycle and status changes
+- **Database operations** - Success/failure of data operations
+- **Rate limiting** - Spam prevention events
+- **Permissions** - Access control failures
 
 ## 📊 Railway Monitoring
 
@@ -86,7 +83,7 @@ The logger supports these levels:
 from utils.logger import logger
 
 # Log custom events
-logger.info("Custom event", event_type="custom", data="value")
+logger.info("Custom event", data="value", count=42)
 
 # Log errors
 logger.error("Something went wrong", error="details")
@@ -95,7 +92,7 @@ logger.error("Something went wrong", error="details")
 ## 📈 Benefits
 
 ### For Developers
-- **Debug issues** quickly with detailed logs
+- **Debug issues** quickly with clean, readable logs
 - **Monitor performance** with execution times
 - **Track user behavior** and command usage
 - **Identify problems** before they affect users
@@ -106,9 +103,10 @@ logger.error("Something went wrong", error="details")
 - **Performance optimization** based on usage data
 
 ### For Railway
-- **Easy monitoring** with structured logs
+- **Easy monitoring** with clean, structured logs
 - **Health checks** for automatic restarts
 - **Resource optimization** based on usage patterns
+- **No false error detection** from log formatting
 
 ## 🔧 Troubleshooting
 
@@ -124,4 +122,10 @@ logger.error("Something went wrong", error="details")
 - **Rate limit hits** → Spam prevention working
 - **Permission denials** → Admin setup issues
 
-Your bot now provides comprehensive visibility into all operations, making it much easier to monitor, debug, and optimize! 🎉
+### Railway Log Display
+- **Clean format** - Logs appear as normal text, not errors
+- **Easy filtering** - Use Railway's log search features
+- **Performance tracking** - Monitor execution times
+- **Error detection** - Only real errors are flagged
+
+Your bot now provides comprehensive visibility with clean, Railway-friendly logs that won't be misinterpreted! 🎉
