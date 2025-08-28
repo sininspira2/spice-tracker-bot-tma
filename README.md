@@ -1,5 +1,7 @@
 # 🏜️ Spice Tracker Bot
 
+[![CI/CD Pipeline](https://github.com/jaqknife777/spice-tracker-bot/workflows/CI%2FCD%20Pipeline/badge.svg)](https://github.com/jaqknife777/spice-tracker-bot/actions/workflows/ci.yml)
+
 A Discord bot for **Dune: Awakening** that helps guilds track spice sand collection, convert to melange, and manage team spice splits for operations.
 
 ## ✨ Features
@@ -28,7 +30,7 @@ A Discord bot for **Dune: Awakening** that helps guilds track spice sand collect
 
 2. **Install dependencies**
    ```bash
-   pip install discord.py python-dotenv aiosqlite
+   pip install -r requirements.txt
    ```
 
 3. **Set up environment variables**
@@ -141,7 +143,114 @@ A Discord bot for **Dune: Awakening** that helps guilds track spice sand collect
 - **Rate Limiting** - In-memory rate limiter to prevent spam and abuse
 - **Input Validation** - Min/max value constraints on user inputs
 
-## 🔧 Configuration
+## 🧪 Testing
+
+### Test Framework
+The project includes a lightweight test suite to verify critical functionality:
+
+- **Database Operations** - Table creation, user management, melange conversion
+- **Rate Limiting** - Command usage limits and reset functionality  
+- **Permissions** - Admin permission checking
+- **Core Logic** - Sand validation, melange calculations, harvester splits
+
+### Running Tests
+
+**Quick Test Run:**
+```bash
+python run_tests.py
+```
+
+**Detailed Test Run:**
+```bash
+python test_bot.py
+```
+
+**Individual Test Classes:**
+```bash
+# Test database operations only
+python -m unittest test_bot.TestDatabase
+
+# Test rate limiting only  
+python -m unittest test_bot.TestRateLimiter
+
+# Test permissions only
+python -m unittest test_bot.TestPermissions
+
+# Test core logic only
+python -m unittest test_bot.TestBotLogic
+```
+
+### Test Coverage
+- ✅ Database initialization and schema validation
+- ✅ User creation, updates, and retrieval
+- ✅ Melange conversion calculations
+- ✅ Leaderboard functionality
+- ✅ Rate limiting per command and user
+- ✅ Permission checking
+- ✅ Core game mechanics (sand validation, splits)
+
+### Adding New Tests
+To add tests for new functionality:
+
+1. Create a new test method in the appropriate test class
+2. Follow the naming convention: `test_descriptive_name`
+3. Use descriptive assertions and clear test data
+4. Run the test suite to ensure it passes
+
+## 🚀 CI/CD Pipeline
+
+### GitHub Actions
+This project uses GitHub Actions for continuous integration and testing:
+
+- **Automated Testing** - Runs on every push to main and pull request
+- **Multi-Python Support** - Tests against Python 3.11, 3.12, and 3.13
+- **Dependency Caching** - Fast builds with pip dependency caching
+- **Status Badge** - Shows CI/CD status in README and pull requests
+
+### Workflow Details
+The CI/CD pipeline automatically:
+
+1. **Checks out code** from the repository
+2. **Sets up Python** environment for each version
+3. **Installs dependencies** from requirements.txt
+4. **Runs test suite** using the custom test runner
+5. **Performs code quality checks** with flake8 linting
+6. **Generates test coverage** reports
+7. **Runs security audits** with bandit and safety
+8. **Checks dependencies** for vulnerabilities with pip-audit
+9. **Uploads artifacts** for detailed analysis
+
+### Local CI Testing
+Before pushing, you can run the same checks locally:
+
+```bash
+# Install CI dependencies
+pip install -r requirements.txt
+pip install pytest pytest-cov flake8 black bandit safety pip-audit
+
+# Run full test suite
+python run_tests.py
+
+# Test individual components
+python -m unittest test_bot.TestDatabase -v
+python -m unittest test_bot.TestRateLimiter -v
+python -m unittest test_bot.TestPermissions -v
+python -m unittest test_bot.TestBotLogic -v
+
+# Run linting checks
+flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+flake8 . --count --exit-zero --max-complexity=10 --max-line-length=120 --statistics
+
+# Generate coverage report
+python -m pytest test_bot.py --cov=. --cov-report=html
+```
+
+### CI Status
+- 🟢 **Green** - All tests and checks passing
+- 🔴 **Red** - Tests or checks failing (check the Actions tab for details)
+- 🟡 **Yellow** - Tests running or partially complete
+
+## 📝 Configuration
 
 ### Conversion Rate
 Default: 50 sand = 1 melange (changeable with `/setrate`)

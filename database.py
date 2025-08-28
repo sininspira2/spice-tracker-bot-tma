@@ -118,3 +118,7 @@ class Database:
             cursor = await db.execute('DELETE FROM users')
             await db.commit()
             return cursor.rowcount
+
+    async def _get_connection(self):
+        """Get a database connection for internal operations"""
+        return aiosqlite.connect(self.db_path)
