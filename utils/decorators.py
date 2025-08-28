@@ -24,7 +24,7 @@ def command_handler(command_name, rate_limit=True, admin_only=False, description
                 'user_id': user_id,
                 'username': username,
                 'guild_id': guild_id,
-                'guild_name': guild_id
+                'guild_name': guild_name
             }
             # Add command-specific parameters
             if args:
