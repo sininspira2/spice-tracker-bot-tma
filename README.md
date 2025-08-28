@@ -45,41 +45,53 @@ A Discord bot for **Dune: Awakening** that helps guilds track spice sand collect
    python bot.py
    ```
 
-## 🌐 Replit Deployment
+## 🚂 Railway Deployment
 
-### One-Click Deploy
-[![Run on Replit](https://replit.com/badge/github/jaqknife777/spice-tracker-bot)](https://replit.com/github/jaqknife777/spice-tracker-bot)
+### Quick Deploy
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/new?template=https://github.com/jaqknife777/spice-tracker-bot)
 
-### Manual Replit Setup
+### Automatic Deployment (Recommended)
+Your bot automatically deploys to Railway when you push working code to main branch!
 
-1. **Create a new Repl**
-   - Go to [replit.com](https://replit.com) and sign in
-   - Click "Create Repl"
-   - Choose "Import from GitHub"
-   - Enter: `jaqknife777/spice-tracker-bot`
+**Setup:**
+1. **Deploy manually first** using the button above
+2. **Get Railway token**: Dashboard → Profile → Tokens → New Token
+3. **Add GitHub secrets**:
+   - `RAILWAY_TOKEN` = Your Railway token
+   - `RAILWAY_SERVICE_NAME` = Your service name
+4. **Push to main** → Automatic deployment! 🚀
 
-2. **Configure Environment Variables**
-   - In your Repl, go to "Tools" → "Secrets"
-   - Add these secrets:
-     - `DISCORD_TOKEN` = Your Discord bot token
-     - `CLIENT_ID` = Your Discord application client ID
+**How it works:**
+- Push to main → CI tests run → If tests pass → Auto-deploy to Railway
+- If tests fail → No deployment (protects against broken code)
 
-3. **Run the Bot**
-   - Click the "Run" button
-   - The bot will start and connect to Discord
-   - Check the console for connection status
+### Manual Setup
+1. Go to [railway.app](https://railway.app) → "New Project" → "Deploy from GitHub repo"
+2. Select your repository
+3. Add environment variables:
+   - `DISCORD_TOKEN` = Your bot token
+   - `CLIENT_ID` = Your Discord client ID
+4. Deploy!
 
-### Replit-Specific Features
-- **Automatic Restart**: Bot restarts automatically if it crashes
-- **24/7 Uptime**: Replit keeps your bot running continuously
-- **Free Tier**: Includes 500 hours/month of runtime
-- **Database Persistence**: SQLite database persists between restarts
+### Features
+- **Auto-scaling** for traffic spikes
+- **Custom domains** with SSL
+- **PostgreSQL** upgrade option
+- **Built-in monitoring** and logs
+- **Health checks** at `/health`
 
-### Troubleshooting Replit
-- **Bot Offline**: Check the console for error messages
-- **Commands Not Working**: Ensure slash commands are registered (check console logs)
-- **Database Issues**: The bot creates the database automatically on first run
-- **Rate Limiting**: Replit may have additional rate limits on free tier
+### Environment Variables
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `DISCORD_TOKEN` | Your Discord bot token | ✅ Yes |
+| `CLIENT_ID` | Discord application client ID | ✅ Yes |
+| `PORT` | Health check server port | ❌ No (auto-assigned) |
+
+### Troubleshooting
+- **Bot offline?** Check Railway logs and verify `DISCORD_TOKEN`
+- **Build failed?** Check Railway build logs
+- **CI failing?** Fix tests before deployment
+- **Need help?** Check GitHub Actions logs and Railway dashboard
 
 ### Discord Bot Setup
 

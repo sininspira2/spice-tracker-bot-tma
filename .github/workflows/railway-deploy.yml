@@ -1,0 +1,31 @@
+name: Railway Deployment
+
+on:
+  workflow_run:
+    workflows: ["CI/CD Pipeline"]
+    types:
+      - completed
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Deploy to Railway
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Deploy to Railway
+      uses: bervProject/railway-deploy@v1.0.0
+      with:
+        service: ${{ secrets.RAILWAY_SERVICE_NAME }}
+        token: ${{ secrets.RAILWAY_TOKEN }}
+    
+    - name: Deployment Status
+      run: |
+        echo "✅ Deployment to Railway completed successfully!"
+        echo "🚂 Service: ${{ secrets.RAILWAY_SERVICE_NAME }}"
+        echo "🔗 Check your Railway dashboard for deployment status"
