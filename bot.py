@@ -201,8 +201,11 @@ async def setrate(interaction: discord.Interaction, sand_per_melange: int):
     }
 
 @command_handler("spicesplit", rate_limit=True)
-async def spicesplit(interaction: discord.Interaction, total_sand: int, participants: int, harvester_percentage: float = 25.0):
+async def spicesplit(interaction: discord.Interaction, total_sand: int, participants: int, harvester_percentage: float = None):
     """Split spice sand among team members"""
+    # Use environment variable if no harvester_percentage provided
+    if harvester_percentage is None:
+        harvester_percentage = float(os.getenv('DEFAULT_HARVESTER_PERCENTAGE', 15.0))
     # Validate inputs
     if total_sand < 1:
         raise ValueError("Total sand must be at least 1.")
@@ -258,17 +261,18 @@ async def help_command(interaction: discord.Interaction):
                        "**`/logsolo [amount]`**\nLog sand deposits (1-10,000). Automatically converts to melange.\n\n"
                        "**`/myrefines`**\nView your total sand, melange, and progress to next conversion.\n\n"
                        "**`/leaderboard [limit]`**\nShow top refiners by melange earned (5-25 users).\n\n"
-                       "**`/spicesplit [total_sand] [harvester_%]`**\nSplit spice among team members. React with 🛩️ (pilots) or 🛻 (crawlers).\n\n"
+                       "**`/spicesplit [total_sand] [harvester_%]`**\nSplit spice among team members. Harvester % is optional (uses default if not specified).\n\n"
                        "**`/help`**\nDisplay this help message with all commands.", inline=False)
              .add_field("⚙️ Admin Commands", 
                        "**`/setrate [sand_per_melange]`**\nChange conversion rate (1-1,000 sand per melange).\n\n"
                        "**`/resetstats confirm:True`**\nReset all user statistics (requires confirmation).", inline=False)
-             .add_field("📋 Current Settings", f"**Conversion Rate:** {sand_per_melange} sand = 1 melange", inline=False)
+             .add_field("📋 Current Settings", f"**Conversion Rate:** {sand_per_melange} sand = 1 melange\n**Default Harvester %:** {os.getenv('DEFAULT_HARVESTER_PERCENTAGE', '25.0')}%", inline=False)
              .add_field("💡 Example Usage", 
                        "• `/logsolo 250` - Deposit 250 sand\n"
                        "• `/myrefines` - Check your stats\n"
                        "• `/leaderboard 15` - Show top 15 refiners\n"
-                       "• `/spicesplit 1000 30` - Split 1000 sand, 30% to harvester", inline=False)
+                       "• `/spicesplit 1000 30` - Split 1000 sand, 30% to harvester\n"
+                       "• `/spicesplit 1000` - Split 1000 sand using default harvester %", inline=False)
              .set_footer("Spice Tracker Bot - Dune-themed resource tracking", bot.user.display_avatar.url if bot.user else None))
     
     await interaction.response.send_message(embed.build())
