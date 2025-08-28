@@ -2,10 +2,12 @@ import discord
 from discord.ext import commands
 import asyncio
 import os
+import time
 from dotenv import load_dotenv
 from database import Database
 from utils.rate_limiter import RateLimiter
 from utils.permissions import check_admin_permission
+from utils.logger import logger
 
 # Load environment variables
 load_dotenv()
@@ -23,30 +25,64 @@ rate_limiter = RateLimiter()
 @bot.event
 async def on_ready():
     if bot.user:
+        logger.bot_event(
+            "Bot started",
+            bot_name=bot.user.name,
+            bot_id=str(bot.user.id),
+            guild_count=len(bot.guilds)
+        )
         print(f'{bot.user.name}#{bot.user.discriminator} is online!')
     else:
+        logger.bot_event("Bot started", bot_name="Unknown")
         print('Bot is online!')
     
     # Initialize database
     try:
         await database.initialize()
+        logger.database_operation("initialize", "database", True)
         print('Database initialized successfully.')
     except Exception as error:
+        logger.database_operation("initialize", "database", False, error=str(error))
         print(f'Failed to initialize database: {error}')
         return
     
     # Sync slash commands
     try:
         synced = await bot.tree.sync()
+        logger.bot_event("Commands synced", synced_count=len(synced))
         print(f'Synced {len(synced)} commands.')
     except Exception as error:
+        logger.bot_event("Command sync failed", error=str(error))
         print(f'Failed to sync commands: {error}')
 
 @bot.tree.command(name="logsolo", description="Log sand deposits and calculate melange conversion")
 @discord.app_commands.describe(amount="Amount of sand to deposit")
 async def logsolo(interaction: discord.Interaction, amount: int):
+    start_time = time.time()
+    user_id = str(interaction.user.id)
+    username = interaction.user.display_name
+    guild_id = str(interaction.guild.id) if interaction.guild else None
+    guild_name = interaction.guild.name if interaction.guild else None
+    
+    # Log command execution
+    logger.command_executed(
+        "logsolo",
+        user_id=user_id,
+        username=username,
+        guild_id=guild_id,
+        guild_name=guild_name,
+        amount=amount
+    )
+    
     # Validate amount
     if amount < 1 or amount > 10000:
+        logger.command_error(
+            "logsolo",
+            user_id=user_id,
+            username=username,
+            error="Invalid amount",
+            amount=amount
+        )
         await interaction.response.send_message(
             "❌ Amount must be between 1 and 10,000 sand.",
             ephemeral=True
@@ -55,6 +91,7 @@ async def logsolo(interaction: discord.Interaction, amount: int):
     
     # Check rate limit
     if not rate_limiter.check_rate_limit(str(interaction.user.id), 'logsolo'):
+        logger.rate_limit_hit("logsolo", user_id, username)
         await interaction.response.send_message(
             "⏰ Please wait before using this command again.",
             ephemeral=True
@@ -126,7 +163,30 @@ async def logsolo(interaction: discord.Interaction, amount: int):
         
         await interaction.response.send_message(embed=embed)
         
+        # Log successful command completion
+        execution_time = time.time() - start_time
+        logger.command_success(
+            "logsolo",
+            user_id=user_id,
+            username=username,
+            execution_time=execution_time,
+            amount=amount,
+            total_sand=user['total_sand'],
+            total_melange=current_melange + new_melange,
+            new_melange=new_melange,
+            sand_per_melange=sand_per_melange
+        )
+        
     except Exception as error:
+        execution_time = time.time() - start_time
+        logger.command_error(
+            "logsolo",
+            user_id=user_id,
+            username=username,
+            error=str(error),
+            execution_time=execution_time,
+            amount=amount
+        )
         print(f'Error in logsolo command: {error}')
         await interaction.response.send_message(
             "❌ An error occurred while processing your sand deposit. Please try again later.",
@@ -135,16 +195,29 @@ async def logsolo(interaction: discord.Interaction, amount: int):
 
 @bot.tree.command(name="myrefines", description="Show your total sand and melange statistics")
 async def myrefines(interaction: discord.Interaction):
+    start_time = time.time()
+    user_id = str(interaction.user.id)
+    username = interaction.user.display_name
+    guild_id = str(interaction.guild.id) if interaction.guild else None
+    guild_name = interaction.guild.name if interaction.guild else None
+    
+    # Log command execution
+    logger.command_executed(
+        "myrefines",
+        user_id=user_id,
+        username=username,
+        guild_id=guild_id,
+        guild_name=guild_name
+    )
+    
     # Check rate limit
     if not rate_limiter.check_rate_limit(str(interaction.user.id), 'myrefines'):
+        logger.rate_limit_hit("myrefines", user_id, username)
         await interaction.response.send_message(
             "⏰ Please wait before using this command again.",
             ephemeral=True
         )
         return
-    
-    user_id = str(interaction.user.id)
-    username = interaction.user.display_name
     
     try:
         # Get user data
@@ -224,7 +297,27 @@ async def myrefines(interaction: discord.Interaction):
         
         await interaction.response.send_message(embed=embed)
         
+        # Log successful command completion
+        execution_time = time.time() - start_time
+        logger.command_success(
+            "myrefines",
+            user_id=user_id,
+            username=username,
+            execution_time=execution_time,
+            total_sand=user['total_sand'],
+            total_melange=user['total_melange'],
+            sand_per_melange=sand_per_melange
+        )
+        
     except Exception as error:
+        execution_time = time.time() - start_time
+        logger.command_error(
+            "myrefines",
+            user_id=user_id,
+            username=username,
+            error=str(error),
+            execution_time=execution_time
+        )
         print(f'Error in myrefines command: {error}')
         await interaction.response.send_message(
             "❌ An error occurred while retrieving your statistics. Please try again later.",
@@ -234,8 +327,31 @@ async def myrefines(interaction: discord.Interaction):
 @bot.tree.command(name="leaderboard", description="Display top refiners by melange earned")
 @discord.app_commands.describe(limit="Number of top users to display (default: 10)")
 async def leaderboard(interaction: discord.Interaction, limit: int = 10):
+    start_time = time.time()
+    user_id = str(interaction.user.id)
+    username = interaction.user.display_name
+    guild_id = str(interaction.guild.id) if interaction.guild else None
+    guild_name = interaction.guild.name if interaction.guild else None
+    
+    # Log command execution
+    logger.command_executed(
+        "leaderboard",
+        user_id=user_id,
+        username=username,
+        guild_id=guild_id,
+        guild_name=guild_name,
+        limit=limit
+    )
+    
     # Validate limit
     if limit < 5 or limit > 25:
+        logger.command_error(
+            "leaderboard",
+            user_id=user_id,
+            username=username,
+            error="Invalid limit",
+            limit=limit
+        )
         await interaction.response.send_message(
             "❌ Limit must be between 5 and 25.",
             ephemeral=True
@@ -244,6 +360,7 @@ async def leaderboard(interaction: discord.Interaction, limit: int = 10):
     
     # Check rate limit
     if not rate_limiter.check_rate_limit(str(interaction.user.id), 'leaderboard'):
+        logger.rate_limit_hit("leaderboard", user_id, username)
         await interaction.response.send_message(
             "⏰ Please wait before using this command again.",
             ephemeral=True
@@ -310,7 +427,29 @@ async def leaderboard(interaction: discord.Interaction, limit: int = 10):
         
         await interaction.response.send_message(embed=embed)
         
+        # Log successful command completion
+        execution_time = time.time() - start_time
+        logger.command_success(
+            "leaderboard",
+            user_id=user_id,
+            username=username,
+            execution_time=execution_time,
+            limit=limit,
+            result_count=len(leaderboard_data),
+            total_melange=total_melange,
+            total_sand=total_sand
+        )
+        
     except Exception as error:
+        execution_time = time.time() - start_time
+        logger.command_error(
+            "leaderboard",
+            user_id=user_id,
+            username=username,
+            error=str(error),
+            execution_time=execution_time,
+            limit=limit
+        )
         print(f'Error in leaderboard command: {error}')
         await interaction.response.send_message(
             "❌ An error occurred while retrieving the leaderboard. Please try again later.",
@@ -320,8 +459,31 @@ async def leaderboard(interaction: discord.Interaction, limit: int = 10):
 @bot.tree.command(name="setrate", description="Set the sand to melange conversion rate (Admin only)")
 @discord.app_commands.describe(sand_per_melange="Amount of sand required for 1 melange")
 async def setrate(interaction: discord.Interaction, sand_per_melange: int):
+    start_time = time.time()
+    user_id = str(interaction.user.id)
+    username = interaction.user.display_name
+    guild_id = str(interaction.guild.id) if interaction.guild else None
+    guild_name = interaction.guild.name if interaction.guild else None
+    
+    # Log command execution
+    logger.command_executed(
+        "setrate",
+        user_id=user_id,
+        username=username,
+        guild_id=guild_id,
+        guild_name=guild_name,
+        new_rate=sand_per_melange
+    )
+    
     # Validate input
     if sand_per_melange < 1 or sand_per_melange > 1000:
+        logger.command_error(
+            "setrate",
+            user_id=user_id,
+            username=username,
+            error="Invalid rate",
+            new_rate=sand_per_melange
+        )
         await interaction.response.send_message(
             "❌ Conversion rate must be between 1 and 1,000.",
             ephemeral=True
@@ -330,6 +492,7 @@ async def setrate(interaction: discord.Interaction, sand_per_melange: int):
     
     # Check admin permissions
     if not interaction.guild or not check_admin_permission(interaction.user, interaction.guild):
+        logger.permission_denied("setrate", user_id, username, "Administrator")
         await interaction.response.send_message(
             "❌ You need Administrator permissions to use this command.",
             ephemeral=True
@@ -369,10 +532,30 @@ async def setrate(interaction: discord.Interaction, sand_per_melange: int):
         
         await interaction.response.send_message(embed=embed)
         
+        # Log successful command completion
+        execution_time = time.time() - start_time
+        logger.command_success(
+            "setrate",
+            user_id=user_id,
+            username=username,
+            execution_time=execution_time,
+            old_rate=current_rate,
+            new_rate=sand_per_melange
+        )
+        
         # Log the change
         print(f'Conversion rate changed from {current_rate} to {sand_per_melange} by {interaction.user.display_name} ({interaction.user.id})')
         
     except Exception as error:
+        execution_time = time.time() - start_time
+        logger.command_error(
+            "setrate",
+            user_id=user_id,
+            username=username,
+            error=str(error),
+            execution_time=execution_time,
+            new_rate=sand_per_melange
+        )
         print(f'Error in setrate command: {error}')
         await interaction.response.send_message(
             "❌ An error occurred while updating the conversion rate. Please try again later.",
@@ -386,15 +569,42 @@ async def setrate(interaction: discord.Interaction, sand_per_melange: int):
     harvester_percentage="Percentage for harvester (default: 25%)"
 )
 async def spicesplit(interaction: discord.Interaction, total_sand: int, participants: int, harvester_percentage: float = 25.0):
+    start_time = time.time()
+    user_id = str(interaction.user.id)
+    username = interaction.user.display_name
+    guild_id = str(interaction.guild.id) if interaction.guild else None
+    guild_name = interaction.guild.name if interaction.guild else None
+    
+    # Log command execution
+    logger.command_executed(
+        "spicesplit",
+        user_id=user_id,
+        username=username,
+        guild_id=guild_id,
+        guild_name=guild_name,
+        total_sand=total_sand,
+        participants=participants,
+        harvester_percentage=harvester_percentage
+    )
+    
     # Check rate limit
     if not rate_limiter.check_rate_limit(str(interaction.user.id), 'spicesplit'):
+        logger.rate_limit_hit("spicesplit", user_id, username)
         await interaction.response.send_message(
             "⏰ Please wait before using this command again.",
             ephemeral=True
         )
         return
+    
     # Validate inputs
     if total_sand < 1:
+        logger.command_error(
+            "spicesplit",
+            user_id=user_id,
+            username=username,
+            error="Invalid total_sand",
+            total_sand=total_sand
+        )
         await interaction.response.send_message(
             "❌ Total sand must be at least 1.",
             ephemeral=True
@@ -402,6 +612,13 @@ async def spicesplit(interaction: discord.Interaction, total_sand: int, particip
         return
     
     if participants < 1:
+        logger.command_error(
+            "spicesplit",
+            user_id=user_id,
+            username=username,
+            error="Invalid participants",
+            participants=participants
+        )
         await interaction.response.send_message(
             "❌ Number of participants must be at least 1.",
             ephemeral=True
@@ -409,6 +626,13 @@ async def spicesplit(interaction: discord.Interaction, total_sand: int, particip
         return
     
     if harvester_percentage < 0 or harvester_percentage > 100:
+        logger.command_error(
+            "spicesplit",
+            user_id=user_id,
+            username=username,
+            error="Invalid harvester_percentage",
+            harvester_percentage=harvester_percentage
+        )
         await interaction.response.send_message(
             "❌ Harvester percentage must be between 0 and 100.",
             ephemeral=True
@@ -471,7 +695,34 @@ async def spicesplit(interaction: discord.Interaction, total_sand: int, particip
         # Send the message
         await interaction.response.send_message(embed=embed)
         
+        # Log successful command completion
+        execution_time = time.time() - start_time
+        logger.command_success(
+            "spicesplit",
+            user_id=user_id,
+            username=username,
+            execution_time=execution_time,
+            total_sand=total_sand,
+            participants=participants,
+            harvester_percentage=harvester_percentage,
+            harvester_sand=harvester_sand,
+            harvester_melange=harvester_melange,
+            sand_per_participant=sand_per_participant,
+            melange_per_participant=melange_per_participant
+        )
+        
     except Exception as error:
+        execution_time = time.time() - start_time
+        logger.command_error(
+            "spicesplit",
+            user_id=user_id,
+            username=username,
+            error=str(error),
+            execution_time=execution_time,
+            total_sand=total_sand,
+            participants=participants,
+            harvester_percentage=harvester_percentage
+        )
         print(f'Error in spicesplit command: {error}')
         if not interaction.response.is_done():
             await interaction.response.send_message(
@@ -577,6 +828,21 @@ async def update_split_message(message, split_data):
 
 @bot.tree.command(name="help", description="Show all available commands and their descriptions")
 async def help_command(interaction: discord.Interaction):
+    start_time = time.time()
+    user_id = str(interaction.user.id)
+    username = interaction.user.display_name
+    guild_id = str(interaction.guild.id) if interaction.guild else None
+    guild_name = interaction.guild.name if interaction.guild else None
+    
+    # Log command execution
+    logger.command_executed(
+        "help",
+        user_id=user_id,
+        username=username,
+        guild_id=guild_id,
+        guild_name=guild_name
+    )
+    
     try:
         # Get conversion rate for display
         sand_per_melange = await database.get_setting('sand_per_melange')
@@ -645,7 +911,24 @@ async def help_command(interaction: discord.Interaction):
         
         await interaction.response.send_message(embed=embed)
         
+        # Log successful command completion
+        execution_time = time.time() - start_time
+        logger.command_success(
+            "help",
+            user_id=user_id,
+            username=username,
+            execution_time=execution_time
+        )
+        
     except Exception as error:
+        execution_time = time.time() - start_time
+        logger.command_error(
+            "help",
+            user_id=user_id,
+            username=username,
+            error=str(error),
+            execution_time=execution_time
+        )
         print(f'Error in help command: {error}')
         await interaction.response.send_message(
             "❌ An error occurred while displaying help. Please try again later.",
@@ -655,8 +938,25 @@ async def help_command(interaction: discord.Interaction):
 @bot.tree.command(name="resetstats", description="Reset all user statistics (Admin only - USE WITH CAUTION)")
 @discord.app_commands.describe(confirm="Confirm that you want to delete all user data")
 async def resetstats(interaction: discord.Interaction, confirm: bool):
+    start_time = time.time()
+    user_id = str(interaction.user.id)
+    username = interaction.user.display_name
+    guild_id = str(interaction.guild.id) if interaction.guild else None
+    guild_name = interaction.guild.name if interaction.guild else None
+    
+    # Log command execution
+    logger.command_executed(
+        "resetstats",
+        user_id=user_id,
+        username=username,
+        guild_id=guild_id,
+        guild_name=guild_name,
+        confirm=confirm
+    )
+    
     # Check admin permissions
     if not interaction.guild or not check_admin_permission(interaction.user, interaction.guild):
+        logger.permission_denied("resetstats", user_id, username, "Administrator")
         await interaction.response.send_message(
             "❌ You need Administrator permissions to use this command.",
             ephemeral=True
@@ -707,10 +1007,28 @@ async def resetstats(interaction: discord.Interaction, confirm: bool):
         
         await interaction.response.send_message(embed=embed)
         
+        # Log successful command completion
+        execution_time = time.time() - start_time
+        logger.command_success(
+            "resetstats",
+            user_id=user_id,
+            username=username,
+            execution_time=execution_time,
+            deleted_rows=deleted_rows
+        )
+        
         # Log the reset action
         print(f'All user statistics reset by {interaction.user.display_name} ({interaction.user.id}) - {deleted_rows} records deleted')
         
     except Exception as error:
+        execution_time = time.time() - start_time
+        logger.command_error(
+            "resetstats",
+            user_id=user_id,
+            username=username,
+            error=str(error),
+            execution_time=execution_time
+        )
         print(f'Error in resetstats command: {error}')
         await interaction.response.send_message(
             "❌ An error occurred while resetting statistics. Please try again later.",
@@ -720,10 +1038,25 @@ async def resetstats(interaction: discord.Interaction, confirm: bool):
 # Error handling
 @bot.event
 async def on_command_error(ctx, error):
+    logger.error(
+        f"Command error: {error}",
+        event_type="command_error",
+        command=ctx.command.name if ctx.command else "unknown",
+        user_id=str(ctx.author.id) if ctx.author else "unknown",
+        username=ctx.author.display_name if ctx.author else "unknown",
+        error=str(error)
+    )
     print(f'Command error: {error}')
 
 @bot.event
 async def on_error(event, *args, **kwargs):
+    logger.error(
+        f"Discord event error: {event}",
+        event_type="discord_error",
+        event=event,
+        args=str(args),
+        kwargs=str(kwargs)
+    )
     print(f'Discord event error: {event}')
 
 # Railway health check endpoint (optional - for monitoring)
@@ -749,10 +1082,13 @@ def start_health_server():
             pass
     
     try:
-        with socketserver.TCPServer(("", int(os.getenv('PORT', 8080))), HealthHandler) as httpd:
-            print(f"Health check server started on port {os.getenv('PORT', 8080)}")
+        port = int(os.getenv('PORT', 8080))
+        with socketserver.TCPServer(("", port), HealthHandler) as httpd:
+            logger.bot_event("Health server started", port=port)
+            print(f"Health check server started on port {port}")
             httpd.serve_forever()
     except Exception as e:
+        logger.error("Health server failed to start", error=str(e))
         print(f"Health server failed to start: {e}")
 
 # Run the bot
@@ -763,8 +1099,11 @@ if __name__ == '__main__':
     
     token = os.getenv('DISCORD_TOKEN')
     if not token:
+        logger.error("DISCORD_TOKEN environment variable is not set")
         print("❌ ERROR: DISCORD_TOKEN environment variable is not set!")
         print("Please set the DISCORD_TOKEN environment variable in Railway or your .env file")
         exit(1)
+    
+    logger.bot_event("Bot starting", has_token=bool(token))
     print("Starting Discord bot...")
     bot.run(token)
