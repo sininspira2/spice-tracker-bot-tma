@@ -491,7 +491,7 @@ async def setrate(interaction: discord.Interaction, sand_per_melange: int):
         return
     
     # Check admin permissions
-    if not interaction.guild or not check_admin_permission(interaction.user, interaction.guild):
+    if not interaction.guild or not check_admin_permission(interaction.user):
         logger.permission_denied("setrate", user_id, username, "Administrator")
         await interaction.response.send_message(
             "❌ You need Administrator permissions to use this command.",
@@ -955,7 +955,7 @@ async def resetstats(interaction: discord.Interaction, confirm: bool):
     )
     
     # Check admin permissions
-    if not interaction.guild or not check_admin_permission(interaction.user, interaction.guild):
+    if not interaction.guild or not check_admin_permission(interaction.user):
         logger.permission_denied("resetstats", user_id, username, "Administrator")
         await interaction.response.send_message(
             "❌ You need Administrator permissions to use this command.",

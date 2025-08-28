@@ -85,6 +85,8 @@ Your bot automatically deploys to Railway when you push working code to main bra
 |----------|-------------|----------|
 | `DISCORD_TOKEN` | Your Discord bot token | ✅ Yes |
 | `CLIENT_ID` | Discord application client ID | ✅ Yes |
+| `ADMIN_ROLE_IDS` | Comma-separated list of Discord role IDs for admin access | ❌ No |
+| `ALLOWED_ROLE_IDS` | Comma-separated list of Discord role IDs for basic bot access | ❌ No |
 | `PORT` | Health check server port | ❌ No (auto-assigned) |
 
 ### Troubleshooting
@@ -271,10 +273,51 @@ Default: 50 sand = 1 melange (changeable with `/setrate`)
 - Commands are rate-limited per user to prevent spam
 - Configurable cooldowns for different command types
 
+### Admin Role Configuration
+
+You can grant admin permissions to specific Discord roles by setting the `ADMIN_ROLE_IDS` environment variable:
+
+```env
+# Single admin role
+ADMIN_ROLE_IDS=123456789
+
+# Multiple admin roles (comma-separated)
+ADMIN_ROLE_IDS=123456789,987654321,555666777
+```
+
+**How it works:**
+- Users with these role IDs will have admin permissions
+- This works **in addition to** Discord administrator permissions
+- If no admin roles are configured, only Discord administrators can use admin commands
+- Role IDs can be found by enabling Developer Mode in Discord and right-clicking on roles
+
+**Admin commands include:**
+- `/setrate` - Modify sand to melange conversion rate
+- `/resetstats` - Reset all user statistics (use with caution)
+
+### Allowed Role Configuration
+
+You can restrict basic bot access to specific Discord roles by setting the `ALLOWED_ROLE_IDS` environment variable:
+
+```env
+# Single allowed role
+ALLOWED_ROLE_IDS=111222333
+
+# Multiple allowed roles (comma-separated)
+ALLOWED_ROLE_IDS=111222333,444555666,777888999
+```
+
+**How it works:**
+- Users with these role IDs can use basic bot commands
+- If no allowed roles are configured, **all users** can use the bot
+- This provides an additional layer of access control beyond Discord permissions
+- Useful for restricting bot usage to specific guild roles or membership tiers
+
 ## 🛡️ Security & Permissions
 
 - **Discord Permissions Integration** - Uses Discord's built-in permission system
-- **Admin Verification** - Commands like `/setrate` and `/resetstats` require Administrator permissions
+- **Admin Verification** - Commands like `/setrate` and `/resetstats` require Administrator permissions or admin roles
+- **Custom Admin Roles** - Configure specific Discord role IDs for admin access via environment variables
 - **Rate Limiting** - Per-user, per-command cooldowns stored in memory
 - **Input Sanitization** - Validates user inputs for type and range
 - **Environment Variables** - Sensitive data stored in `.env` file

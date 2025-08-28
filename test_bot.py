@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from database import Database
 from utils.rate_limiter import RateLimiter
-from utils.permissions import check_admin_permission
+from utils.permissions import check_admin_permission, check_admin_role_permission, get_admin_role_ids, get_allowed_role_ids, check_allowed_role_permission
 
 
 class TestDatabase(unittest.TestCase):
@@ -229,25 +229,147 @@ class TestRateLimiter(unittest.TestCase):
 
 
 class TestPermissions(unittest.TestCase):
-    """Test permission checking"""
+    """Test permission checking functionality"""
     
-    def test_admin_permission_check(self):
-        """Test admin permission checking"""
-        # Mock interaction with admin permissions
-        mock_user = Mock()
-        mock_guild = Mock()
-        mock_member = Mock()
-        mock_member.guild_permissions.administrator = True
-        mock_guild.get_member.return_value = mock_member
+    def setUp(self):
+        """Set up test mocks"""
+        # Mock user with roles and permissions
+        self.mock_user = Mock()
+        self.mock_user.id = 123456789
+        self.mock_user.roles = []
+        self.mock_user.guild_permissions = Mock()
         
-        result = check_admin_permission(mock_user, mock_guild)
+        # Mock guild
+        self.mock_guild = Mock()
+        self.mock_guild.owner_id = 987654321
+        
+        # Mock role
+        self.mock_role = Mock()
+        self.mock_role.id = 111222333
+        self.mock_role.name = "Admin Role"
+        
+        # Mock allowed role
+        self.mock_allowed_role = Mock()
+        self.mock_allowed_role.id = 444555666
+        self.mock_allowed_role.name = "Allowed Role"
+    
+    def test_admin_permission_with_discord_admin(self):
+        """Test admin permission check with Discord administrator"""
+        # Mock user with admin permissions
+        self.mock_user.guild_permissions.administrator = True
+        
+        result = check_admin_permission(self.mock_user)
         self.assertTrue(result)
         
-        # Mock interaction without admin permissions
-        mock_member.guild_permissions.administrator = False
+        # Mock user without admin permissions
+        self.mock_user.guild_permissions.administrator = False
         
-        result = check_admin_permission(mock_user, mock_guild)
+        result = check_admin_permission(self.mock_user)
         self.assertFalse(result)
+    
+    def test_admin_role_permission_with_environment_variable(self):
+        """Test admin role permission check with environment variable"""
+        # Test with no environment variable set
+        with patch.dict(os.environ, {}, clear=True):
+            role_ids = get_admin_role_ids()
+            self.assertEqual(role_ids, [])
+            
+            result = check_admin_role_permission(self.mock_user)
+            self.assertFalse(result)
+        
+        # Test with single role ID
+        with patch.dict(os.environ, {'ADMIN_ROLE_IDS': '111222333'}, clear=True):
+            role_ids = get_admin_role_ids()
+            self.assertEqual(role_ids, [111222333])
+            
+            # User has the admin role
+            self.mock_user.roles = [self.mock_role]
+            
+            result = check_admin_role_permission(self.mock_user)
+            self.assertTrue(result)
+        
+        # Test with multiple role IDs
+        with patch.dict(os.environ, {'ADMIN_ROLE_IDS': '111222333,777888999'}, clear=True):
+            role_ids = get_admin_role_ids()
+            self.assertEqual(role_ids, [111222333, 777888999])
+            
+            # User has one of the admin roles
+            self.mock_user.roles = [self.mock_role]
+            
+            result = check_admin_role_permission(self.mock_user)
+            self.assertTrue(result)
+        
+        # Test with invalid role IDs (should handle gracefully)
+        with patch.dict(os.environ, {'ADMIN_ROLE_IDS': 'invalid,not_a_number'}, clear=True):
+            role_ids = get_admin_role_ids()
+            self.assertEqual(role_ids, [])
+            
+            result = check_admin_role_permission(self.mock_user)
+            self.assertFalse(result)
+    
+    def test_admin_permission_with_admin_role(self):
+        """Test admin permission check with admin role (no Discord admin)"""
+        # User doesn't have Discord admin but has admin role
+        self.mock_user.guild_permissions.administrator = False
+        
+        with patch.dict(os.environ, {'ADMIN_ROLE_IDS': '111222333'}, clear=True):
+            # User has the admin role
+            self.mock_user.roles = [self.mock_role]
+            
+            result = check_admin_permission(self.mock_user)
+            self.assertTrue(result)
+    
+    def test_allowed_role_permission(self):
+        """Test allowed role permission check"""
+        # Test with no environment variable set (should allow all users)
+        with patch.dict(os.environ, {}, clear=True):
+            role_ids = get_allowed_role_ids()
+            self.assertEqual(role_ids, [])
+            
+            result = check_allowed_role_permission(self.mock_user)
+            self.assertTrue(result)
+        
+        # Test with single allowed role ID
+        with patch.dict(os.environ, {'ALLOWED_ROLE_IDS': '444555666'}, clear=True):
+            role_ids = get_allowed_role_ids()
+            self.assertEqual(role_ids, [444555666])
+            
+            # User has the allowed role
+            self.mock_user.roles = [self.mock_allowed_role]
+            
+            result = check_allowed_role_permission(self.mock_user)
+            self.assertTrue(result)
+            
+            # User doesn't have the allowed role
+            self.mock_user.roles = []
+            
+            result = check_allowed_role_permission(self.mock_user)
+            self.assertFalse(result)
+        
+        # Test with multiple allowed role IDs
+        with patch.dict(os.environ, {'ALLOWED_ROLE_IDS': '444555666,999000111'}, clear=True):
+            role_ids = get_allowed_role_ids()
+            self.assertEqual(role_ids, [444555666, 999000111])
+            
+            # User has one of the allowed roles
+            self.mock_user.roles = [self.mock_allowed_role]
+            
+            result = check_allowed_role_permission(self.mock_user)
+            self.assertTrue(result)
+    
+    def test_permission_level_with_admin_role(self):
+        """Test permission level detection with admin role"""
+        from utils.permissions import get_permission_level
+        
+        # User doesn't have Discord admin but has admin role
+        self.mock_user.guild_permissions.administrator = False
+        
+        with patch.dict(os.environ, {'ADMIN_ROLE_IDS': '111222333'}, clear=True):
+            # User has the admin role
+            self.mock_user.roles = [self.mock_role]
+            
+            level = get_permission_level(self.mock_user, self.mock_guild)
+            self.assertEqual(level, 'Admin Role')
 
 
 class TestBotLogic(unittest.TestCase):
