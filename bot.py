@@ -195,42 +195,64 @@ def register_commands():
 
 @bot.event
 async def on_ready():
-    if bot.user:
-        logger.bot_event("Bot started", bot_name=bot.user.name, bot_id=str(bot.user.id), guild_count=len(bot.guilds))
-        print(f'{bot.user.name}#{bot.user.discriminator} is online!')
-    else:
-        logger.bot_event("Bot started", bot_name="Unknown")
-        print('Bot is online!')
-    
-    # Initialize database
     try:
-        await database.initialize()
-        logger.bot_event("initialize", "database", True)
-        print('Database initialized successfully.')
+        if bot.user:
+            logger.bot_event(f"Bot started - {bot.user.name} ({bot.user.id}) in {len(bot.guilds)} guilds")
+            print(f'{bot.user.name}#{bot.user.discriminator} is online!')
+        else:
+            logger.bot_event("Bot started - Unknown")
+            print('Bot is online!')
         
-        # Clean up old deposits (older than 30 days)
+        print("🔄 Starting bot initialization...")
+        
+        # Initialize database
         try:
-            cleaned_count = await database.cleanup_old_deposits(30)
-            if cleaned_count > 0:
-                logger.bot_event("cleanup", "old_deposits", True, cleaned_count=cleaned_count)
-                print(f'Cleaned up {cleaned_count} old paid deposits.')
-        except Exception as cleanup_error:
-            logger.bot_event("cleanup", "old_deposits", False, error=str(cleanup_error))
-            print(f'Failed to clean up old deposits: {cleanup_error}')
+            print("🗄️ Initializing database...")
+            await database.initialize()
+            logger.bot_event("Database initialized successfully")
+            print('✅ Database initialized successfully.')
+            
+            # Clean up old deposits (older than 30 days)
+            try:
+                print("🧹 Cleaning up old deposits...")
+                cleaned_count = await database.cleanup_old_deposits(30)
+                if cleaned_count > 0:
+                    logger.bot_event(f"Cleaned up {cleaned_count} old paid deposits")
+                    print(f'✅ Cleaned up {cleaned_count} old paid deposits.')
+                else:
+                    print("✅ No old deposits to clean up.")
+            except Exception as cleanup_error:
+                logger.bot_event(f"Failed to clean up old deposits: {cleanup_error}")
+                print(f'⚠️ Failed to clean up old deposits: {cleanup_error}')
+                
+        except Exception as error:
+            logger.bot_event(f"Failed to initialize database: {error}")
+            print(f'❌ Failed to initialize database: {error}')
+            print(f'❌ Error type: {type(error).__name__}')
+            import traceback
+            print(f'❌ Full traceback: {traceback.format_exc()}')
+            return
+        
+        # Sync slash commands
+        try:
+            print("🔄 Syncing slash commands...")
+            synced = await bot.tree.sync()
+            logger.bot_event(f"Synced {len(synced)} commands")
+            print(f'✅ Synced {len(synced)} commands.')
+            print("🎉 Bot is fully ready!")
+        except Exception as error:
+            logger.bot_event(f"Command sync failed: {error}")
+            print(f'❌ Failed to sync commands: {error}')
+            print(f'❌ Error type: {type(error).__name__}')
+            import traceback
+            print(f'❌ Full traceback: {traceback.format_exc()}')
             
     except Exception as error:
-        logger.bot_event("initialize", "database", False, error=str(error))
-        print(f'Failed to initialize database: {error}')
-        return
-    
-    # Sync slash commands
-    try:
-        synced = await bot.tree.sync()
-        logger.bot_event("Commands synced", synced_count=len(synced))
-        print(f'Synced {len(synced)} commands.')
-    except Exception as error:
-        logger.bot_event("Command sync failed", error=str(error))
-        print(f'Failed to sync commands: {error}')
+        print(f'❌ CRITICAL ERROR in on_ready: {error}')
+        print(f'❌ Error type: {type(error).__name__}')
+        import traceback
+        print(f'❌ Full traceback: {traceback.format_exc()}')
+        logger.error(f"Critical error in on_ready: {error}")
 
 async def harvest(interaction: discord.Interaction, amount: int):
     """Log spice sand harvests and calculate melange conversion"""
@@ -677,11 +699,11 @@ def start_health_server():
     try:
         port = int(os.getenv('PORT', 8080))
         with socketserver.TCPServer(("", port), HealthHandler) as httpd:
-            logger.bot_event("Health server started", port=port)
+            logger.bot_event(f"Health server started on port {port}")
             print(f"Health check server started on port {port}")
             httpd.serve_forever()
     except Exception as e:
-        logger.error("Health server failed to start", error=str(e))
+        logger.error(f"Health server failed to start: {e}")
         print(f"Health server failed to start: {e}")
 
 # Run the bot
@@ -697,6 +719,6 @@ if __name__ == '__main__':
         print("Please set the DISCORD_TOKEN environment variable in Fly.io or your .env file")
         exit(1)
     
-    logger.bot_event("Bot starting", has_token=bool(token))
+    logger.bot_event(f"Bot starting - Token present: {bool(token)}")
     print("Starting Discord bot...")
     bot.run(token)
