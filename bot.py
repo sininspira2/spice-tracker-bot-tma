@@ -241,6 +241,15 @@ async def on_ready():
         # Sync slash commands
         try:
             print("🔄 Syncing slash commands...")
+            # Sync to guilds for immediate availability
+            for guild in bot.guilds:
+                try:
+                    guild_synced = await bot.tree.sync(guild=guild)
+                    print(f'✅ Synced {len(guild_synced)} commands to guild: {guild.name}')
+                except Exception as guild_error:
+                    print(f'⚠️ Failed to sync to guild {guild.name}: {guild_error}')
+            
+            # Sync globally (takes up to 1 hour to propagate)
             synced = await bot.tree.sync()
             logger.bot_event(f"Synced {len(synced)} commands")
             print(f'✅ Synced {len(synced)} commands.')
@@ -267,6 +276,9 @@ async def harvest(interaction: discord.Interaction, amount: int):
         return
     
     try:
+        # Defer the response to prevent interaction timeout
+        await interaction.response.defer(thinking=True)
+        
         # Get conversion rate and add deposit
         sand_per_melange = int(await database.get_setting('sand_per_melange') or 50)
         await database.add_deposit(str(interaction.user.id), interaction.user.display_name, amount)
@@ -296,15 +308,22 @@ async def harvest(interaction: discord.Interaction, amount: int):
         if new_melange > 0:
             embed.set_description(f"🎉 **You produced {new_melange:,} melange from this harvest!**")
         
-        await interaction.response.send_message(embed=embed.build())
+        await interaction.followup.send(embed=embed.build())
         
     except Exception as error:
         logger.error(f"Error in harvest command: {error}")
-        await interaction.response.send_message("❌ An error occurred while processing your harvest.", ephemeral=True)
+        try:
+            await interaction.followup.send("❌ An error occurred while processing your harvest.", ephemeral=True)
+        except:
+            # If followup fails, try to send a new message
+            await interaction.channel.send("❌ An error occurred while processing your harvest.")
 
 async def refinery(interaction: discord.Interaction):
     """Show your total sand and melange statistics"""
     try:
+        # Defer the response to prevent interaction timeout
+        await interaction.response.defer(thinking=True)
+        
         user = await database.get_user(str(interaction.user.id))
         total_sand = await database.get_user_total_sand(str(interaction.user.id))
         paid_sand = await database.get_user_paid_sand(str(interaction.user.id))
@@ -313,7 +332,7 @@ async def refinery(interaction: discord.Interaction):
             embed = (EmbedBuilder("🏭 Spice Refinery Status", color=0x95A5A6, timestamp=interaction.created_at)
                      .set_description("🏜️ You haven't harvested any spice sand yet! Use `/harvest` to start tracking your harvests.")
                      .set_footer(f"Requested by {interaction.user.display_name}", interaction.user.display_avatar.url))
-            await interaction.response.send_message(embed=embed.build(), ephemeral=True)
+            await interaction.followup.send(embed=embed.build(), ephemeral=True)
             return
         
         # Calculate progress
@@ -336,11 +355,14 @@ async def refinery(interaction: discord.Interaction):
                  .add_field("📅 Last Activity", f"<t:{int(user['last_updated'].timestamp()) if user else interaction.created_at.timestamp()}:F>", inline=False)
                  .set_footer(f"Spice Refinery • {interaction.user.display_name}", interaction.user.display_avatar.url))
         
-        await interaction.response.send_message(embed=embed.build())
+        await interaction.followup.send(embed=embed.build())
         
     except Exception as error:
         logger.error(f"Error in refinery command: {error}")
-        await interaction.response.send_message("❌ An error occurred while fetching your refinery status.", ephemeral=True)
+        try:
+            await interaction.followup.send("❌ An error occurred while fetching your refinery status.", ephemeral=True)
+        except:
+            await interaction.channel.send("❌ An error occurred while fetching your refinery status.")
 
 async def leaderboard(interaction: discord.Interaction, limit: int = 10):
     """Display top refiners by melange earned"""
