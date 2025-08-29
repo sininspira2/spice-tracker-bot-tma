@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 import os
 import time
+import datetime
 from dotenv import load_dotenv
 from database import Database
 from utils.embed_builder import EmbedBuilder
@@ -347,7 +348,7 @@ async def refinery(interaction: discord.Interaction):
         progress_bar = '▓' * filled_bars + '░' * (progress_bar_length - filled_bars)
         
         embed = (EmbedBuilder("🏭 Spice Refinery Status", color=0x3498DB, timestamp=interaction.created_at)
-                 .add_thumbnail(interaction.user.display_avatar.url)
+                 .set_thumbnail(interaction.user.display_avatar.url)
                  .add_field("🏜️ Harvest Summary", f"**Unpaid Harvest:** {total_sand:,}\n**Paid Harvest:** {paid_sand:,}")
                  .add_field("✨ Melange Production", f"**Total Melange:** {user['total_melange'] if user else 0:,}")
                  .add_field("⚙️ Refinement Rate", f"{sand_per_melange} sand = 1 melange")
@@ -590,7 +591,7 @@ async def ledger(interaction: discord.Interaction):
                 total_unpaid += deposit['sand_amount']
         
         embed = (EmbedBuilder("📋 Spice Harvest Ledger", description=ledger_text, color=0x3498DB, timestamp=interaction.created_at)
-                 .add_thumbnail(interaction.user.display_avatar.url)
+                 .set_thumbnail(interaction.user.display_avatar.url)
                  .add_field("💰 Payment Summary", f"**Unpaid Harvest:** {total_unpaid:,} sand\n**Paid Harvest:** {total_paid:,} sand\n**Total Harvests:** {len(deposits_data)}", inline=False)
                  .set_footer(f"Spice Refinery • {interaction.user.display_name}", interaction.user.display_avatar.url))
         
@@ -708,14 +709,29 @@ import socketserver
 import threading
 
 def start_health_server():
-    """Start a simple HTTP server for Fly.io health checks"""
+    """Start a robust HTTP server for Fly.io health checks with keep-alive"""
     class HealthHandler(http.server.BaseHTTPRequestHandler):
         def do_GET(self):
             if self.path == '/health':
                 self.send_response(200)
                 self.send_header('Content-type', 'text/plain')
+                self.send_header('Cache-Control', 'no-cache, no-store, must-revalidate')
+                self.send_header('Connection', 'keep-alive')
                 self.end_headers()
-                self.wfile.write(b'OK')
+                
+                # Return bot status information
+                status = {
+                    'status': 'healthy',
+                    'bot_ready': bot.is_ready(),
+                    'guild_count': len(bot.guilds),
+                    'timestamp': datetime.datetime.utcnow().isoformat()
+                }
+                self.wfile.write(str(status).encode())
+            elif self.path == '/ping':
+                self.send_response(200)
+                self.send_header('Content-type', 'text/plain')
+                self.end_headers()
+                self.wfile.write(b'pong')
             else:
                 self.send_response(404)
                 self.end_headers()
@@ -738,6 +754,21 @@ if __name__ == '__main__':
     # Start health check server in a separate thread for Fly.io
     health_thread = threading.Thread(target=start_health_server, daemon=True)
     health_thread.start()
+    
+    # Start a keep-alive thread to prevent machine from going idle
+    def keep_alive():
+        """Send periodic pings to keep the machine alive"""
+        import requests
+        import time
+        while True:
+            try:
+                time.sleep(300)  # Every 5 minutes
+                requests.get('http://localhost:8080/ping', timeout=5)
+            except:
+                pass  # Ignore errors, just keep trying
+    
+    keep_alive_thread = threading.Thread(target=keep_alive, daemon=True)
+    keep_alive_thread.start()
     
     token = os.getenv('DISCORD_TOKEN')
     if not token:
