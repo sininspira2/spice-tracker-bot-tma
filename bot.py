@@ -100,10 +100,36 @@ def register_commands():
         # Create a closure to capture the current command_data
         def create_command_wrapper(cmd_data):
             if 'params' in cmd_data:
-                # Command with parameters
-                @bot.tree.command(name=command_name, description=cmd_data['description'])
-                async def wrapper(interaction: discord.Interaction, **kwargs: any):
-                    await cmd_data['function'](interaction, **kwargs)
+                # Command with parameters - we need to create specific parameter types
+                if command_name == 'harvest':
+                    @bot.tree.command(name=command_name, description=cmd_data['description'])
+                    async def wrapper(interaction: discord.Interaction, amount: int):
+                        await cmd_data['function'](interaction, amount)
+                elif command_name == 'leaderboard':
+                    @bot.tree.command(name=command_name, description=cmd_data['description'])
+                    async def wrapper(interaction: discord.Interaction, limit: int = 10):
+                        await cmd_data['function'](interaction, limit)
+                elif command_name == 'conversion':
+                    @bot.tree.command(name=command_name, description=cmd_data['description'])
+                    async def wrapper(interaction: discord.Interaction, sand_per_melange: int):
+                        await cmd_data['function'](interaction, sand_per_melange)
+                elif command_name == 'split':
+                    @bot.tree.command(name=command_name, description=cmd_data['description'])
+                    async def wrapper(interaction: discord.Interaction, total_sand: int, participants: int, harvester_percentage: float = None):
+                        await cmd_data['function'](interaction, total_sand, participants, harvester_percentage)
+                elif command_name == 'reset':
+                    @bot.tree.command(name=command_name, description=cmd_data['description'])
+                    async def wrapper(interaction: discord.Interaction, confirm: bool):
+                        await cmd_data['function'](interaction, confirm)
+                elif command_name == 'payment':
+                    @bot.tree.command(name=command_name, description=cmd_data['description'])
+                    async def wrapper(interaction: discord.Interaction, user: discord.Member):
+                        await cmd_data['function'](interaction, user)
+                else:
+                    # Generic fallback for other commands
+                    @bot.tree.command(name=command_name, description=cmd_data['description'])
+                    async def wrapper(interaction: discord.Interaction):
+                        await cmd_data['function'](interaction)
                 
                 # Add parameter descriptions
                 for param_name, param_desc in cmd_data['params'].items():
@@ -123,10 +149,36 @@ def register_commands():
         for alias in command_data['aliases']:
             def create_alias_wrapper(cmd_data, alias_name):
                 if 'params' in cmd_data:
-                    # Alias with parameters
-                    @bot.tree.command(name=alias_name, description=cmd_data['description'])
-                    async def wrapper(interaction: discord.Interaction, **kwargs: any):
-                        await cmd_data['function'](interaction, **kwargs)
+                    # Alias with parameters - we need to create specific parameter types
+                    if 'amount' in cmd_data['params']:  # harvest/sand
+                        @bot.tree.command(name=alias_name, description=cmd_data['description'])
+                        async def wrapper(interaction: discord.Interaction, amount: int):
+                            await cmd_data['function'](interaction, amount)
+                    elif 'limit' in cmd_data['params']:  # leaderboard/top
+                        @bot.tree.command(name=alias_name, description=cmd_data['description'])
+                        async def wrapper(interaction: discord.Interaction, limit: int = 10):
+                            await cmd_data['function'](interaction, limit)
+                    elif 'sand_per_melange' in cmd_data['params']:  # conversion/rate
+                        @bot.tree.command(name=alias_name, description=cmd_data['description'])
+                        async def wrapper(interaction: discord.Interaction, sand_per_melange: int):
+                            await cmd_data['function'](interaction, sand_per_melange)
+                    elif 'total_sand' in cmd_data['params']:  # split
+                        @bot.tree.command(name=alias_name, description=cmd_data['description'])
+                        async def wrapper(interaction: discord.Interaction, total_sand: int, participants: int, harvester_percentage: float = None):
+                            await cmd_data['function'](interaction, total_sand, participants, harvester_percentage)
+                    elif 'confirm' in cmd_data['params']:  # reset
+                        @bot.tree.command(name=alias_name, description=cmd_data['description'])
+                        async def wrapper(interaction: discord.Interaction, confirm: bool):
+                            await cmd_data['function'](interaction, confirm)
+                    elif 'user' in cmd_data['params']:  # payment/pay
+                        @bot.tree.command(name=alias_name, description=cmd_data['description'])
+                        async def wrapper(interaction: discord.Interaction, user: discord.Member):
+                            await cmd_data['function'](interaction, user)
+                    else:
+                        # Generic fallback for other commands
+                        @bot.tree.command(name=alias_name, description=cmd_data['description'])
+                        async def wrapper(interaction: discord.Interaction):
+                            await cmd_data['function'](interaction)
                     
                     # Add parameter descriptions
                     for param_name, param_desc in cmd_data['params'].items():
