@@ -23,49 +23,112 @@ database = Database()
 def register_commands():
     """Register all decorated commands with the bot's command tree"""
     
-    # spicesolo command
-    @bot.tree.command(name="spicesolo", description="Log sand deposits and calculate melange conversion")
-    @discord.app_commands.describe(amount="Amount of sand to deposit")
-    async def spicesolo_cmd(interaction: discord.Interaction, amount: int):
-        await spicesolo(interaction, amount)
+    # Command definitions with aliases
+    # Structure: 'command_name': {
+    #     'aliases': ['alias1', 'alias2'],  # List of alternative names
+    #     'description': "Command description",
+    #     'params': {'param_name': "Parameter description"},  # Optional - only if command has parameters
+    #     'function': function_name  # The actual function to call
+    # }
+    commands = {
+        'harvest': {
+            'aliases': ['sand'],
+            'description': "Log spice sand harvests and calculate melange conversion",
+            'params': {'amount': "Amount of spice sand harvested"},
+            'function': harvest
+        },
+        'refinery': {
+            'aliases': ['status'],
+            'description': "View your spice refinery statistics and progress",
+            'function': refinery
+        },
+        'leaderboard': {
+            'aliases': ['top'],
+            'description': "Display top spice refiners by melange production",
+            'params': {'limit': "Number of top refiners to display (default: 10)"},
+            'function': leaderboard
+        },
+        'conversion': {
+            'aliases': ['rate'],
+            'description': "Set the spice sand to melange conversion rate (Admin only)",
+            'params': {'sand_per_melange': "Amount of spice sand required for 1 melange"},
+            'function': conversion
+        },
+        'split': {
+            'aliases': [],
+            'description': "Split harvested spice sand among expedition members",
+            'params': {
+                'total_sand': "Total spice sand collected to split",
+                'participants': "Number of expedition members participating",
+                'harvester_percentage': "Percentage for primary harvester (default: uses environment variable)"
+            },
+            'function': split
+        },
+        'help': {
+            'aliases': ['commands'],
+            'description': "Show all available spice tracking commands",
+            'function': help_command
+        },
+        'reset': {
+            'aliases': [],
+            'description': "Reset all spice refinery statistics (Admin only - USE WITH CAUTION)",
+            'params': {'confirm': "Confirm that you want to delete all refinery data"},
+            'function': reset
+        },
+        'ledger': {
+            'aliases': ['deposits'],
+            'description': "View your complete spice harvest ledger",
+            'function': ledger
+        },
+        'payment': {
+            'aliases': ['pay'],
+            'description': "Process payment for a harvester's deposits (Admin only)",
+            'params': {'user': "Harvester to pay"},
+            'function': payment
+        },
+        'payroll': {
+            'aliases': ['payall'],
+            'description': "Process payments for all unpaid harvesters (Admin only)",
+            'function': payroll
+        }
+    }
     
-    # myrefines command
-    @bot.tree.command(name="myrefines", description="Show your total sand and melange statistics")
-    async def myrefines_cmd(interaction: discord.Interaction):
-        await myrefines(interaction)
-    
-    # leaderboard command
-    @bot.tree.command(name="leaderboard", description="Display top refiners by melange earned")
-    @discord.app_commands.describe(limit="Number of top users to display (default: 10)")
-    async def leaderboard_cmd(interaction: discord.Interaction, limit: int = 10):
-        await leaderboard(interaction, limit)
-    
-    # setrate command
-    @bot.tree.command(name="setrate", description="Set the sand to melange conversion rate (Admin only)")
-    @discord.app_commands.describe(sand_per_melange="Amount of sand required for 1 melange")
-    async def setrate_cmd(interaction: discord.Interaction, sand_per_melange: int):
-        await setrate(interaction, sand_per_melange)
-    
-    # spicesplit command
-    @bot.tree.command(name="spicesplit", description="Split spice sand among team members")
-    @discord.app_commands.describe(
-        total_sand="Total spice sand collected to split",
-        participants="Number of team members participating",
-        harvester_percentage="Percentage for harvester (default: uses environment variable)"
-    )
-    async def spicesplit_cmd(interaction: discord.Interaction, total_sand: int, participants: int, harvester_percentage: float = None):
-        await spicesplit(interaction, total_sand, participants, harvester_percentage)
-    
-    # help command
-    @bot.tree.command(name="help", description="Show all available commands and their descriptions")
-    async def help_cmd(interaction: discord.Interaction):
-        await help_command(interaction)
-    
-    # resetstats command
-    @bot.tree.command(name="resetstats", description="Reset all user statistics (Admin only - USE WITH CAUTION)")
-    @discord.app_commands.describe(confirm="Confirm that you want to delete all user data")
-    async def resetstats_cmd(interaction: discord.Interaction, confirm: bool):
-        await resetstats(interaction, confirm)
+    # Register all commands and their aliases
+    # This loop automatically creates slash commands for both main names and aliases
+    # Each command points to the same underlying function, so behavior is identical
+    for command_name, command_data in commands.items():
+        # Register main command
+        if 'params' in command_data:
+            # Command with parameters
+            @bot.tree.command(name=command_name, description=command_data['description'])
+            async def cmd_wrapper(interaction: discord.Interaction, **kwargs):
+                await command_data['function'](interaction, **kwargs)
+            
+            # Add parameter descriptions
+            for param_name, param_desc in command_data['params'].items():
+                cmd_wrapper = discord.app_commands.describe(**{param_name: param_desc})(cmd_wrapper)
+        else:
+            # Command without parameters
+            @bot.tree.command(name=command_name, description=command_data['description'])
+            async def cmd_wrapper(interaction: discord.Interaction):
+                await command_data['function'](interaction)
+        
+        # Register aliases
+        for alias in command_data['aliases']:
+            if 'params' in command_data:
+                # Alias with parameters
+                @bot.tree.command(name=alias, description=command_data['description'])
+                async def alias_wrapper(interaction: discord.Interaction, **kwargs):
+                    await command_data['function'](interaction, **kwargs)
+                
+                # Add parameter descriptions
+                for param_name, param_desc in command_data['params'].items():
+                    alias_wrapper = discord.app_commands.describe(**{param_name: param_desc})(alias_wrapper)
+            else:
+                # Alias without parameters
+                @bot.tree.command(name=alias, description=command_data['description'])
+                async def alias_wrapper(interaction: discord.Interaction):
+                    await command_data['function'](interaction)
 
 @bot.event
 async def on_ready():
@@ -81,6 +144,17 @@ async def on_ready():
         await database.initialize()
         logger.bot_event("initialize", "database", True)
         print('Database initialized successfully.')
+        
+        # Clean up old deposits (older than 30 days)
+        try:
+            cleaned_count = await database.cleanup_old_deposits(30)
+            if cleaned_count > 0:
+                logger.bot_event("cleanup", "old_deposits", True, cleaned_count=cleaned_count)
+                print(f'Cleaned up {cleaned_count} old paid deposits.')
+        except Exception as cleanup_error:
+            logger.bot_event("cleanup", "old_deposits", False, error=str(cleanup_error))
+            print(f'Failed to clean up old deposits: {cleanup_error}')
+            
     except Exception as error:
         logger.bot_event("initialize", "database", False, error=str(error))
         print(f'Failed to initialize database: {error}')
@@ -95,21 +169,24 @@ async def on_ready():
         logger.bot_event("Command sync failed", error=str(error))
         print(f'Failed to sync commands: {error}')
 
-async def spicesolo(interaction: discord.Interaction, amount: int):
-    """Log sand deposits and calculate melange conversion"""
+async def harvest(interaction: discord.Interaction, amount: int):
+    """Log spice sand harvests and calculate melange conversion"""
     # Validate amount
     if not 1 <= amount <= 10000:
-        await interaction.response.send_message("❌ Amount must be between 1 and 10,000 sand.", ephemeral=True)
+        await interaction.response.send_message("❌ Amount must be between 1 and 10,000 spice sand.", ephemeral=True)
         return
     
     try:
-        # Get conversion rate and update user
+        # Get conversion rate and add deposit
         sand_per_melange = int(await database.get_setting('sand_per_melange') or 50)
-        await database.upsert_user(str(interaction.user.id), interaction.user.display_name, amount)
+        await database.add_deposit(str(interaction.user.id), interaction.user.display_name, amount)
+        
+        # Get user data and calculate totals
         user = await database.get_user(str(interaction.user.id))
+        total_sand = await database.get_user_total_sand(str(interaction.user.id))
         
         # Calculate melange conversion
-        total_melange_earned = user['total_sand'] // sand_per_melange
+        total_melange_earned = total_sand // sand_per_melange
         current_melange = user['total_melange'] or 0
         new_melange = total_melange_earned - current_melange
         
@@ -117,61 +194,63 @@ async def spicesolo(interaction: discord.Interaction, amount: int):
             await database.update_user_melange(str(interaction.user.id), new_melange)
         
         # Build response
-        remaining_sand = user['total_sand'] % sand_per_melange
+        remaining_sand = total_sand % sand_per_melange
         sand_needed = sand_per_melange - remaining_sand
         
-        embed = (EmbedBuilder("🏜️ Sand Deposit Logged", color=0xE67E22, timestamp=interaction.created_at)
-                 .add_field("📊 Deposit Summary", f"**Sand Deposited:** {amount:,}\n**Total Sand:** {user['total_sand']:,}")
-                 .add_field("✨ Melange Status", f"**Total Melange:** {(current_melange + new_melange):,}\n**Conversion Rate:** {sand_per_melange} sand = 1 melange")
-                 .add_field("🎯 Next Conversion", f"**Sand Until Next Melange:** {sand_needed:,}", inline=False)
-                 .set_footer(f"Requested by {interaction.user.display_name}", interaction.user.display_avatar.url))
+        embed = (EmbedBuilder("🏜️ Spice Harvest Logged", color=0xE67E22, timestamp=interaction.created_at)
+                 .add_field("📊 Harvest Summary", f"**Spice Sand Harvested:** {amount:,}\n**Total Unpaid Harvest:** {total_sand:,}")
+                 .add_field("✨ Melange Production", f"**Total Melange:** {(current_melange + new_melange):,}\n**Conversion Rate:** {sand_per_melange} sand = 1 melange")
+                 .add_field("🎯 Next Refinement", f"**Sand Until Next Melange:** {sand_needed:,}", inline=False)
+                 .set_footer(f"Harvested by {interaction.user.display_name}", interaction.user.display_avatar.url))
         
         if new_melange > 0:
-            embed.set_description(f"🎉 **You earned {new_melange:,} melange from this deposit!**")
+            embed.set_description(f"🎉 **You produced {new_melange:,} melange from this harvest!**")
         
         await interaction.response.send_message(embed=embed.build())
         
     except Exception as error:
-        logger.error(f"Error in spicesolo command: {error}")
-        await interaction.response.send_message("❌ An error occurred while processing your request.", ephemeral=True)
+        logger.error(f"Error in harvest command: {error}")
+        await interaction.response.send_message("❌ An error occurred while processing your harvest.", ephemeral=True)
 
-async def myrefines(interaction: discord.Interaction):
+async def refinery(interaction: discord.Interaction):
     """Show your total sand and melange statistics"""
     try:
         user = await database.get_user(str(interaction.user.id))
+        total_sand = await database.get_user_total_sand(str(interaction.user.id))
+        paid_sand = await database.get_user_paid_sand(str(interaction.user.id))
         
-        if not user:
-            embed = (EmbedBuilder("📊 Your Refining Statistics", color=0x95A5A6, timestamp=interaction.created_at)
-                     .set_description("🏜️ You haven't deposited any sand yet! Use `/spicesolo` to start tracking your deposits.")
+        if not user and total_sand == 0:
+            embed = (EmbedBuilder("🏭 Spice Refinery Status", color=0x95A5A6, timestamp=interaction.created_at)
+                     .set_description("🏜️ You haven't harvested any spice sand yet! Use `/harvest` to start tracking your harvests.")
                      .set_footer(f"Requested by {interaction.user.display_name}", interaction.user.display_avatar.url))
             await interaction.response.send_message(embed=embed.build(), ephemeral=True)
             return
         
         # Calculate progress
         sand_per_melange = int(await database.get_setting('sand_per_melange') or 50)
-        remaining_sand = user['total_sand'] % sand_per_melange
-        sand_needed = sand_per_melange - remaining_sand
-        progress_percent = int((remaining_sand / sand_per_melange) * 100)
+        remaining_sand = total_sand % sand_per_melange
+        sand_needed = sand_per_melange - remaining_sand if total_sand > 0 else sand_per_melange
+        progress_percent = int((remaining_sand / sand_per_melange) * 100) if total_sand > 0 else 0
         
         # Create progress bar
         progress_bar_length = 10
-        filled_bars = int((remaining_sand / sand_per_melange) * progress_bar_length)
+        filled_bars = int((remaining_sand / sand_per_melange) * progress_bar_length) if total_sand > 0 else 0
         progress_bar = '▓' * filled_bars + '░' * (progress_bar_length - filled_bars)
         
-        embed = (EmbedBuilder("📊 Your Refining Statistics", color=0x3498DB, timestamp=interaction.created_at)
-                 .set_thumbnail(interaction.user.display_avatar.url)
-                 .add_field("🏜️ Sand Deposits", f"**Total Sand:** {user['total_sand']:,}")
-                 .add_field("✨ Melange Refined", f"**Total Melange:** {user['total_melange']:,}")
-                 .add_field("⚙️ Conversion Rate", f"{sand_per_melange} sand = 1 melange")
-                 .add_field("🎯 Progress to Next Melange", f"{progress_bar} {progress_percent}%\n**Sand Needed:** {sand_needed:,}", inline=False)
-                 .add_field("📅 Last Activity", f"<t:{int(user['last_updated'].timestamp())}:F>", inline=False)
-                 .set_footer(f"Spice Tracker • {interaction.user.display_name}", interaction.user.display_avatar.url))
+        embed = (EmbedBuilder("🏭 Spice Refinery Status", color=0x3498DB, timestamp=interaction.created_at)
+                 .add_thumbnail(interaction.user.display_avatar.url)
+                 .add_field("🏜️ Harvest Summary", f"**Unpaid Harvest:** {total_sand:,}\n**Paid Harvest:** {paid_sand:,}")
+                 .add_field("✨ Melange Production", f"**Total Melange:** {user['total_melange'] if user else 0:,}")
+                 .add_field("⚙️ Refinement Rate", f"{sand_per_melange} sand = 1 melange")
+                 .add_field("🎯 Refinement Progress", f"{progress_bar} {progress_percent}%\n**Sand Needed:** {sand_needed:,}", inline=False)
+                 .add_field("📅 Last Activity", f"<t:{int(user['last_updated'].timestamp()) if user else interaction.created_at.timestamp()}:F>", inline=False)
+                 .set_footer(f"Spice Refinery • {interaction.user.display_name}", interaction.user.display_avatar.url))
         
         await interaction.response.send_message(embed=embed.build())
         
     except Exception as error:
-        logger.error(f"Error in myrefines command: {error}")
-        await interaction.response.send_message("❌ An error occurred while fetching your statistics.", ephemeral=True)
+        logger.error(f"Error in refinery command: {error}")
+        await interaction.response.send_message("❌ An error occurred while fetching your refinery status.", ephemeral=True)
 
 async def leaderboard(interaction: discord.Interaction, limit: int = 10):
     """Display top refiners by melange earned"""
@@ -184,8 +263,8 @@ async def leaderboard(interaction: discord.Interaction, limit: int = 10):
         leaderboard_data = await database.get_leaderboard(limit)
         
         if not leaderboard_data:
-            embed = EmbedBuilder("🏆 Melange Refining Leaderboard", color=0x95A5A6, timestamp=interaction.created_at)
-            embed.set_description("🏜️ No refiners found yet! Be the first to start depositing sand with `/spicesolo`.")
+            embed = EmbedBuilder("🏆 Spice Refinery Rankings", color=0x95A5A6, timestamp=interaction.created_at)
+            embed.set_description("🏜️ No refiners found yet! Be the first to start harvesting spice sand with `/harvest`.")
             await interaction.response.send_message(embed=embed.build())
             return
         
@@ -205,9 +284,9 @@ async def leaderboard(interaction: discord.Interaction, limit: int = 10):
         total_melange = sum(user['total_melange'] for user in leaderboard_data)
         total_sand = sum(user['total_sand'] for user in leaderboard_data)
         
-        embed = (EmbedBuilder("🏆 Melange Refining Leaderboard", description=leaderboard_text, color=0xF39C12, timestamp=interaction.created_at)
-                 .add_field("📊 Community Stats", f"**Total Refiners:** {len(leaderboard_data)}\n**Total Melange:** {total_melange:,}\n**Total Sand:** {total_sand:,}")
-                 .add_field("⚙️ Current Rate", f"{sand_per_melange} sand = 1 melange")
+        embed = (EmbedBuilder("🏆 Spice Refinery Rankings", description=leaderboard_text, color=0xF39C12, timestamp=interaction.created_at)
+                 .add_field("📊 Guild Statistics", f"**Total Refiners:** {len(leaderboard_data)}\n**Total Melange:** {total_melange:,}\n**Total Harvest:** {total_sand:,}")
+                 .add_field("⚙️ Refinement Rate", f"{sand_per_melange} sand = 1 melange")
                  .set_footer(f"Showing top {len(leaderboard_data)} refiners • Updated", bot.user.display_avatar.url if bot.user else None))
         
         await interaction.response.send_message(embed=embed.build())
@@ -216,8 +295,8 @@ async def leaderboard(interaction: discord.Interaction, limit: int = 10):
         logger.error(f"Error in leaderboard command: {error}")
         await interaction.response.send_message("❌ An error occurred while fetching the leaderboard.", ephemeral=True)
 
-async def setrate(interaction: discord.Interaction, sand_per_melange: int):
-    """Set the sand to melange conversion rate (Admin only)"""
+async def conversion(interaction: discord.Interaction, sand_per_melange: int):
+    """Set the spice sand to melange conversion rate (Admin only)"""
     try:
         # Check if user has admin permissions
         if not interaction.user.guild_permissions.administrator:
@@ -233,20 +312,20 @@ async def setrate(interaction: discord.Interaction, sand_per_melange: int):
         current_rate = int(await database.get_setting('sand_per_melange') or 50)
         await database.set_setting('sand_per_melange', str(sand_per_melange))
         
-        embed = (EmbedBuilder("⚙️ Conversion Rate Updated", color=0x27AE60, timestamp=interaction.created_at)
+        embed = (EmbedBuilder("⚙️ Refinement Rate Updated", color=0x27AE60, timestamp=interaction.created_at)
                  .add_field("📊 Rate Change", f"**Previous Rate:** {current_rate} sand = 1 melange\n**New Rate:** {sand_per_melange} sand = 1 melange", inline=False)
-                 .add_field("⚠️ Important Note", "This change affects future calculations only. Existing user stats remain unchanged.", inline=False)
+                 .add_field("⚠️ Important Note", "This change affects future calculations only. Existing refinery data remains unchanged.", inline=False)
                  .set_footer(f"Changed by {interaction.user.display_name}", interaction.user.display_avatar.url))
         
         await interaction.response.send_message(embed=embed.build())
-        print(f'Conversion rate changed from {current_rate} to {sand_per_melange} by {interaction.user.display_name} ({interaction.user.id})')
+        print(f'Refinement rate changed from {current_rate} to {sand_per_melange} by {interaction.user.display_name} ({interaction.user.id})')
         
     except Exception as error:
-        logger.error(f"Error in setrate command: {error}")
-        await interaction.response.send_message("❌ An error occurred while updating the conversion rate.", ephemeral=True)
+        logger.error(f"Error in conversion command: {error}")
+        await interaction.response.send_message("❌ An error occurred while updating the refinement rate.", ephemeral=True)
 
-async def spicesplit(interaction: discord.Interaction, total_sand: int, participants: int, harvester_percentage: float = None):
-    """Split spice sand among team members"""
+async def split(interaction: discord.Interaction, total_sand: int, participants: int, harvester_percentage: float = None):
+    """Split harvested spice sand among expedition members"""
     try:
         # Use environment variable if no harvester_percentage provided
         if harvester_percentage is None:
@@ -254,13 +333,13 @@ async def spicesplit(interaction: discord.Interaction, total_sand: int, particip
         
         # Validate inputs
         if total_sand < 1:
-            await interaction.response.send_message("❌ Total sand must be at least 1.", ephemeral=True)
+            await interaction.response.send_message("❌ Total spice sand must be at least 1.", ephemeral=True)
             return
         if participants < 1:
-            await interaction.response.send_message("❌ Number of participants must be at least 1.", ephemeral=True)
+            await interaction.response.send_message("❌ Number of expedition members must be at least 1.", ephemeral=True)
             return
         if not 0 <= harvester_percentage <= 100:
-            await interaction.response.send_message("❌ Harvester percentage must be between 0 and 100.", ephemeral=True)
+            await interaction.response.send_message("❌ Primary harvester percentage must be between 0 and 100.", ephemeral=True)
             return
         
         # Calculate splits
@@ -278,45 +357,60 @@ async def spicesplit(interaction: discord.Interaction, total_sand: int, particip
         total_distributed = sand_per_participant * participants
         remainder_sand = remaining_sand - total_distributed
         
-        embed = (EmbedBuilder("🏜️ Spice Split Operation", 
-                              description=f"**Total Sand:** {total_sand:,}\n**Participants:** {participants}\n**Harvester Cut:** {harvester_percentage}%",
+        embed = (EmbedBuilder("🏜️ Expedition Split Operation", 
+                              description=f"**Total Spice Sand:** {total_sand:,}\n**Expedition Members:** {participants}\n**Primary Harvester Cut:** {harvester_percentage}%",
                               color=0xF39C12, timestamp=interaction.created_at)
-                 .add_field("🏭 Harvester Share", f"**Sand:** {harvester_sand:,}\n**Melange:** {harvester_melange:,}\n**Leftover Sand:** {harvester_leftover_sand:,}")
-                 .add_field("👥 Each Team Member Gets", f"**Sand:** {sand_per_participant:,}\n**Melange:** {melange_per_participant:,}\n**Leftover Sand:** {leftover_sand_per_participant:,}")
-                 .add_field("📊 Split Summary", f"**Team Pool:** {remaining_sand:,} sand\n**Total Distributed:** {total_distributed:,} sand\n**Remainder:** {remainder_sand:,} sand", inline=False)
-                 .set_footer(f"Split initiated by {interaction.user.display_name} • Conversion: {sand_per_melange} sand = 1 melange", interaction.user.display_avatar.url))
+                 .add_field("🏭 Primary Harvester Share", f"**Sand:** {harvester_sand:,}\n**Melange:** {harvester_melange:,}\n**Leftover Sand:** {harvester_leftover_sand:,}")
+                 .add_field("👥 Each Expedition Member Gets", f"**Sand:** {sand_per_participant:,}\n**Melange:** {melange_per_participant:,}\n**Leftover Sand:** {leftover_sand_per_participant:,}")
+                 .add_field("📊 Split Summary", f"**Expedition Pool:** {remaining_sand:,} sand\n**Total Distributed:** {total_distributed:,} sand\n**Remainder:** {remainder_sand:,} sand", inline=False)
+                 .set_footer(f"Split initiated by {interaction.user.display_name} • Refinement: {sand_per_melange} sand = 1 melange", interaction.user.display_avatar.url))
         
         await interaction.response.send_message(embed=embed.build())
         
     except Exception as error:
-        logger.error(f"Error in spicesplit command: {error}")
-        await interaction.response.send_message("❌ An error occurred while calculating the split.", ephemeral=True)
+        logger.error(f"Error in split command: {error}")
+        await interaction.response.send_message("❌ An error occurred while calculating the expedition split.", ephemeral=True)
 
 async def help_command(interaction: discord.Interaction):
     """Show all available commands and their descriptions"""
     try:
         sand_per_melange = int(await database.get_setting('sand_per_melange') or 50)
         
-        embed = (EmbedBuilder("🏜️ Spice Tracker Commands", 
-                              description="Track your sand deposits and melange refining progress!",
+        embed = (EmbedBuilder("🏜️ Spice Refinery Commands", 
+                              description="Track your spice sand harvests and melange production in the Dune: Awakening universe!",
                               color=0xF39C12, timestamp=interaction.created_at)
-                 .add_field("📊 User Commands", 
-                           "**`/spicesolo [amount]`**\nLog sand deposits (1-10,000). Automatically converts to melange.\n\n"
-                           "**`/myrefines`**\nView your total sand, melange, and progress to next conversion.\n\n"
-                           "**`/leaderboard [limit]`**\nShow top refiners by melange earned (5-25 users).\n\n"
-                           "**`/spicesplit [total_sand] [harvester_%]`**\nSplit spice among team members. Harvester % is optional (uses default if not specified).\n\n"
+                 .add_field("📊 Harvester Commands", 
+                           "**`/harvest [amount]`**\nLog spice sand harvests (1-10,000). Automatically converts to melange.\n\n"
+                           "**`/refinery`**\nView your refinery statistics and melange production progress.\n\n"
+                           "**`/ledger`**\nView your complete harvest ledger with payment status.\n\n"
+                           "**`/leaderboard [limit]`**\nShow top refiners by melange production (5-25 users).\n\n"
+                           "**`/split [total_sand] [harvester_%]`**\nSplit harvested spice among expedition members. Harvester % is optional.\n\n"
                            "**`/help`**\nDisplay this help message with all commands.", inline=False)
-                 .add_field("⚙️ Admin Commands", 
-                           "**`/setrate [sand_per_melange]`**\nChange conversion rate (1-1,000 sand per melange).\n\n"
-                           "**`/resetstats confirm:True`**\nReset all user statistics (requires confirmation).", inline=False)
-                 .add_field("📋 Current Settings", f"**Conversion Rate:** {sand_per_melange} sand = 1 melange\n**Default Harvester %:** {os.getenv('DEFAULT_HARVESTER_PERCENTAGE', '25.0')}%", inline=False)
+                 .add_field("⚙️ Guild Admin Commands", 
+                           "**`/conversion [sand_per_melange]`**\nSet refinement rate (1-1,000 sand per melange).\n\n"
+                           "**`/payment [user]`**\nProcess payment for a harvester's deposits.\n\n"
+                           "**`/payroll`**\nProcess payments for all unpaid harvesters.\n\n"
+                           "**`/reset confirm:True`**\nReset all refinery statistics (requires confirmation).", inline=False)
+                 .add_field("📋 Current Settings", f"**Refinement Rate:** {sand_per_melange} sand = 1 melange\n**Default Harvester %:** {os.getenv('DEFAULT_HARVESTER_PERCENTAGE', '25.0')}%", inline=False)
                  .add_field("💡 Example Usage", 
-                           "• `/spicesolo 250` - Deposit 250 sand\n"
-                           "• `/myrefines` - Check your stats\n"
-                           "• `/leaderboard 15` - Show top 15 refiners\n"
-                           "• `/spicesplit 1000 30` - Split 1000 sand, 30% to harvester\n"
-                           "• `/spicesplit 1000` - Split 1000 sand using default harvester %", inline=False)
-                 .set_footer("Spice Tracker Bot - Dune-themed resource tracking", bot.user.display_avatar.url if bot.user else None))
+                           "• `/harvest 250` or `/sand 250` - Harvest 250 spice sand\n"
+                           "• `/refinery` or `/status` - Check your refinery status\n"
+                           "• `/ledger` or `/deposits` - View your harvest ledger\n"
+                           "• `/leaderboard 15` or `/top 15` - Show top 15 refiners\n"
+                           "• `/payment @username` or `/pay @username` - Pay a specific harvester\n"
+                           "• `/payroll` or `/payall` - Pay all harvesters at once\n"
+                           "• `/split 1000 30` - Split 1000 sand, 30% to primary harvester\n"
+                           "• `/split 1000` - Split 1000 sand using default harvester %", inline=False)
+                 .add_field("🔄 Command Aliases", 
+                           "**Harvest:** `/harvest` = `/sand`\n"
+                           "**Status:** `/refinery` = `/status`\n"
+                           "**Ledger:** `/ledger` = `/deposits`\n"
+                           "**Leaderboard:** `/leaderboard` = `/top`\n"
+                           "**Help:** `/help` = `/commands`\n"
+                           "**Conversion:** `/conversion` = `/rate`\n"
+                           "**Payment:** `/payment` = `/pay`\n"
+                           "**Payroll:** `/payroll` = `/payall`", inline=False)
+                 .set_footer("Spice Refinery Bot - Dune: Awakening Guild Resource Tracker", bot.user.display_avatar.url if bot.user else None))
         
         await interaction.response.send_message(embed=embed.build())
         
@@ -324,8 +418,8 @@ async def help_command(interaction: discord.Interaction):
         logger.error(f"Error in help command: {error}")
         await interaction.response.send_message("❌ An error occurred while displaying help.", ephemeral=True)
 
-async def resetstats(interaction: discord.Interaction, confirm: bool):
-    """Reset all user statistics (Admin only - USE WITH CAUTION)"""
+async def reset(interaction: discord.Interaction, confirm: bool):
+    """Reset all spice refinery statistics (Admin only - USE WITH CAUTION)"""
     try:
         # Check if user has admin permissions
         if not interaction.user.guild_permissions.administrator:
@@ -335,26 +429,147 @@ async def resetstats(interaction: discord.Interaction, confirm: bool):
         if not confirm:
             embed = (EmbedBuilder("⚠️ Reset Cancelled", color=0xE74C3C)
                      .set_description("You must set the `confirm` parameter to `True` to proceed with the reset.")
-                     .add_field("🔄 How to Reset", "Use `/resetstats confirm:True` to confirm the reset.", inline=False))
+                     .add_field("🔄 How to Reset", "Use `/reset confirm:True` to confirm the reset.", inline=False))
             await interaction.response.send_message(embed=embed.build(), ephemeral=True)
             return
         
-        # Reset all user statistics
+        # Reset all refinery statistics
         deleted_rows = await database.reset_all_stats()
         
-        embed = (EmbedBuilder("🔄 Statistics Reset Complete", 
-                              description="⚠️ **All user statistics have been permanently deleted!**",
+        embed = (EmbedBuilder("🔄 Refinery Reset Complete", 
+                              description="⚠️ **All refinery statistics have been permanently deleted!**",
                               color=0xE74C3C, timestamp=interaction.created_at)
-                 .add_field("📊 Reset Summary", f"**Users Affected:** {deleted_rows}\n**Data Cleared:** All sand deposits and melange statistics", inline=False)
-                 .add_field("✅ What Remains", "Conversion rates and bot settings are preserved.", inline=False)
+                 .add_field("📊 Reset Summary", f"**Users Affected:** {deleted_rows}\n**Data Cleared:** All harvest records and melange production", inline=False)
+                 .add_field("✅ What Remains", "Refinement rates and bot settings are preserved.", inline=False)
                  .set_footer(f"Reset performed by {interaction.user.display_name}", interaction.user.display_avatar.url))
         
         await interaction.response.send_message(embed=embed.build())
-        print(f'All user statistics reset by {interaction.user.display_name} ({interaction.user.id}) - {deleted_rows} records deleted')
+        print(f'All refinery statistics reset by {interaction.user.display_name} ({interaction.user.id}) - {deleted_rows} records deleted')
         
     except Exception as error:
-        logger.error(f"Error in resetstats command: {error}")
-        await interaction.response.send_message("❌ An error occurred while resetting statistics.", ephemeral=True)
+        logger.error(f"Error in reset command: {error}")
+        await interaction.response.send_message("❌ An error occurred while resetting refinery statistics.", ephemeral=True)
+
+async def ledger(interaction: discord.Interaction):
+    """View your complete spice harvest ledger"""
+    try:
+        deposits_data = await database.get_user_deposits(str(interaction.user.id))
+        
+        if not deposits_data:
+            embed = (EmbedBuilder("📋 Spice Harvest Ledger", color=0x95A5A6, timestamp=interaction.created_at)
+                     .set_description("🏜️ You haven't harvested any spice sand yet! Use `/harvest` to start tracking your harvests.")
+                     .set_footer(f"Requested by {interaction.user.display_name}", interaction.user.display_avatar.url))
+            await interaction.response.send_message(embed=embed.build(), ephemeral=True)
+            return
+        
+        # Build harvest ledger
+        ledger_text = ""
+        total_unpaid = 0
+        total_paid = 0
+        
+        for deposit in deposits_data:
+            status = "✅ Paid" if deposit['paid'] else "⏳ Unpaid"
+            date_str = f"<t:{int(deposit['created_at'].timestamp())}:R>"
+            ledger_text += f"**{deposit['sand_amount']:,} spice sand** - {status} - {date_str}\n"
+            
+            if deposit['paid']:
+                total_paid += deposit['sand_amount']
+            else:
+                total_unpaid += deposit['sand_amount']
+        
+        embed = (EmbedBuilder("📋 Spice Harvest Ledger", description=ledger_text, color=0x3498DB, timestamp=interaction.created_at)
+                 .add_thumbnail(interaction.user.display_avatar.url)
+                 .add_field("💰 Payment Summary", f"**Unpaid Harvest:** {total_unpaid:,} sand\n**Paid Harvest:** {total_paid:,} sand\n**Total Harvests:** {len(deposits_data)}", inline=False)
+                 .set_footer(f"Spice Refinery • {interaction.user.display_name}", interaction.user.display_avatar.url))
+        
+        await interaction.response.send_message(embed=embed.build())
+        
+    except Exception as error:
+        logger.error(f"Error in ledger command: {error}")
+        await interaction.response.send_message("❌ An error occurred while fetching your harvest ledger.", ephemeral=True)
+
+async def payment(interaction: discord.Interaction, user: discord.Member):
+    """Process payment for a harvester's deposits (Admin only)"""
+    try:
+        # Check if user has admin permissions
+        if not interaction.user.guild_permissions.administrator:
+            await interaction.response.send_message("❌ You need administrator permissions to use this command.", ephemeral=True)
+            return
+        
+        # Get user's unpaid deposits
+        unpaid_deposits = await database.get_user_deposits(str(user.id), include_paid=False)
+        
+        if not unpaid_deposits:
+            embed = (EmbedBuilder("💰 Payment Status", color=0x95A5A6, timestamp=interaction.created_at)
+                     .set_description(f"🏜️ **{user.display_name}** has no unpaid harvests to process.")
+                     .set_footer(f"Requested by {interaction.user.display_name}", interaction.user.display_avatar.url))
+            await interaction.response.send_message(embed=embed.build())
+            return
+        
+        # Mark all deposits as paid
+        await database.mark_all_user_deposits_paid(str(user.id))
+        
+        total_paid = sum(deposit['sand_amount'] for deposit in unpaid_deposits)
+        
+        embed = (EmbedBuilder("💰 Payment Processed", color=0x27AE60, timestamp=interaction.created_at)
+                 .set_description(f"✅ **{user.display_name}** has been paid for all harvests!")
+                 .add_field("📊 Payment Summary", f"**Total Spice Sand Paid:** {total_paid:,}\n**Harvests Processed:** {len(unpaid_deposits)}", inline=False)
+                 .set_footer(f"Payment processed by {interaction.user.display_name}", interaction.user.display_avatar.url))
+        
+        await interaction.response.send_message(embed=embed.build())
+        print(f'Harvester {user.display_name} ({user.id}) paid {total_paid:,} spice sand by {interaction.user.display_name} ({interaction.user.id})')
+        
+    except Exception as error:
+        logger.error(f"Error in payment command: {error}")
+        await interaction.response.send_message("❌ An error occurred while processing the payment.", ephemeral=True)
+
+async def payroll(interaction: discord.Interaction):
+    """Process payments for all unpaid harvesters (Admin only)"""
+    try:
+        # Check if user has admin permissions
+        if not interaction.user.guild_permissions.administrator:
+            await interaction.response.send_message("❌ You need administrator permissions to use this command.", ephemeral=True)
+            return
+        
+        # Get all unpaid deposits
+        unpaid_deposits = await database.get_all_unpaid_deposits()
+        
+        if not unpaid_deposits:
+            embed = (EmbedBuilder("💰 Payroll Status", color=0x95A5A6, timestamp=interaction.created_at)
+                     .set_description("🏜️ There are no unpaid harvests to process.")
+                     .set_footer(f"Requested by {interaction.user.display_name}", interaction.user.display_avatar.url))
+            await interaction.response.send_message(embed=embed.build())
+            return
+        
+        # Group deposits by user
+        user_deposits = {}
+        for deposit in unpaid_deposits:
+            user_id = deposit['user_id']
+            if user_id not in user_deposits:
+                user_deposits[user_id] = []
+            user_deposits[user_id].append(deposit)
+        
+        # Mark all deposits as paid
+        total_paid = 0
+        users_paid = 0
+        
+        for user_id, deposits_list in user_deposits.items():
+            await database.mark_all_user_deposits_paid(user_id)
+            user_total = sum(deposit['sand_amount'] for deposit in deposits_list)
+            total_paid += user_total
+            users_paid += 1
+        
+        embed = (EmbedBuilder("💰 Guild Payroll Complete", color=0x27AE60, timestamp=interaction.created_at)
+                 .set_description("✅ **All harvesters have been paid for their harvests!**")
+                 .add_field("📊 Payroll Summary", f"**Total Spice Sand Paid:** {total_paid:,}\n**Harvesters Paid:** {users_paid}\n**Total Harvests:** {len(unpaid_deposits)}", inline=False)
+                 .set_footer(f"Guild payroll processed by {interaction.user.display_name}", interaction.user.display_avatar.url))
+        
+        await interaction.response.send_message(embed=embed.build())
+        print(f'Guild payroll of {total_paid:,} spice sand to {users_paid} harvesters by {interaction.user.display_name} ({interaction.user.id})')
+        
+    except Exception as error:
+        logger.error(f"Error in payroll command: {error}")
+        await interaction.response.send_message("❌ An error occurred while processing the guild payroll.", ephemeral=True)
 
 # Register all commands with the bot's command tree
 register_commands()
