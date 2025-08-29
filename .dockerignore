@@ -50,7 +50,7 @@ ehthumbs.db
 Thumbs.db
 
 # Project specific
-spice_tracker.db
+
 *.db
 .env.local
 .env.development

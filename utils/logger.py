@@ -3,18 +3,18 @@ import os
 from datetime import datetime
 from typing import Optional
 
-class RailwayLogger:
-    """Clean logger optimized for Railway deployment and Discord bot monitoring"""
+class BotLogger:
+    """Clean logger optimized for Fly.io deployment and Discord bot monitoring"""
     
     def __init__(self, name: str = "spice-tracker-bot"):
         self.logger = logging.getLogger(name)
         self.logger.setLevel(logging.INFO)
         
-        # Railway-friendly console handler
+        # Fly.io-friendly console handler
         handler = logging.StreamHandler()
         handler.setLevel(logging.INFO)
         
-        # Clean, simple formatter for Railway
+        # Clean, simple formatter for Fly.io
         formatter = logging.Formatter('%(asctime)s | %(levelname)s | %(message)s')
         handler.setFormatter(formatter)
         
@@ -138,4 +138,4 @@ class RailwayLogger:
             )
 
 # Global logger instance
-logger = RailwayLogger()
+logger = BotLogger()

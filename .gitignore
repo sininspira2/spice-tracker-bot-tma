@@ -31,8 +31,6 @@ venv.bak/
 
 # Database files
 *.db
-*.sqlite
-*.sqlite3
 
 # IDE
 .vscode/
@@ -52,5 +50,5 @@ Thumbs.db
 .env.local
 .env.*.local
 
-# Railway
-.railway/
+# Fly.io
+.fly/

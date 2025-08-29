@@ -12,6 +12,7 @@ A Discord bot for **Dune: Awakening** that helps guilds track spice sand collect
 - **User Statistics** - View personal refining stats and totals
 - **Admin Controls** - Configurable conversion rates and data management
 - **Rate Limiting** - Prevents spam and abuse
+- **Supabase PostgreSQL** - Production-ready database with automatic backups
 
 ## 🚀 Quick Start
 
@@ -19,8 +20,9 @@ A Discord bot for **Dune: Awakening** that helps guilds track spice sand collect
 - Python 3.11+
 - Discord Bot Token
 - Discord Application Client ID
+- Supabase Account
 
-### Installation
+### Local Development
 
 1. **Clone the repository**
    ```bash
@@ -38,6 +40,7 @@ A Discord bot for **Dune: Awakening** that helps guilds track spice sand collect
    ```env
    DISCORD_TOKEN=your_bot_token_here
    CLIENT_ID=your_client_id_here
+   DATABASE_URL=your_supabase_database_url
    ```
 
 4. **Run the bot**
@@ -102,41 +105,129 @@ Your bot automatically deploys to Fly.io when you push working code to main bran
 - **CI failing?** Fix tests before deployment
 - **Need help?** Check GitHub Actions logs and Fly.io dashboard
 
-### Discord Bot Setup
+## 🗄️ Supabase Database Setup
 
-1. Go to [Discord Developer Portal](https://discord.com/developers/applications)
-2. Create a new application
-3. Go to "Bot" section and create a bot
-4. Copy the bot token for your `.env` file
-5. Go to "OAuth2 > URL Generator"
-6. Select scopes: `bot`, `applications.commands`
-7. Select permissions: `Send Messages`, `Use Slash Commands`, `Read Message History`
-8. Use the generated URL to invite the bot to your server
+### Step 1: Create Supabase Project
+
+1. Go to [supabase.com](https://supabase.com) and sign in
+2. Click "New Project"
+3. Choose your organization
+4. Enter project name: `spice-tracker-bot`
+5. Enter a strong database password (save this!)
+6. Choose a region closest to your users
+7. Click "Create new project"
+8. Wait for project setup (2-3 minutes)
+
+### Step 2: Get Project Reference
+
+1. In your Supabase dashboard, note the project reference from the URL:
+   ```
+   https://supabase.com/dashboard/project/[YOUR-PROJECT-REF]
+   ```
+2. Save this reference - you'll need it for the setup
+
+### Step 3: Install Supabase CLI
+
+```bash
+# Install globally
+npm install -g supabase
+
+# Verify installation
+supabase --version
+```
+
+### Step 4: Run Setup Script
+
+#### Option A: Automated Setup (Recommended)
+
+**Linux/macOS:**
+```bash
+# Make script executable
+chmod +x supabase/setup.sh
+
+# Run setup
+./supabase/setup.sh
+```
+
+**Windows PowerShell:**
+```powershell
+# Run setup script
+.\supabase\setup.ps1
+
+# Or with project reference
+.\supabase\setup.ps1 -ProjectRef "your-project-ref"
+```
+
+#### Option B: Manual Setup
+
+```bash
+# Navigate to project root
+cd spice-tracker-bot
+
+# Initialize Supabase
+supabase init
+
+# Link to your project
+supabase link --project-ref [YOUR-PROJECT-REF]
+
+# Run migrations
+supabase db push
+
+# Optional: Seed with sample data
+supabase db reset --linked
+```
+
+### Database Schema
+
+The bot uses **Supabase PostgreSQL** for data persistence with these main tables:
+
+1. **`users`** - Player information and melange totals
+2. **`deposits`** - Individual spice sand harvests
+3. **`settings`** - Bot configuration options
+4. **`audit_log`** - Change tracking and history
+
+### Get Database Connection String
+
+1. Go to Settings → Database in your Supabase dashboard
+2. Copy the connection string from "Connection string" section
+3. Format: `postgresql://postgres:[YOUR-PASSWORD]@db.[YOUR-PROJECT-REF].supabase.co:5432/postgres`
+4. Set as `DATABASE_URL` environment variable
 
 ## 🤖 Commands
 
 ### User Commands
-- `/spicesolo <amount>` - Log spice sand you've collected
-- `/spicesplit <sand> <participants> [harvester%]` - Calculate spice splits for team operations
-- `/myrefines` - View your personal spice statistics
-- `/leaderboard` - See top spice collectors in the server
+- `/harvest <amount>` - Log spice sand you've collected
+- `/sand <amount>` - Alias for harvest command
+- `/refinery` - View your personal spice statistics
+- `/status` - Alias for refinery command
+- `/leaderboard [limit]` - See top spice collectors in the server
+- `/top [limit]` - Alias for leaderboard command
+- `/ledger` - View your complete harvest ledger
+- `/deposits` - Alias for ledger command
+- `/split <total_sand> <participants> [harvester%]` - Calculate spice splits for team operations
 - `/help` - Display all available commands
+- `/commands` - Alias for help command
 
 ### Admin Commands
-- `/setrate <rate>` - Change sand-to-melange conversion rate (default: 50 sand = 1 melange)
-- `/resetstats` - Reset all user statistics (requires confirmation)
+- `/conversion <rate>` - Change sand-to-melange conversion rate (default: 50 sand = 1 melange)
+- `/rate <rate>` - Alias for conversion command
+- `/payment <user>` - Process payment for a harvester's deposits
+- `/pay <user>` - Alias for payment command
+- `/payroll` - Process payments for all unpaid harvesters
+- `/payall` - Alias for payroll command
+- `/reset confirm:True` - Reset all user statistics (requires confirmation)
 
 ## 📊 Example Usage
 
 ### Individual Spice Logging
 ```
-/spicesolo 2500
+/harvest 2500
 ```
 *Logs 2,500 spice sand (converts to 50 melange at default rate)*
 
 ### Team Spice Split
 ```
-/spicesplit 50000 5 25
+/split 50000 5 25
 ```
 *Splits 50,000 sand among 5 participants with 25% harvester cut*
 
@@ -148,8 +239,8 @@ Your bot automatically deploys to Fly.io when you push working code to main bran
 
 ### Bot Framework
 - **Discord.py** with slash command support
-- **Single File Architecture** - All commands integrated in main bot file for simplicity
 - **Async/await** - Non-blocking operations for better performance
+- **Interaction deferring** - Prevents command timeouts during database operations
 
 ### Data Storage
 - **Supabase PostgreSQL** with asyncpg for persistent data storage
@@ -165,68 +256,15 @@ Your bot automatically deploys to Fly.io when you push working code to main bran
 - **Rate Limiting** - In-memory rate limiter to prevent spam and abuse
 - **Input Validation** - Min/max value constraints on user inputs
 
-## 🧪 Testing
-
-### Test Framework
-The project includes a lightweight test suite to verify critical functionality:
-
-- **Database Operations** - Table creation, user management, melange conversion
-- **Rate Limiting** - Command usage limits and reset functionality  
-- **Permissions** - Admin permission checking
-- **Core Logic** - Sand validation, melange calculations, harvester splits
-
-### Running Tests
-
-**Quick Test Run:**
-```bash
-python run_tests.py
-```
-
-**Detailed Test Run:**
-```bash
-python test_bot.py
-```
-
-**Individual Test Classes:**
-```bash
-# Test database operations only
-python -m unittest test_bot.TestDatabase
-
-# Test rate limiting only  
-python -m unittest test_bot.TestRateLimiter
-
-# Test permissions only
-python -m unittest test_bot.TestPermissions
-
-# Test core logic only
-python -m unittest test_bot.TestBotLogic
-```
-
-### Test Coverage
-- ✅ Database initialization and schema validation
-- ✅ User creation, updates, and retrieval
-- ✅ Melange conversion calculations
-- ✅ Leaderboard functionality
-- ✅ Rate limiting per command and user
-- ✅ Permission checking
-- ✅ Core game mechanics (sand validation, splits)
-
-### Adding New Tests
-To add tests for new functionality:
-
-1. Create a new test method in the appropriate test class
-2. Follow the naming convention: `test_descriptive_name`
-3. Use descriptive assertions and clear test data
-4. Run the test suite to ensure it passes
-
 ## 🚀 CI/CD Pipeline
 
 ### GitHub Actions
-This project uses GitHub Actions for continuous integration and testing:
+This project uses GitHub Actions for continuous integration and deployment:
 
 - **Automated Testing** - Runs on every push to main and pull request
 - **Multi-Python Support** - Tests against Python 3.11, 3.12, and 3.13
 - **Dependency Caching** - Fast builds with pip dependency caching
+- **Automatic Deployment** - Deploys to Fly.io when tests pass on main branch
 - **Status Badge** - Shows CI/CD status in README and pull requests
 
 ### Workflow Details
@@ -235,37 +273,11 @@ The CI/CD pipeline automatically:
 1. **Checks out code** from the repository
 2. **Sets up Python** environment for each version
 3. **Installs dependencies** from requirements.txt
-4. **Runs test suite** using the custom test runner
+4. **Runs test suite** using pytest
 5. **Performs code quality checks** with flake8 linting
-6. **Generates test coverage** reports
-7. **Runs security audits** with bandit and safety
-8. **Checks dependencies** for vulnerabilities with pip-audit
-9. **Uploads artifacts** for detailed analysis
-
-### Local CI Testing
-Before pushing, you can run the same checks locally:
-
-```bash
-# Install CI dependencies
-pip install -r requirements.txt
-pip install pytest pytest-cov flake8 black bandit safety pip-audit
-
-# Run full test suite
-python run_tests.py
-
-# Test individual components
-python -m unittest test_bot.TestDatabase -v
-python -m unittest test_bot.TestRateLimiter -v
-python -m unittest test_bot.TestPermissions -v
-python -m unittest test_bot.TestBotLogic -v
-
-# Run linting checks
-flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-flake8 . --count --exit-zero --max-complexity=10 --max-line-length=120 --statistics
-
-# Generate coverage report
-python -m pytest test_bot.py --cov=. --cov-report=html
-```
+6. **Runs security audits** with bandit and safety
+7. **Checks dependencies** for vulnerabilities
+8. **Deploys to Fly.io** if all tests pass on main branch
 
 ### CI Status
 - 🟢 **Green** - All tests and checks passing, ready for Fly.io deployment
@@ -276,7 +288,7 @@ python -m pytest test_bot.py --cov=. --cov-report=html
 ## 📝 Configuration
 
 ### Conversion Rate
-Default: 50 sand = 1 melange (changeable with `/setrate`)
+Default: 50 sand = 1 melange (changeable with `/conversion`)
 
 ### Rate Limiting
 - Commands are rate-limited per user to prevent spam
@@ -301,8 +313,10 @@ ADMIN_ROLE_IDS=123456789,987654321,555666777
 - Role IDs can be found by enabling Developer Mode in Discord and right-clicking on roles
 
 **Admin commands include:**
-- `/setrate` - Modify sand to melange conversion rate
-- `/resetstats` - Reset all user statistics (use with caution)
+- `/conversion` - Modify sand to melange conversion rate
+- `/payment` - Process payments for harvesters
+- `/payroll` - Process all pending payments
+- `/reset` - Reset all user statistics (use with caution)
 
 ### Allowed Role Configuration
 
@@ -325,50 +339,11 @@ ALLOWED_ROLE_IDS=111222333,444555666,777888999
 ## 🛡️ Security & Permissions
 
 - **Discord Permissions Integration** - Uses Discord's built-in permission system
-- **Admin Verification** - Commands like `/setrate` and `/resetstats` require Administrator permissions or admin roles
+- **Admin Verification** - Commands like `/conversion` and `/reset` require Administrator permissions or admin roles
 - **Custom Admin Roles** - Configure specific Discord role IDs for admin access via environment variables
 - **Rate Limiting** - Per-user, per-command cooldowns stored in memory
 - **Input Sanitization** - Validates user inputs for type and range
-- **Environment Variables** - Sensitive data stored in `.env` file
-
-## 🗃️ Database Schema
-
-The bot uses **Supabase PostgreSQL** for data persistence with three main tables:
-- **users** - Tracks individual spice collection and refining stats
-- **deposits** - Records individual spice sand deposits with payment status
-- **settings** - Stores configurable bot settings like conversion rates
-
-### Supabase Setup
-
-1. **Create Supabase Project**:
-   - Go to [supabase.com](https://supabase.com) and create a new project
-   - Wait for the project to be ready (usually 2-3 minutes)
-
-2. **Get Database Connection String**:
-   - Go to Settings → Database
-   - Copy the connection string from "Connection string" section
-   - Format: `postgresql://postgres:[YOUR-PASSWORD]@db.[YOUR-PROJECT-REF].supabase.co:5432/postgres`
-
-3. **Run Migrations**:
-   ```bash
-   # Install Supabase CLI
-   npm install -g supabase
-   
-   # Link to your project
-   supabase link --project-ref [YOUR-PROJECT-REF]
-   
-   # Run migrations
-   supabase db push
-   ```
-
-4. **Set Environment Variable**:
-   ```bash
-   # For Fly.io
-   fly secrets set DATABASE_URL="your_connection_string_here"
-   
-   # For local development
-   export DATABASE_URL="your_connection_string_here"
-   ```
+- **Environment Variables** - Sensitive data stored securely in Fly.io secrets
 
 ## 🎮 Game Mechanics
 
@@ -376,6 +351,7 @@ The bot uses **Supabase PostgreSQL** for data persistence with three main tables
 - **Persistent Progress** - User statistics persist between bot restarts
 - **Leaderboard System** - Encourages competition through ranking display
 - **Administrative Controls** - Admins can modify conversion rates and reset all data
+- **Payment System** - Track paid vs unpaid harvests for guild management
 
 ## 📝 License
 
@@ -393,4 +369,5 @@ This bot is designed for the Dune: Awakening MMO game to help guilds manage spic
 
 **Bot Status:** Active and maintained  
 **Game:** Dune: Awakening  
-**Version:** 1.0.0
+**Version:** 1.0.0  
+**Deployment:** Fly.io + Supabase
