@@ -97,38 +97,49 @@ def register_commands():
     # This loop automatically creates slash commands for both main names and aliases
     # Each command points to the same underlying function, so behavior is identical
     for command_name, command_data in commands.items():
+        # Create a closure to capture the current command_data
+        def create_command_wrapper(cmd_data):
+            if 'params' in cmd_data:
+                # Command with parameters
+                @bot.tree.command(name=command_name, description=cmd_data['description'])
+                async def wrapper(interaction: discord.Interaction, **kwargs):
+                    await cmd_data['function'](interaction, **kwargs)
+                
+                # Add parameter descriptions
+                for param_name, param_desc in cmd_data['params'].items():
+                    wrapper = discord.app_commands.describe(**{param_name: param_desc})(wrapper)
+                return wrapper
+            else:
+                # Command without parameters
+                @bot.tree.command(name=command_name, description=cmd_data['description'])
+                async def wrapper(interaction: discord.Interaction):
+                    await cmd_data['function'](interaction)
+                return wrapper
+        
         # Register main command
-        if 'params' in command_data:
-            # Command with parameters
-            @bot.tree.command(name=command_name, description=command_data['description'])
-            async def cmd_wrapper(interaction: discord.Interaction, **kwargs):
-                await command_data['function'](interaction, **kwargs)
-            
-            # Add parameter descriptions
-            for param_name, param_desc in command_data['params'].items():
-                cmd_wrapper = discord.app_commands.describe(**{param_name: param_desc})(cmd_wrapper)
-        else:
-            # Command without parameters
-            @bot.tree.command(name=command_name, description=command_data['description'])
-            async def cmd_wrapper(interaction: discord.Interaction):
-                await command_data['function'](interaction)
+        main_cmd = create_command_wrapper(command_data)
         
         # Register aliases
         for alias in command_data['aliases']:
-            if 'params' in command_data:
-                # Alias with parameters
-                @bot.tree.command(name=alias, description=command_data['description'])
-                async def alias_wrapper(interaction: discord.Interaction, **kwargs):
-                    await command_data['function'](interaction, **kwargs)
-                
-                # Add parameter descriptions
-                for param_name, param_desc in command_data['params'].items():
-                    alias_wrapper = discord.app_commands.describe(**{param_name: param_desc})(alias_wrapper)
-            else:
-                # Alias without parameters
-                @bot.tree.command(name=alias, description=command_data['description'])
-                async def alias_wrapper(interaction: discord.Interaction):
-                    await command_data['function'](interaction)
+            def create_alias_wrapper(cmd_data, alias_name):
+                if 'params' in cmd_data:
+                    # Alias with parameters
+                    @bot.tree.command(name=alias_name, description=cmd_data['description'])
+                    async def wrapper(interaction: discord.Interaction, **kwargs):
+                        await cmd_data['function'](interaction, **kwargs)
+                    
+                    # Add parameter descriptions
+                    for param_name, param_desc in cmd_data['params'].items():
+                        wrapper = discord.app_commands.describe(**{param_name: param_desc})(wrapper)
+                    return wrapper
+                else:
+                    # Alias without parameters
+                    @bot.tree.command(name=alias_name, description=cmd_data['description'])
+                    async def wrapper(interaction: discord.Interaction):
+                        await cmd_data['function'](interaction)
+                    return wrapper
+            
+            alias_cmd = create_alias_wrapper(command_data, alias)
 
 @bot.event
 async def on_ready():

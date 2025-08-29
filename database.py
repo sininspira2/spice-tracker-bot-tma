@@ -37,12 +37,11 @@ class Database:
                 user_id, username, total_sand = user
                 
                 # Create a single deposit record for the existing total_sand
-                if total_sand > 0:
-                    await db.execute('''
-                        INSERT INTO deposits (user_id, username, sand_amount, paid, created_at)
-                        VALUES (?, ?, ?, FALSE, CURRENT_TIMESTAMP)
-                    ''', (user_id, username, total_sand))
-                    migrated_count += 1
+                await db.execute('''
+                    INSERT INTO deposits (user_id, username, sand_amount, paid, created_at)
+                    VALUES (?, ?, ?, FALSE, CURRENT_TIMESTAMP)
+                ''', (user_id, username, total_sand))
+                migrated_count += 1
             
             # Remove total_sand column from users table
             await db.execute('''
