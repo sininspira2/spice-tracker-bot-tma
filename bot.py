@@ -12,8 +12,13 @@ load_dotenv()
 
 # Bot configuration
 intents = discord.Intents.default()
+# For slash commands, we don't need message_content intent
 intents.message_content = False
 intents.reactions = True
+intents.guilds = True
+intents.guild_messages = True
+# Note: command_prefix is set but not used since we're using slash commands
+# The prefix commands are kept for potential future use or debugging
 bot = commands.Bot(command_prefix='!', intents=intents)
 
 # Initialize database
