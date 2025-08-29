@@ -45,55 +45,62 @@ A Discord bot for **Dune: Awakening** that helps guilds track spice sand collect
    python bot.py
    ```
 
-## 🚂 Railway Deployment
+## 🚀 Fly.io Deployment
 
 ### Quick Deploy
-[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/new?template=https://github.com/jaqknife777/spice-tracker-bot)
+[![Deploy on Fly.io](https://fly.io/static/images/deploy/button.svg)](https://fly.io/apps/new?remote=https://github.com/jaqknife777/spice-tracker-bot)
 
 ### Automatic Deployment (Recommended)
-Your bot automatically deploys to Railway when you push working code to main branch!
+Your bot automatically deploys to Fly.io when you push working code to main branch!
 
 **Setup:**
-1. **Deploy manually first** using the button above
-2. **Get Railway token**: Dashboard → Profile → Tokens → New Token
-3. **Add GitHub secrets**:
-   - `RAILWAY_TOKEN` = Your Railway token
-   - `RAILWAY_SERVICE_NAME` = Your service name
-4. **Push to main** → Automatic deployment! 🚀
+1. **Install Fly CLI**: `curl -L https://fly.io/install.sh | sh`
+2. **Login to Fly**: `fly auth login`
+3. **Create app**: `fly apps create spice-tracker-bot`
+4. **Get Fly API token**: [Fly.io Dashboard](https://fly.io/user/personal_access_tokens) → New Token
+5. **Add GitHub secrets**:
+   - `FLY_API_TOKEN` = Your Fly API token
+6. **Push to main** → Automatic deployment! 🚀
 
 **How it works:**
-- Push to main → CI tests run → If tests pass → Auto-deploy to Railway
+- Push to main → CI tests run → If tests pass → Auto-deploy to Fly.io
 - If tests fail → No deployment (protects against broken code)
 
 ### Manual Setup
-1. Go to [railway.app](https://railway.app) → "New Project" → "Deploy from GitHub repo"
-2. Select your repository
-3. Add environment variables:
-   - `DISCORD_TOKEN` = Your bot token
-   - `CLIENT_ID` = Your Discord client ID
-4. Deploy!
+1. **Install Fly CLI**: `curl -L https://fly.io/install.sh | sh`
+2. **Login**: `fly auth login`
+3. **Create app**: `fly apps create spice-tracker-bot`
+4. **Set secrets**:
+   ```bash
+   fly secrets set DISCORD_TOKEN=your_bot_token_here
+   fly secrets set CLIENT_ID=your_client_id_here
+   fly secrets set DATABASE_URL=your_supabase_database_url
+   ```
+5. **Deploy**: `fly deploy`
 
 ### Features
-- **Auto-scaling** for traffic spikes
-- **Custom domains** with SSL
-- **PostgreSQL** upgrade option
+- **Global edge deployment** with automatic scaling
+- **Custom domains** with automatic SSL
+- **PostgreSQL** via Supabase
 - **Built-in monitoring** and logs
 - **Health checks** at `/health`
+- **Zero-downtime deployments**
 
 ### Environment Variables
 | Variable | Description | Required |
 |----------|-------------|----------|
 | `DISCORD_TOKEN` | Your Discord bot token | ✅ Yes |
 | `CLIENT_ID` | Discord application client ID | ✅ Yes |
+| `DATABASE_URL` | Supabase PostgreSQL connection string | ✅ Yes |
 | `ADMIN_ROLE_IDS` | Comma-separated list of Discord role IDs for admin access | ❌ No |
 | `ALLOWED_ROLE_IDS` | Comma-separated list of Discord role IDs for basic bot access | ❌ No |
-| `PORT` | Health check server port | ❌ No (auto-assigned) |
+| `PORT` | Health check server port | ❌ No (default: 8080) |
 
 ### Troubleshooting
-- **Bot offline?** Check Railway logs and verify `DISCORD_TOKEN`
-- **Build failed?** Check Railway build logs
+- **Bot offline?** Check Fly.io logs: `fly logs -a spice-tracker-bot`
+- **Build failed?** Check Fly.io build logs
 - **CI failing?** Fix tests before deployment
-- **Need help?** Check GitHub Actions logs and Railway dashboard
+- **Need help?** Check GitHub Actions logs and Fly.io dashboard
 
 ### Discord Bot Setup
 
@@ -145,11 +152,12 @@ Your bot automatically deploys to Railway when you push working code to main bra
 - **Async/await** - Non-blocking operations for better performance
 
 ### Data Storage
-- **SQLite3** with aiosqlite for persistent data storage
-- **Two-table Schema**: 
-  - `users` table: Tracks user IDs, usernames, sand/melange totals, and timestamps
+- **Supabase PostgreSQL** with asyncpg for persistent data storage
+- **Three-table Schema**: 
+  - `users` table: Tracks user IDs, usernames, melange totals, and timestamps
+  - `deposits` table: Records individual spice sand deposits with payment status
   - `settings` table: Stores configurable bot settings like conversion rates
-- **No external database server required** - Self-contained storage solution
+- **Production-ready database** with automatic backups, scaling, and monitoring
 
 ### Command Structure
 - **Slash Commands** - Modern Discord interaction pattern
@@ -260,9 +268,10 @@ python -m pytest test_bot.py --cov=. --cov-report=html
 ```
 
 ### CI Status
-- 🟢 **Green** - All tests and checks passing
+- 🟢 **Green** - All tests and checks passing, ready for Fly.io deployment
 - 🔴 **Red** - Tests or checks failing (check the Actions tab for details)
 - 🟡 **Yellow** - Tests running or partially complete
+- 🚀 **Deploying** - Tests passed, deploying to Fly.io
 
 ## 📝 Configuration
 
@@ -324,9 +333,42 @@ ALLOWED_ROLE_IDS=111222333,444555666,777888999
 
 ## 🗃️ Database Schema
 
-The bot uses SQLite for data persistence with two main tables:
+The bot uses **Supabase PostgreSQL** for data persistence with three main tables:
 - **users** - Tracks individual spice collection and refining stats
+- **deposits** - Records individual spice sand deposits with payment status
 - **settings** - Stores configurable bot settings like conversion rates
+
+### Supabase Setup
+
+1. **Create Supabase Project**:
+   - Go to [supabase.com](https://supabase.com) and create a new project
+   - Wait for the project to be ready (usually 2-3 minutes)
+
+2. **Get Database Connection String**:
+   - Go to Settings → Database
+   - Copy the connection string from "Connection string" section
+   - Format: `postgresql://postgres:[YOUR-PASSWORD]@db.[YOUR-PROJECT-REF].supabase.co:5432/postgres`
+
+3. **Run Migrations**:
+   ```bash
+   # Install Supabase CLI
+   npm install -g supabase
+   
+   # Link to your project
+   supabase link --project-ref [YOUR-PROJECT-REF]
+   
+   # Run migrations
+   supabase db push
+   ```
+
+4. **Set Environment Variable**:
+   ```bash
+   # For Fly.io
+   fly secrets set DATABASE_URL="your_connection_string_here"
+   
+   # For local development
+   export DATABASE_URL="your_connection_string_here"
+   ```
 
 ## 🎮 Game Mechanics
 

@@ -601,13 +601,13 @@ async def on_error(event, *args, **kwargs):
                  event=event, args=str(args), kwargs=str(kwargs))
     print(f'Discord event error: {event}')
 
-# Railway health check endpoint
+# Fly.io health check endpoint
 import http.server
 import socketserver
 import threading
 
 def start_health_server():
-    """Start a simple HTTP server for Railway health checks"""
+    """Start a simple HTTP server for Fly.io health checks"""
     class HealthHandler(http.server.BaseHTTPRequestHandler):
         def do_GET(self):
             if self.path == '/health':
@@ -634,7 +634,7 @@ def start_health_server():
 
 # Run the bot
 if __name__ == '__main__':
-    # Start health check server in a separate thread for Railway
+    # Start health check server in a separate thread for Fly.io
     health_thread = threading.Thread(target=start_health_server, daemon=True)
     health_thread.start()
     
@@ -642,7 +642,7 @@ if __name__ == '__main__':
     if not token:
         logger.error("DISCORD_TOKEN environment variable is not set")
         print("❌ ERROR: DISCORD_TOKEN environment variable is not set!")
-        print("Please set the DISCORD_TOKEN environment variable in Railway or your .env file")
+        print("Please set the DISCORD_TOKEN environment variable in Fly.io or your .env file")
         exit(1)
     
     logger.bot_event("Bot starting", has_token=bool(token))
