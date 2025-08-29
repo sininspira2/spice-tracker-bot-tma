@@ -102,7 +102,7 @@ def register_commands():
             if 'params' in cmd_data:
                 # Command with parameters
                 @bot.tree.command(name=command_name, description=cmd_data['description'])
-                async def wrapper(interaction: discord.Interaction, **kwargs):
+                async def wrapper(interaction: discord.Interaction, **kwargs: any):
                     await cmd_data['function'](interaction, **kwargs)
                 
                 # Add parameter descriptions
@@ -125,7 +125,7 @@ def register_commands():
                 if 'params' in cmd_data:
                     # Alias with parameters
                     @bot.tree.command(name=alias_name, description=cmd_data['description'])
-                    async def wrapper(interaction: discord.Interaction, **kwargs):
+                    async def wrapper(interaction: discord.Interaction, **kwargs: any):
                         await cmd_data['function'](interaction, **kwargs)
                     
                     # Add parameter descriptions
