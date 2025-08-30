@@ -70,7 +70,7 @@ class Database:
                     try:
                         # Add timeout to connection close to prevent hanging
                         await asyncio.wait_for(conn.close(), timeout=5.0)
-                    except (asyncio.TimeoutError, Exception):
+                    except (asyncio.TimeoutError, Exception) as e:
                         # If close times out or fails, just log it and continue
                         logger.warning(f"Connection close timeout/failure: {e}")
                         pass  # Connection will be cleaned up by the garbage collector
