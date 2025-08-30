@@ -428,7 +428,18 @@ async def leaderboard(interaction: discord.Interaction, limit: int = 10):
         
     except Exception as error:
         logger.error(f"Error in leaderboard command: {error}")
-        await interaction.response.send_message("❌ An error occurred while fetching the leaderboard.", ephemeral=True)
+        try:
+            if not interaction.response.is_done():
+                await interaction.response.send_message("❌ An error occurred while fetching the leaderboard.", ephemeral=True)
+            else:
+                await interaction.followup.send("❌ An error occurred while fetching the leaderboard.", ephemeral=True)
+        except Exception as followup_error:
+            logger.error(f"Error sending followup message: {followup_error}")
+            # If all else fails, try to send to the channel
+            try:
+                await interaction.channel.send("❌ An error occurred while fetching the leaderboard.")
+            except:
+                pass  # Last resort - just log the error
 
 async def conversion(interaction: discord.Interaction):
     """View the current spice sand to melange conversion rate"""
