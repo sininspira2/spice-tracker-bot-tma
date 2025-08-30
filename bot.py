@@ -36,6 +36,28 @@ def get_sand_per_melange() -> int:
     """Get the spice sand to melange conversion rate from environment variables"""
     return int(os.getenv('SAND_PER_MELANGE', '50'))
 
+def handle_interaction_expiration(func):
+    """Decorator to handle interaction expiration gracefully"""
+    async def wrapper(interaction: discord.Interaction, *args, **kwargs):
+        use_followup = True
+        try:
+            # Try to defer the response
+            await interaction.response.defer(thinking=True)
+        except Exception as defer_error:
+            if "Unknown interaction" in str(defer_error) or "NotFound" in str(defer_error):
+                # Interaction expired, we'll need to send channel messages
+                use_followup = False
+                logger.warning(f"Interaction expired for {func.__name__} command, user: {interaction.user.id}")
+            else:
+                # Re-raise if it's a different error
+                raise defer_error
+        
+        # Add use_followup to kwargs so the function can use it
+        kwargs['use_followup'] = use_followup
+        return await func(interaction, *args, **kwargs)
+    
+    return wrapper
+
 # Register commands with the bot's command tree
 def register_commands():
     """Register all decorated commands with the bot's command tree"""
@@ -280,7 +302,8 @@ async def on_ready():
         print(f'❌ Full traceback: {traceback.format_exc()}')
         logger.error(f"Critical error in on_ready: {error}")
 
-async def harvest(interaction: discord.Interaction, amount: int):
+@handle_interaction_expiration
+async def harvest(interaction: discord.Interaction, amount: int, use_followup: bool):
     """Log spice sand harvests and calculate melange conversion"""
     # Validate amount
     if not 1 <= amount <= 10000:
@@ -288,19 +311,6 @@ async def harvest(interaction: discord.Interaction, amount: int):
         return
     
     try:
-        # Try to defer the response, but handle expired interactions gracefully
-        try:
-            await interaction.response.defer(thinking=True)
-            use_followup = True
-        except Exception as defer_error:
-            if "Unknown interaction" in str(defer_error) or "NotFound" in str(defer_error):
-                # Interaction expired, we'll need to send a new message
-                use_followup = False
-                logger.warning(f"Interaction expired for harvest command, user: {interaction.user.id}")
-            else:
-                # Re-raise if it's a different error
-                raise defer_error
-        
         # Get conversion rate and add deposit
         sand_per_melange = get_sand_per_melange()
         await get_database().add_deposit(str(interaction.user.id), interaction.user.display_name, amount)
@@ -360,22 +370,10 @@ async def harvest(interaction: discord.Interaction, amount: int):
             except:
                 pass  # Last resort - just log the error
 
-async def refinery(interaction: discord.Interaction):
+@handle_interaction_expiration
+async def refinery(interaction: discord.Interaction, use_followup: bool):
     """Show your total sand and melange statistics"""
     try:
-        # Try to defer the response, but handle expired interactions gracefully
-        try:
-            await interaction.response.defer(thinking=True)
-            use_followup = True
-        except Exception as defer_error:
-            if "Unknown interaction" in str(defer_error) or "NotFound" in str(defer_error):
-                # Interaction expired, we'll need to send a new message
-                use_followup = False
-                logger.warning(f"Interaction expired for refinery command, user: {interaction.user.id}")
-            else:
-                # Re-raise if it's a different error
-                raise defer_error
-        
         user = await get_database().get_user(str(interaction.user.id))
         total_sand = await get_database().get_user_total_sand(str(interaction.user.id))
         paid_sand = await get_database().get_user_paid_sand(str(interaction.user.id))
@@ -429,22 +427,10 @@ async def refinery(interaction: discord.Interaction):
             except:
                 pass  # Last resort - just log the error
 
-async def leaderboard(interaction: discord.Interaction, limit: int = 10):
+@handle_interaction_expiration
+async def leaderboard(interaction: discord.Interaction, limit: int = 10, use_followup: bool = True):
     """Display top refiners by melange earned"""
     try:
-        # Try to defer the response, but handle expired interactions gracefully
-        try:
-            await interaction.response.defer(thinking=True)
-            use_followup = True
-        except Exception as defer_error:
-            if "Unknown interaction" in str(defer_error) or "NotFound" in str(defer_error):
-                # Interaction expired, we'll need to send a new message
-                use_followup = False
-                logger.warning(f"Interaction expired for leaderboard command, user: {interaction.user.id}")
-            else:
-                # Re-raise if it's a different error
-                raise defer_error
-        
         # Validate limit
         if not 5 <= limit <= 25:
             if use_followup:
@@ -507,7 +493,8 @@ async def leaderboard(interaction: discord.Interaction, limit: int = 10):
             except:
                 pass  # Last resort - just log the error
 
-async def conversion(interaction: discord.Interaction):
+@handle_interaction_expiration
+async def conversion(interaction: discord.Interaction, use_followup: bool = True):
     """View the current spice sand to melange conversion rate"""
     try:
         
@@ -526,7 +513,8 @@ async def conversion(interaction: discord.Interaction):
         logger.error(f"Error in conversion command: {error}")
         await interaction.response.send_message("❌ An error occurred while updating the refinement rate.", ephemeral=True)
 
-async def split(interaction: discord.Interaction, total_sand: int, participants: int, harvester_percentage: float = None):
+@handle_interaction_expiration
+async def split(interaction: discord.Interaction, total_sand: int, participants: int, harvester_percentage: float = None, use_followup: bool = True):
     """Split harvested spice sand among expedition members"""
     try:
         # Use environment variable if no harvester_percentage provided
@@ -573,7 +561,8 @@ async def split(interaction: discord.Interaction, total_sand: int, participants:
         logger.error(f"Error in split command: {error}")
         await interaction.response.send_message("❌ An error occurred while calculating the expedition split.", ephemeral=True)
 
-async def help_command(interaction: discord.Interaction):
+@handle_interaction_expiration
+async def help_command(interaction: discord.Interaction, use_followup: bool = True):
     """Show all available commands and their descriptions"""
     try:
         sand_per_melange = get_sand_per_melange()
@@ -631,7 +620,8 @@ async def help_command(interaction: discord.Interaction):
             except:
                 pass  # Last resort - just log the error
 
-async def reset(interaction: discord.Interaction, confirm: bool):
+@handle_interaction_expiration
+async def reset(interaction: discord.Interaction, confirm: bool, use_followup: bool = True):
     """Reset all spice refinery statistics (Admin only - USE WITH CAUTION)"""
     try:
         # Check if user has admin permissions
@@ -663,22 +653,10 @@ async def reset(interaction: discord.Interaction, confirm: bool):
         logger.error(f"Error in reset command: {error}")
         await interaction.response.send_message("❌ An error occurred while resetting refinery statistics.", ephemeral=True)
 
-async def ledger(interaction: discord.Interaction):
+@handle_interaction_expiration
+async def ledger(interaction: discord.Interaction, use_followup: bool = True):
     """View your complete spice harvest ledger"""
     try:
-        # Try to defer the response, but handle expired interactions gracefully
-        try:
-            await interaction.response.defer(thinking=True)
-            use_followup = True
-        except Exception as defer_error:
-            if "Unknown interaction" in str(defer_error) or "NotFound" in str(defer_error):
-                # Interaction expired, we'll need to send a new message
-                use_followup = False
-                logger.warning(f"Interaction expired for ledger command, user: {interaction.user.id}")
-            else:
-                # Re-raise if it's a different error
-                raise defer_error
-        
         deposits_data = await get_database().get_user_deposits(str(interaction.user.id))
         
         if not deposits_data:
@@ -733,15 +711,16 @@ async def ledger(interaction: discord.Interaction):
             except:
                 pass  # Last resort - just log the error
 
-async def payment(interaction: discord.Interaction, user: discord.Member):
+@handle_interaction_expiration
+async def payment(interaction: discord.Interaction, user: discord.Member, use_followup: bool = True):
     """Process payment for a harvester's deposits (Admin only)"""
     try:
-        # Defer the response to prevent interaction timeout
-        await interaction.response.defer(thinking=True)
-        
         # Check if user has admin permissions
         if not interaction.user.guild_permissions.administrator:
-            await interaction.followup.send("❌ You need administrator permissions to use this command.", ephemeral=True)
+            if use_followup:
+                await interaction.followup.send("❌ You need administrator permissions to use this command.", ephemeral=True)
+            else:
+                await interaction.channel.send("❌ You need administrator permissions to use this command.")
             return
         
         # Get user's unpaid deposits
@@ -751,7 +730,10 @@ async def payment(interaction: discord.Interaction, user: discord.Member):
             embed = (EmbedBuilder("💰 Payment Status", color=0x95A5A6, timestamp=interaction.created_at)
                      .set_description(f"🏜️ **{user.display_name}** has no unpaid harvests to process.")
                      .set_footer(f"Requested by {interaction.user.display_name}", interaction.user.display_avatar.url))
-            await interaction.followup.send(embed=embed.build())
+            if use_followup:
+                await interaction.followup.send(embed=embed.build())
+            else:
+                await interaction.channel.send(embed=embed.build())
             return
         
         # Mark all deposits as paid
@@ -764,31 +746,39 @@ async def payment(interaction: discord.Interaction, user: discord.Member):
                  .add_field("📊 Payment Summary", f"**Total Spice Sand Paid:** {total_paid:,}\n**Harvests Processed:** {len(unpaid_deposits)}", inline=False)
                  .set_footer(f"Payment processed by {interaction.user.display_name}", interaction.user.display_avatar.url))
         
-        await interaction.followup.send(embed=embed.build())
+        # Send response based on whether defer was successful
+        if use_followup:
+            await interaction.followup.send(embed=embed.build())
+        else:
+            await interaction.channel.send(embed=embed.build())
         print(f'Harvester {user.display_name} ({user.id}) paid {total_paid:,} spice sand by {interaction.user.display_name} ({interaction.user.id})')
         
     except Exception as error:
         logger.error(f"Error in payment command: {error}")
         try:
-            # Since we deferred, always use followup.send
-            await interaction.followup.send("❌ An error occurred while processing the payment.", ephemeral=True)
-        except Exception as followup_error:
-            logger.error(f"Error sending followup message: {followup_error}")
-            # If followup fails, try to send to the channel
+            # Send error response based on whether defer was successful
+            if use_followup:
+                await interaction.followup.send("❌ An error occurred while processing the payment.", ephemeral=True)
+            else:
+                await interaction.channel.send("❌ An error occurred while processing the payment.")
+        except Exception as response_error:
+            logger.error(f"Error sending error response: {response_error}")
+            # If all else fails, try to send to the channel
             try:
                 await interaction.channel.send("❌ An error occurred while processing the payment.")
             except:
                 pass  # Last resort - just log the error
 
-async def payroll(interaction: discord.Interaction):
+@handle_interaction_expiration
+async def payroll(interaction: discord.Interaction, use_followup: bool = True):
     """Process payments for all unpaid harvesters (Admin only)"""
     try:
-        # Defer the response to prevent interaction timeout
-        await interaction.response.defer(thinking=True)
-        
         # Check if user has admin permissions
         if not interaction.user.guild_permissions.administrator:
-            await interaction.followup.send("❌ You need administrator permissions to use this command.", ephemeral=True)
+            if use_followup:
+                await interaction.followup.send("❌ You need administrator permissions to use this command.", ephemeral=True)
+            else:
+                await interaction.channel.send("❌ You need administrator permissions to use this command.")
             return
         
         # Get all unpaid deposits
@@ -798,7 +788,10 @@ async def payroll(interaction: discord.Interaction):
             embed = (EmbedBuilder("💰 Payroll Status", color=0x95A5A6, timestamp=interaction.created_at)
                      .set_description("🏜️ There are no unpaid harvests to process.")
                      .set_footer(f"Requested by {interaction.user.display_name}", interaction.user.display_avatar.url))
-            await interaction.followup.send(embed=embed.build())
+            if use_followup:
+                await interaction.followup.send(embed=embed.build())
+            else:
+                await interaction.channel.send(embed=embed.build())
             return
         
         # Group deposits by user
@@ -824,17 +817,24 @@ async def payroll(interaction: discord.Interaction):
                  .add_field("📊 Payroll Summary", f"**Total Spice Sand Paid:** {total_paid:,}\n**Harvesters Paid:** {users_paid}\n**Total Harvests:** {len(unpaid_deposits)}", inline=False)
                  .set_footer(f"Guild payroll processed by {interaction.user.display_name}", interaction.user.display_avatar.url))
         
-        await interaction.followup.send(embed=embed.build())
+        # Send response based on whether defer was successful
+        if use_followup:
+            await interaction.followup.send(embed=embed.build())
+        else:
+            await interaction.channel.send(embed=embed.build())
         print(f'Guild payroll of {total_paid:,} spice sand to {users_paid} harvesters by {interaction.user.display_name} ({interaction.user.id})')
         
     except Exception as error:
         logger.error(f"Error in payroll command: {error}")
         try:
-            # Since we deferred, always use followup.send
-            await interaction.followup.send("❌ An error occurred while processing the guild payroll.", ephemeral=True)
-        except Exception as followup_error:
-            logger.error(f"Error sending followup message: {followup_error}")
-            # If followup fails, try to send to the channel
+            # Send error response based on whether defer was successful
+            if use_followup:
+                await interaction.followup.send("❌ An error occurred while processing the guild payroll.", ephemeral=True)
+            else:
+                await interaction.channel.send("❌ An error occurred while processing the guild payroll.")
+        except Exception as response_error:
+            logger.error(f"Error sending error response: {response_error}")
+            # If all else fails, try to send to the channel
             try:
                 await interaction.channel.send("❌ An error occurred while processing the guild payroll.")
             except:
