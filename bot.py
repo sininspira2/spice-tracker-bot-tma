@@ -38,6 +38,8 @@ def get_sand_per_melange() -> int:
 
 async def send_response(interaction: discord.Interaction, content=None, embed=None, ephemeral=False, use_followup=True):
     """Helper function to send responses using the appropriate method based on use_followup"""
+    start_time = time.time()
+    
     # Validate inputs with better error logging
     if not interaction:
         logger.error("send_response called with None interaction")
@@ -63,27 +65,50 @@ async def send_response(interaction: discord.Interaction, content=None, embed=No
                 await interaction.channel.send(content)
             elif embed:
                 await interaction.channel.send(embed=embed)
+        
+        response_time = time.time() - start_time
+        logger.info(f"Response sent successfully", 
+                   response_time=f"{response_time:.3f}s", 
+                   use_followup=use_followup, 
+                   has_content=content is not None, 
+                   has_embed=embed is not None)
+        
     except Exception as e:
-        logger.error(f"Error sending response: {e}")
+        response_time = time.time() - start_time
+        logger.error(f"Error sending response: {e}", 
+                    response_time=f"{response_time:.3f}s", 
+                    use_followup=use_followup, 
+                    error=str(e))
         # Fallback to channel if followup fails
         try:
             if content:
                 await interaction.channel.send(content)
             elif embed:
                 await interaction.channel.send(embed=embed)
+            
+            fallback_time = time.time() - start_time
+            logger.info(f"Fallback response sent successfully", 
+                       total_time=f"{fallback_time:.3f}s", 
+                       fallback_time=f"{fallback_time - response_time:.3f}s")
+            
         except Exception as fallback_error:
-            logger.error(f"Fallback response also failed: {fallback_error}")
+            total_time = time.time() - start_time
+            logger.error(f"Fallback response also failed: {fallback_error}", 
+                        total_time=f"{total_time:.3f}s", 
+                        original_error=str(e), 
+                        fallback_error=str(fallback_error))
             # Last resort - just log the error, don't raise
 
 def handle_interaction_expiration(func):
     """Decorator to handle interaction expiration gracefully"""
     async def wrapper(interaction: discord.Interaction, *args, **kwargs):
+        command_start_time = time.time()
         use_followup = True
         
         # Check if this command requires guild context
         if not hasattr(interaction, 'guild') or not interaction.guild:
             try:
-                await interaction.response.send_message("❌ This command can only be used in a Discord server, not in direct messages.", ephemeral=True)
+                await send_response(interaction, "❌ This command can only be used in a Discord server, not in direct messages.", use_followup=False, ephemeral=True)
             except:
                 # If we can't send a response, just log it
                 logger.warning(f"Command {func.__name__} called in DM context, cannot proceed")
@@ -98,16 +123,30 @@ def handle_interaction_expiration(func):
             
             # Try to defer the response with a timeout
             import asyncio
+            defer_start = time.time()
             await asyncio.wait_for(interaction.response.defer(thinking=True), timeout=5.0)
+            defer_time = time.time() - defer_start
+            logger.info(f"Interaction deferred successfully", 
+                       command=func.__name__, 
+                       defer_time=f"{defer_time:.3f}s")
+            
         except asyncio.TimeoutError:
             # Defer timed out, fall back to channel messages
             use_followup = False
-            logger.warning(f"Defer timeout for {func.__name__} command, user: {interaction.user.id}")
+            defer_time = time.time() - defer_start
+            logger.warning(f"Defer timeout for {func.__name__} command", 
+                          user=interaction.user.display_name, 
+                          user_id=interaction.user.id, 
+                          defer_time=f"{defer_time:.3f}s")
         except Exception as defer_error:
             if "Unknown interaction" in str(defer_error) or "NotFound" in str(defer_error):
                 # Interaction expired, we'll need to send channel messages
                 use_followup = False
-                logger.warning(f"Interaction expired for {func.__name__} command, user: {interaction.user.id}")
+                defer_time = time.time() - defer_start
+                logger.warning(f"Interaction expired for {func.__name__} command", 
+                              user=interaction.user.display_name, 
+                              user_id=interaction.user.id, 
+                              defer_time=f"{defer_time:.3f}s")
             else:
                 # Re-raise if it's a different error
                 raise defer_error
@@ -116,11 +155,37 @@ def handle_interaction_expiration(func):
         kwargs['use_followup'] = use_followup
         
         try:
+            function_start = time.time()
             result = await func(interaction, *args, **kwargs)
+            function_time = time.time() - function_start
+            total_time = time.time() - command_start_time
+            
+            logger.command_success(
+                command=func.__name__,
+                user_id=str(interaction.user.id),
+                username=interaction.user.display_name,
+                execution_time=function_time,
+                total_time=total_time,
+                guild_id=str(interaction.guild.id) if interaction.guild else None,
+                guild_name=interaction.guild.name if interaction.guild else None
+            )
+            
             return result
         except Exception as func_error:
+            function_time = time.time() - function_start
+            total_time = time.time() - command_start_time
+            
             # Log the error but don't re-raise it
-            logger.error(f"Error in {func.__name__} command: {func_error}")
+            logger.command_error(
+                command=func.__name__,
+                user_id=str(interaction.user.id),
+                username=interaction.user.display_name,
+                error=str(func_error),
+                execution_time=function_time,
+                total_time=total_time,
+                guild_id=str(interaction.guild.id) if interaction.guild else None,
+                guild_name=interaction.guild.name if interaction.guild else None
+            )
             
             # Try to send error response, but don't let it fail the decorator
             try:
@@ -328,6 +393,7 @@ def register_commands():
 
 @bot.event
 async def on_ready():
+    bot_start_time = time.time()
     try:
         if bot.user:
             logger.bot_event(f"Bot started - {bot.user.name} ({bot.user.id}) in {len(bot.guilds)} guilds")
@@ -341,26 +407,33 @@ async def on_ready():
         # Initialize database
         try:
             print("🗄️ Initializing database...")
+            db_init_start = time.time()
             await get_database().initialize()
-            logger.bot_event("Database initialized successfully")
-            print('✅ Database initialized successfully.')
+            db_init_time = time.time() - db_init_start
+            logger.bot_event("Database initialized successfully", db_init_time=f"{db_init_time:.3f}s")
+            print(f'✅ Database initialized successfully in {db_init_time:.3f}s.')
             
             # Clean up old deposits (older than 30 days)
             try:
                 print("🧹 Cleaning up old deposits...")
+                cleanup_start = time.time()
                 cleaned_count = await get_database().cleanup_old_deposits(30)
+                cleanup_time = time.time() - cleanup_start
                 if cleaned_count > 0:
-                    logger.bot_event(f"Cleaned up {cleaned_count} old paid deposits")
-                    print(f'✅ Cleaned up {cleaned_count} old paid deposits.')
+                    logger.bot_event(f"Cleaned up {cleaned_count} old paid deposits", cleanup_time=f"{cleanup_time:.3f}s")
+                    print(f'✅ Cleaned up {cleaned_count} old paid deposits in {cleanup_time:.3f}s.')
                 else:
-                    print("✅ No old deposits to clean up.")
+                    logger.bot_event("No old deposits to clean up", cleanup_time=f"{cleanup_time:.3f}s")
+                    print(f"✅ No old deposits to clean up in {cleanup_time:.3f}s.")
             except Exception as cleanup_error:
-                logger.bot_event(f"Failed to clean up old deposits: {cleanup_error}")
-                print(f'⚠️ Failed to clean up old deposits: {cleanup_error}')
+                cleanup_time = time.time() - cleanup_start
+                logger.bot_event(f"Failed to clean up old deposits: {cleanup_error}", cleanup_time=f"{cleanup_time:.3f}s")
+                print(f'⚠️ Failed to clean up old deposits in {cleanup_time:.3f}s: {cleanup_error}')
                 
         except Exception as error:
-            logger.bot_event(f"Failed to initialize database: {error}")
-            print(f'❌ Failed to initialize database: {error}')
+            db_init_time = time.time() - db_init_start
+            logger.bot_event(f"Failed to initialize database: {error}", db_init_time=f"{db_init_time:.3f}s")
+            print(f'❌ Failed to initialize database in {db_init_time:.3f}s: {error}')
             print(f'❌ Error type: {type(error).__name__}')
             import traceback
             print(f'❌ Full traceback: {traceback.format_exc()}')
@@ -369,54 +442,104 @@ async def on_ready():
         # Sync slash commands
         try:
             print("🔄 Syncing slash commands...")
+            sync_start = time.time()
+            
             # Sync to guilds for immediate availability
+            guild_sync_start = time.time()
+            guild_sync_success = 0
+            guild_sync_failed = 0
             for guild in bot.guilds:
                 try:
                     guild_synced = await bot.tree.sync(guild=guild)
                     print(f'✅ Synced {len(guild_synced)} commands to guild: {guild.name}')
+                    guild_sync_success += 1
                 except Exception as guild_error:
                     print(f'⚠️ Failed to sync to guild {guild.name}: {guild_error}')
+                    guild_sync_failed += 1
+            
+            guild_sync_time = time.time() - guild_sync_start
+            logger.bot_event(f"Guild command sync completed", 
+                           guild_sync_time=f"{guild_sync_time:.3f}s",
+                           guilds_success=guild_sync_success,
+                           guilds_failed=guild_sync_failed)
             
             # Sync globally (takes up to 1 hour to propagate)
+            global_sync_start = time.time()
             synced = await bot.tree.sync()
-            logger.bot_event(f"Synced {len(synced)} commands")
-            print(f'✅ Synced {len(synced)} commands.')
+            global_sync_time = time.time() - global_sync_start
+            
+            total_sync_time = time.time() - sync_start
+            logger.bot_event(f"Command sync completed", 
+                           total_sync_time=f"{total_sync_time:.3f}s",
+                           guild_sync_time=f"{guild_sync_time:.3f}s",
+                           global_sync_time=f"{global_sync_time:.3f}s",
+                           commands_synced=len(synced))
+            print(f'✅ Synced {len(synced)} commands in {total_sync_time:.3f}s.')
             print("🎉 Bot is fully ready!")
+            
         except Exception as error:
-            logger.bot_event(f"Command sync failed: {error}")
-            print(f'❌ Failed to sync commands: {error}')
+            sync_time = time.time() - sync_start
+            logger.bot_event(f"Command sync failed: {error}", sync_time=f"{sync_time:.3f}s")
+            print(f'❌ Failed to sync commands in {sync_time:.3f}s: {error}')
             print(f'❌ Error type: {type(error).__name__}')
             import traceback
             print(f'❌ Full traceback: {traceback.format_exc()}')
+        
+        # Log total bot startup time
+        total_startup_time = time.time() - bot_start_time
+        logger.bot_event(f"Bot startup completed", 
+                        total_startup_time=f"{total_startup_time:.3f}s",
+                        db_init_time=f"{db_init_time:.3f}s",
+                        guild_count=len(bot.guilds))
+        print(f"🚀 Bot startup completed in {total_startup_time:.3f}s")
             
     except Exception as error:
+        total_startup_time = time.time() - bot_start_time
         print(f'❌ CRITICAL ERROR in on_ready: {error}')
         print(f'❌ Error type: {type(error).__name__}')
+        print(f'❌ Startup time: {total_startup_time:.3f}s')
         import traceback
         print(f'❌ Full traceback: {traceback.format_exc()}')
-        logger.error(f"Critical error in on_ready: {error}")
+        logger.error(f"Critical error in on_ready: {error}", startup_time=f"{total_startup_time:.3f}s")
 
 @handle_interaction_expiration
 async def harvest(interaction: discord.Interaction, amount: int, use_followup: bool):
     """Log spice sand harvests and calculate melange conversion"""
+    command_start = time.time()
+    
     # Validate amount
     if not 1 <= amount <= 10000:
-        await interaction.response.send_message("❌ Amount must be between 1 and 10,000 spice sand.", ephemeral=True)
+        await send_response(interaction, "❌ Amount must be between 1 and 10,000 spice sand.", use_followup=use_followup, ephemeral=True)
         return
     
     # Get conversion rate and add deposit
     sand_per_melange = get_sand_per_melange()
+    
+    # Database operations with timing
+    db_start = time.time()
     await get_database().add_deposit(str(interaction.user.id), interaction.user.display_name, amount)
+    add_deposit_time = time.time() - db_start
     
     # Get user data and calculate totals
+    user_start = time.time()
     user = await get_database().get_user(str(interaction.user.id))
+    get_user_time = time.time() - user_start
+    
+    total_sand_start = time.time()
     total_sand = await get_database().get_user_total_sand(str(interaction.user.id))
+    get_total_sand_time = time.time() - total_sand_start
     
     # Ensure user exists and has valid data
     if not user:
         # Create user if they don't exist
+        upsert_start = time.time()
         await get_database().upsert_user(str(interaction.user.id), interaction.user.display_name)
         user = await get_database().get_user(str(interaction.user.id))
+        upsert_time = time.time() - upsert_start
+        logger.info(f"User created/updated during harvest", 
+                   user_id=str(interaction.user.id), 
+                   username=interaction.user.display_name, 
+                   upsert_time=f"{upsert_time:.3f}s")
     
     # Calculate melange conversion
     total_melange_earned = total_sand // sand_per_melange
@@ -425,7 +548,13 @@ async def harvest(interaction: discord.Interaction, amount: int, use_followup: b
     
     # Only update melange if we have new melange to add
     if new_melange > 0:
+        update_start = time.time()
         await get_database().update_user_melange(str(interaction.user.id), new_melange)
+        update_melange_time = time.time() - update_start
+        logger.info(f"Melange updated during harvest", 
+                   user_id=str(interaction.user.id), 
+                   new_melange=new_melange, 
+                   update_time=f"{update_melange_time:.3f}s")
     
     # Build response
     remaining_sand = total_sand % sand_per_melange
@@ -441,16 +570,42 @@ async def harvest(interaction: discord.Interaction, amount: int, use_followup: b
         embed.set_description(f"🎉 **You produced {new_melange:,} melange from this harvest!**")
     
     # Send response using helper function
+    response_start = time.time()
     await send_response(interaction, embed=embed.build(), use_followup=use_followup)
+    response_time = time.time() - response_start
+    
+    # Log performance metrics
+    total_time = time.time() - command_start
+    logger.info(f"Harvest command completed", 
+               user_id=str(interaction.user.id), 
+               username=interaction.user.display_name, 
+               amount=amount, 
+               total_time=f"{total_time:.3f}s",
+               add_deposit_time=f"{add_deposit_time:.3f}s",
+               get_user_time=f"{get_user_time:.3f}s",
+               get_total_sand_time=f"{get_total_sand_time:.3f}s",
+               response_time=f"{response_time:.3f}s",
+               new_melange=new_melange)
         
 
 
 @handle_interaction_expiration
 async def refinery(interaction: discord.Interaction, use_followup: bool):
     """Show your total sand and melange statistics"""
+    command_start = time.time()
+    
+    # Database operations with timing
+    db_start = time.time()
     user = await get_database().get_user(str(interaction.user.id))
+    get_user_time = time.time() - db_start
+    
+    total_sand_start = time.time()
     total_sand = await get_database().get_user_total_sand(str(interaction.user.id))
+    get_total_sand_time = time.time() - total_sand_start
+    
+    paid_sand_start = time.time()
     paid_sand = await get_database().get_user_paid_sand(str(interaction.user.id))
+    get_paid_sand_time = time.time() - paid_sand_start
     
     if not user and total_sand == 0:
         embed = (EmbedBuilder("🏭 Spice Refinery Status", color=0x95A5A6, timestamp=interaction.created_at)
@@ -480,17 +635,37 @@ async def refinery(interaction: discord.Interaction, use_followup: bool):
              .set_footer(f"Spice Refinery • {interaction.user.display_name}", interaction.user.display_avatar.url))
     
     # Send response using helper function
+    response_start = time.time()
     await send_response(interaction, embed=embed.build(), use_followup=use_followup)
+    response_time = time.time() - response_start
+    
+    # Log performance metrics
+    total_time = time.time() - command_start
+    logger.info(f"Refinery command completed", 
+               user_id=str(interaction.user.id), 
+               username=interaction.user.display_name, 
+               total_time=f"{total_time:.3f}s",
+               get_user_time=f"{get_user_time:.3f}s",
+               get_total_sand_time=f"{get_total_sand_time:.3f}s",
+               get_paid_sand_time=f"{get_paid_sand_time:.3f}s",
+               response_time=f"{response_time:.3f}s",
+               total_sand=total_sand,
+               paid_sand=paid_sand)
 
 @handle_interaction_expiration
 async def leaderboard(interaction: discord.Interaction, limit: int = 10, use_followup: bool = True):
     """Display top refiners by melange earned"""
+    command_start = time.time()
+    
     # Validate limit
     if not 5 <= limit <= 25:
         await send_response(interaction, "❌ Limit must be between 5 and 25.", use_followup=use_followup, ephemeral=True)
         return
     
+    # Database operation with timing
+    db_start = time.time()
     leaderboard_data = await get_database().get_leaderboard(limit)
+    get_leaderboard_time = time.time() - db_start
     
     if not leaderboard_data:
         embed = EmbedBuilder("🏆 Spice Refinery Rankings", color=0x95A5A6, timestamp=interaction.created_at)
@@ -520,7 +695,22 @@ async def leaderboard(interaction: discord.Interaction, limit: int = 10, use_fol
              .set_footer(f"Showing top {len(leaderboard_data)} refiners • Updated", bot.user.display_avatar.url if bot.user else None))
     
     # Send response using helper function
+    response_start = time.time()
     await send_response(interaction, embed=embed.build(), use_followup=use_followup)
+    response_time = time.time() - response_start
+    
+    # Log performance metrics
+    total_time = time.time() - command_start
+    logger.info(f"Leaderboard command completed", 
+               user_id=str(interaction.user.id), 
+               username=interaction.user.display_name, 
+               limit=limit,
+               total_time=f"{total_time:.3f}s",
+               get_leaderboard_time=f"{get_leaderboard_time:.3f}s",
+               response_time=f"{response_time:.3f}s",
+               result_count=len(leaderboard_data),
+               total_melange=total_melange,
+               total_sand=total_sand)
 
 @handle_interaction_expiration
 async def conversion(interaction: discord.Interaction, use_followup: bool = True):
@@ -535,12 +725,12 @@ async def conversion(interaction: discord.Interaction, use_followup: bool = True
                  .add_field("⚠️ Important Note", "The conversion rate is set via environment variables and cannot be changed through commands. Contact an administrator to modify the SAND_PER_MELANGE environment variable.", inline=False)
                  .set_footer(f"Requested by {interaction.user.display_name}", interaction.user.display_avatar.url))
         
-        await interaction.response.send_message(embed=embed.build())
+        await send_response(interaction, embed=embed.build(), use_followup=use_followup)
         print(f'Refinement rate info requested by {interaction.user.display_name} ({interaction.user.id}) - Current rate: {current_rate}')
         
     except Exception as error:
         logger.error(f"Error in conversion command: {error}")
-        await interaction.response.send_message("❌ An error occurred while fetching the refinement rate.", ephemeral=True)
+        await send_response(interaction, "❌ An error occurred while fetching the refinement rate.", use_followup=use_followup, ephemeral=True)
 
 @handle_interaction_expiration
 async def split(interaction: discord.Interaction, total_sand: int, harvester_percentage: float = None, use_followup: bool = True):
@@ -552,10 +742,10 @@ async def split(interaction: discord.Interaction, total_sand: int, harvester_per
         
         # Validate inputs
         if total_sand < 1:
-            await interaction.response.send_message("❌ Total spice sand must be at least 1.", ephemeral=True)
+            await send_response(interaction, "❌ Total spice sand must be at least 1.", use_followup=use_followup, ephemeral=True)
             return
         if not 0 <= harvester_percentage <= 100:
-            await interaction.response.send_message("❌ Primary harvester percentage must be between 0 and 100.", ephemeral=True)
+            await send_response(interaction, "❌ Primary harvester percentage must be between 0 and 100.", use_followup=use_followup, ephemeral=True)
             return
         
         # Create a modal to collect participant information
@@ -739,7 +929,7 @@ async def split(interaction: discord.Interaction, total_sand: int, harvester_per
         
     except Exception as error:
         logger.error(f"Error in split command: {error}")
-        await interaction.response.send_message("❌ An error occurred while setting up the expedition.", ephemeral=True)
+        await send_response(interaction, "❌ An error occurred while setting up the expedition.", use_followup=use_followup, ephemeral=True)
 
 @handle_interaction_expiration
 async def help_command(interaction: discord.Interaction, use_followup: bool = True):
@@ -790,21 +980,25 @@ async def help_command(interaction: discord.Interaction, use_followup: bool = Tr
 @handle_interaction_expiration
 async def reset(interaction: discord.Interaction, confirm: bool, use_followup: bool = True):
     """Reset all spice refinery statistics (Admin only - USE WITH CAUTION)"""
+    command_start = time.time()
+    
     try:
         # Check if user has admin permissions
         if not interaction.user.guild_permissions.administrator:
-            await interaction.response.send_message("❌ You need administrator permissions to use this command.", ephemeral=True)
+            await send_response(interaction, "❌ You need administrator permissions to use this command.", use_followup=use_followup, ephemeral=True)
             return
         
         if not confirm:
             embed = (EmbedBuilder("⚠️ Reset Cancelled", color=0xE74C3C)
                      .set_description("You must set the `confirm` parameter to `True` to proceed with the reset.")
                      .add_field("🔄 How to Reset", "Use `/reset confirm:True` to confirm the reset.", inline=False))
-            await interaction.response.send_message(embed=embed.build(), ephemeral=True)
+            await send_response(interaction, embed=embed.build(), use_followup=use_followup, ephemeral=True)
             return
         
         # Reset all refinery statistics
+        db_start = time.time()
         deleted_rows = await get_database().reset_all_stats()
+        reset_time = time.time() - db_start
         
         embed = (EmbedBuilder("🔄 Refinery Reset Complete", 
                               description="⚠️ **All refinery statistics have been permanently deleted!**",
@@ -813,17 +1007,39 @@ async def reset(interaction: discord.Interaction, confirm: bool, use_followup: b
                  .add_field("✅ What Remains", "Refinement rates and bot settings are preserved.", inline=False)
                  .set_footer(f"Reset performed by {interaction.user.display_name}", interaction.user.display_avatar.url))
         
-        await interaction.response.send_message(embed=embed.build())
+        response_start = time.time()
+        await send_response(interaction, embed=embed.build(), use_followup=use_followup)
+        response_time = time.time() - response_start
+        
+        # Log performance metrics
+        total_time = time.time() - command_start
+        logger.info(f"Reset command completed", 
+                   admin_id=str(interaction.user.id), 
+                   admin_username=interaction.user.display_name,
+                   total_time=f"{total_time:.3f}s",
+                   reset_time=f"{reset_time:.3f}s",
+                   response_time=f"{response_time:.3f}s",
+                   deleted_rows=deleted_rows)
+        
         print(f'All refinery statistics reset by {interaction.user.display_name} ({interaction.user.id}) - {deleted_rows} records deleted')
         
     except Exception as error:
-        logger.error(f"Error in reset command: {error}")
-        await interaction.response.send_message("❌ An error occurred while resetting refinery statistics.", ephemeral=True)
+        total_time = time.time() - command_start
+        logger.error(f"Error in reset command: {error}", 
+                    admin_id=str(interaction.user.id),
+                    admin_username=interaction.user.display_name,
+                    total_time=f"{total_time:.3f}s")
+        await send_response(interaction, "❌ An error occurred while resetting refinery statistics.", use_followup=use_followup, ephemeral=True)
 
 @handle_interaction_expiration
 async def ledger(interaction: discord.Interaction, use_followup: bool = True):
     """View your complete spice harvest ledger"""
+    command_start = time.time()
+    
+    # Database operation with timing
+    db_start = time.time()
     deposits_data = await get_database().get_user_deposits(str(interaction.user.id))
+    get_deposits_time = time.time() - db_start
     
     if not deposits_data:
         embed = (EmbedBuilder("📋 Spice Harvest Ledger", color=0x95A5A6, timestamp=interaction.created_at)
@@ -853,14 +1069,32 @@ async def ledger(interaction: discord.Interaction, use_followup: bool = True):
              .set_footer(f"Spice Refinery • {interaction.user.display_name}", interaction.user.display_avatar.url))
     
     # Send response using helper function
+    response_start = time.time()
     await send_response(interaction, embed=embed.build(), use_followup=use_followup)
+    response_time = time.time() - response_start
+    
+    # Log performance metrics
+    total_time = time.time() - command_start
+    logger.info(f"Ledger command completed", 
+               user_id=str(interaction.user.id), 
+               username=interaction.user.display_name, 
+               total_time=f"{total_time:.3f}s",
+               get_deposits_time=f"{get_deposits_time:.3f}s",
+               response_time=f"{response_time:.3f}s",
+               result_count=len(deposits_data),
+               total_unpaid=total_unpaid,
+               total_paid=total_paid)
 
 @handle_interaction_expiration
 async def expedition_details(interaction: discord.Interaction, expedition_id: int, use_followup: bool = True):
     """View details of a specific expedition"""
+    command_start = time.time()
+    
     try:
         # Get expedition details
+        db_start = time.time()
         expedition_participants = await get_database().get_expedition_participants(expedition_id)
+        get_participants_time = time.time() - db_start
         
         if not expedition_participants:
             await send_response(interaction, "❌ Expedition not found or you don't have access to it.", use_followup=use_followup, ephemeral=True)
@@ -886,22 +1120,46 @@ async def expedition_details(interaction: discord.Interaction, expedition_id: in
                  .add_field("📋 Expedition Participants", "\n\n".join(participant_details), inline=False)
                  .set_footer(f"Requested by {interaction.user.display_name}", interaction.user.display_avatar.url))
         
+        # Send response using helper function
+        response_start = time.time()
         await send_response(interaction, embed=embed.build(), use_followup=use_followup)
+        response_time = time.time() - response_start
+        
+        # Log performance metrics
+        total_time = time.time() - command_start
+        logger.info(f"Expedition details command completed", 
+                   user_id=str(interaction.user.id), 
+                   username=interaction.user.display_name,
+                   expedition_id=expedition_id,
+                   total_time=f"{total_time:.3f}s",
+                   get_participants_time=f"{get_participants_time:.3f}s",
+                   response_time=f"{response_time:.3f}s",
+                   participant_count=len(expedition_participants),
+                   total_sand=total_sand)
         
     except Exception as error:
-        logger.error(f"Error in expedition_details command: {error}")
+        total_time = time.time() - command_start
+        logger.error(f"Error in expedition_details command: {error}", 
+                    user_id=str(interaction.user.id),
+                    username=interaction.user.display_name,
+                    expedition_id=expedition_id,
+                    total_time=f"{total_time:.3f}s")
         await send_response(interaction, "❌ An error occurred while fetching expedition details.", use_followup=use_followup, ephemeral=True)
 
 @handle_interaction_expiration
 async def payment(interaction: discord.Interaction, user: discord.Member, use_followup: bool = True):
     """Process payment for a harvester's deposits (Admin only)"""
+    command_start = time.time()
+    
     # Check if user has admin permissions
     if not interaction.user.guild_permissions.administrator:
         await send_response(interaction, "❌ You need administrator permissions to use this command.", use_followup=use_followup, ephemeral=True)
         return
     
     # Get user's unpaid deposits
+    db_start = time.time()
     unpaid_deposits = await get_database().get_user_deposits(str(user.id), include_paid=False)
+    get_deposits_time = time.time() - db_start
     
     if not unpaid_deposits:
         embed = (EmbedBuilder("💰 Payment Status", color=0x95A5A6, timestamp=interaction.created_at)
@@ -911,7 +1169,9 @@ async def payment(interaction: discord.Interaction, user: discord.Member, use_fo
         return
     
     # Mark all deposits as paid
+    update_start = time.time()
     await get_database().mark_all_user_deposits_paid(str(user.id))
+    update_time = time.time() - update_start
     
     total_paid = sum(deposit['sand_amount'] for deposit in unpaid_deposits)
     
@@ -921,19 +1181,40 @@ async def payment(interaction: discord.Interaction, user: discord.Member, use_fo
              .set_footer(f"Payment processed by {interaction.user.display_name}", interaction.user.display_avatar.url))
     
     # Send response using helper function
+    response_start = time.time()
     await send_response(interaction, embed=embed.build(), use_followup=use_followup)
+    response_time = time.time() - response_start
+    
+    # Log performance metrics
+    total_time = time.time() - command_start
+    logger.info(f"Payment command completed", 
+               admin_id=str(interaction.user.id), 
+               admin_username=interaction.user.display_name,
+               target_user_id=str(user.id),
+               target_username=user.display_name,
+               total_time=f"{total_time:.3f}s",
+               get_deposits_time=f"{get_deposits_time:.3f}s",
+               update_time=f"{update_time:.3f}s",
+               response_time=f"{response_time:.3f}s",
+               total_paid=total_paid,
+               harvests_processed=len(unpaid_deposits))
+    
     print(f'Harvester {user.display_name} ({user.id}) paid {total_paid:,} spice sand by {interaction.user.display_name} ({interaction.user.id})')
 
 @handle_interaction_expiration
 async def payroll(interaction: discord.Interaction, use_followup: bool = True):
     """Process payments for all unpaid harvesters (Admin only)"""
+    command_start = time.time()
+    
     # Check if user has admin permissions
     if not interaction.user.guild_permissions.administrator:
         await send_response(interaction, "❌ You need administrator permissions to use this command.", use_followup=use_followup, ephemeral=True)
         return
     
     # Get all unpaid deposits
+    db_start = time.time()
     unpaid_deposits = await get_database().get_all_unpaid_deposits()
+    get_deposits_time = time.time() - db_start
     
     if not unpaid_deposits:
         embed = (EmbedBuilder("💰 Payroll Status", color=0x95A5A6, timestamp=interaction.created_at)
@@ -954,11 +1235,13 @@ async def payroll(interaction: discord.Interaction, use_followup: bool = True):
     total_paid = 0
     users_paid = 0
     
+    update_start = time.time()
     for user_id, deposits_list in user_deposits.items():
         await get_database().mark_all_user_deposits_paid(user_id)
         user_total = sum(deposit['sand_amount'] for deposit in deposits_list)
         total_paid += user_total
         users_paid += 1
+    update_time = time.time() - update_start
     
     embed = (EmbedBuilder("💰 Guild Payroll Complete", color=0x27AE60, timestamp=interaction.created_at)
              .set_description("✅ **All harvesters have been paid for their harvests!**")
@@ -966,7 +1249,23 @@ async def payroll(interaction: discord.Interaction, use_followup: bool = True):
              .set_footer(f"Guild payroll processed by {interaction.user.display_name}", interaction.user.display_avatar.url))
     
     # Send response using helper function
+    response_start = time.time()
     await send_response(interaction, embed=embed.build(), use_followup=use_followup)
+    response_time = time.time() - response_start
+    
+    # Log performance metrics
+    total_time = time.time() - command_start
+    logger.info(f"Payroll command completed", 
+               admin_id=str(interaction.user.id), 
+               admin_username=interaction.user.display_name,
+               total_time=f"{total_time:.3f}s",
+               get_deposits_time=f"{get_deposits_time:.3f}s",
+               update_time=f"{update_time:.3f}s",
+               response_time=f"{response_time:.3f}s",
+               total_paid=total_paid,
+               users_paid=users_paid,
+               total_harvests=len(unpaid_deposits))
+    
     print(f'Guild payroll of {total_paid:,} spice sand to {users_paid} harvesters by {interaction.user.display_name} ({interaction.user.id})')
 
 # Register all commands with the bot's command tree
@@ -975,6 +1274,7 @@ register_commands()
 # Error handling
 @bot.event
 async def on_command_error(ctx, error):
+    error_start = time.time()
     logger.error(f"Command error: {error}", event_type="command_error", 
                  command=ctx.command.name if ctx.command else "unknown",
                  user_id=str(ctx.author.id) if ctx.author else "unknown",
@@ -984,6 +1284,7 @@ async def on_command_error(ctx, error):
 
 @bot.event
 async def on_error(event, *args, **kwargs):
+    error_start = time.time()
     logger.error(f"Discord event error: {event}", event_type="discord_error",
                  event=event, args=str(args), kwargs=str(kwargs))
     print(f'Discord event error: {event}')
@@ -997,6 +1298,8 @@ def start_health_server():
     """Start a robust HTTP server for Fly.io health checks with keep-alive"""
     class HealthHandler(http.server.BaseHTTPRequestHandler):
         def do_GET(self):
+            request_start = time.time()
+            
             if self.path == '/health':
                 self.send_response(200)
                 self.send_header('Content-type', 'text/plain')
@@ -1012,14 +1315,30 @@ def start_health_server():
                     'timestamp': datetime.datetime.utcnow().isoformat()
                 }
                 self.wfile.write(str(status).encode())
+                
+                request_time = time.time() - request_start
+                logger.info(f"Health check request completed", 
+                           request_time=f"{request_time:.3f}s",
+                           bot_ready=bot.is_ready(),
+                           guild_count=len(bot.guilds))
+                
             elif self.path == '/ping':
                 self.send_response(200)
                 self.send_header('Content-type', 'text/plain')
                 self.end_headers()
                 self.wfile.write(b'pong')
+                
+                request_time = time.time() - request_start
+                logger.info(f"Ping request completed", request_time=f"{request_time:.3f}s")
+                
             else:
                 self.send_response(404)
                 self.end_headers()
+                
+                request_time = time.time() - request_start
+                logger.warning(f"Invalid health check request", 
+                              path=self.path, 
+                              request_time=f"{request_time:.3f}s")
         
         def log_message(self, format, *args):
             pass  # Suppress HTTP server logs
@@ -1045,11 +1364,25 @@ if __name__ == '__main__':
         """Send periodic pings to keep the machine alive"""
         import requests
         import time
+        ping_count = 0
         while True:
             try:
                 time.sleep(300)  # Every 5 minutes
-                requests.get('http://localhost:8080/ping', timeout=5)
-            except:
+                ping_start = time.time()
+                response = requests.get('http://localhost:8080/ping', timeout=5)
+                ping_time = time.time() - ping_start
+                ping_count += 1
+                
+                logger.info(f"Keep-alive ping completed", 
+                           ping_count=ping_count,
+                           ping_time=f"{ping_time:.3f}s",
+                           status_code=response.status_code)
+                
+            except Exception as e:
+                ping_count += 1
+                logger.warning(f"Keep-alive ping failed", 
+                              ping_count=ping_count,
+                              error=str(e))
                 pass  # Ignore errors, just keep trying
     
     keep_alive_thread = threading.Thread(target=keep_alive, daemon=True)
@@ -1062,6 +1395,15 @@ if __name__ == '__main__':
         print("Please set the DISCORD_TOKEN environment variable in Fly.io or your .env file")
         exit(1)
     
+    startup_start = time.time()
     logger.bot_event(f"Bot starting - Token present: {bool(token)}")
     print("Starting Discord bot...")
-    bot.run(token)
+    
+    try:
+        bot.run(token)
+    except Exception as e:
+        startup_time = time.time() - startup_start
+        logger.error(f"Bot startup failed", 
+                    startup_time=f"{startup_time:.3f}s",
+                    error=str(e))
+        raise e
