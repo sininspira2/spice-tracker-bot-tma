@@ -299,9 +299,12 @@ async def harvest(interaction: discord.Interaction, amount: int):
         user = await get_database().get_user(str(interaction.user.id))
         total_sand = await get_database().get_user_total_sand(str(interaction.user.id))
         
+        # Debug logging
+        logger.bot_event(f"Harvest debug - User: {user}, Total sand: {total_sand}, User ID: {interaction.user.id}")
+        
         # Calculate melange conversion
         total_melange_earned = total_sand // sand_per_melange
-        current_melange = user['total_melange'] if user else 0
+        current_melange = user['total_melange'] if user and user['total_melange'] is not None else 0
         new_melange = total_melange_earned - current_melange
         
         if new_melange > 0:
@@ -324,6 +327,11 @@ async def harvest(interaction: discord.Interaction, amount: int):
         
     except Exception as error:
         logger.error(f"Error in harvest command: {error}")
+        logger.error(f"Error type: {type(error).__name__}")
+        logger.error(f"Error details: {str(error)}")
+        import traceback
+        logger.error(f"Full traceback: {traceback.format_exc()}")
+        
         try:
             # Since we deferred, always use followup.send
             await interaction.followup.send("❌ An error occurred while processing your harvest.", ephemeral=True)
