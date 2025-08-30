@@ -245,7 +245,15 @@ class Database:
                 DELETE FROM deposits 
                 WHERE created_at < $1 AND paid = TRUE
             ''', cutoff_date)
-            return result.split()[-1] if result else 0
+            # Parse the result string to get the count of deleted rows
+            if result:
+                try:
+                    # Result format: "DELETE X" where X is the number of rows deleted
+                    count_str = result.split()[-1]
+                    return int(count_str)
+                except (ValueError, IndexError):
+                    return 0
+            return 0
 
     async def update_user_melange(self, user_id, melange_amount):
         """Update user melange amount"""
@@ -294,7 +302,19 @@ class Database:
         async with self._get_connection() as conn:
             result1 = await conn.execute('DELETE FROM deposits')
             result2 = await conn.execute('DELETE FROM users')
-            return (int(result1.split()[-1]) if result1 else 0) + (int(result2.split()[-1]) if result2 else 0)
+            
+            # Parse the result strings to get the count of deleted rows
+            def parse_delete_result(result):
+                if result:
+                    try:
+                        # Result format: "DELETE X" where X is the number of rows deleted
+                        count_str = result.split()[-1]
+                        return int(count_str)
+                    except (ValueError, IndexError):
+                        return 0
+                return 0
+            
+            return parse_delete_result(result1) + parse_delete_result(result2)
 
     async def get_all_unpaid_deposits(self):
         """Get all unpaid deposits across all users"""
