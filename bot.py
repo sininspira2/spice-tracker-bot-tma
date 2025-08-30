@@ -363,8 +363,18 @@ async def harvest(interaction: discord.Interaction, amount: int):
 async def refinery(interaction: discord.Interaction):
     """Show your total sand and melange statistics"""
     try:
-        # Defer the response to prevent interaction timeout
-        await interaction.response.defer(thinking=True)
+        # Try to defer the response, but handle expired interactions gracefully
+        try:
+            await interaction.response.defer(thinking=True)
+            use_followup = True
+        except Exception as defer_error:
+            if "Unknown interaction" in str(defer_error) or "NotFound" in str(defer_error):
+                # Interaction expired, we'll need to send a new message
+                use_followup = False
+                logger.warning(f"Interaction expired for refinery command, user: {interaction.user.id}")
+            else:
+                # Re-raise if it's a different error
+                raise defer_error
         
         user = await get_database().get_user(str(interaction.user.id))
         total_sand = await get_database().get_user_total_sand(str(interaction.user.id))
@@ -397,16 +407,23 @@ async def refinery(interaction: discord.Interaction):
                  .add_field("📅 Last Activity", f"<t:{int(user['last_updated'].timestamp()) if user else interaction.created_at.timestamp()}:F>", inline=False)
                  .set_footer(f"Spice Refinery • {interaction.user.display_name}", interaction.user.display_avatar.url))
         
-        await interaction.followup.send(embed=embed.build())
+        # Send response based on whether defer was successful
+        if use_followup:
+            await interaction.followup.send(embed=embed.build())
+        else:
+            await interaction.channel.send(embed=embed.build())
         
     except Exception as error:
         logger.error(f"Error in refinery command: {error}")
         try:
-            # Since we deferred, always use followup.send
-            await interaction.followup.send("❌ An error occurred while fetching your refinery status.", ephemeral=True)
-        except Exception as followup_error:
-            logger.error(f"Error sending followup message: {followup_error}")
-            # If followup fails, try to send to the channel
+            # Send error response based on whether defer was successful
+            if use_followup:
+                await interaction.followup.send("❌ An error occurred while fetching your refinery status.", ephemeral=True)
+            else:
+                await interaction.channel.send("❌ An error occurred while fetching your refinery status.")
+        except Exception as response_error:
+            logger.error(f"Error sending error response: {response_error}")
+            # If all else fails, try to send to the channel
             try:
                 await interaction.channel.send("❌ An error occurred while fetching your refinery status.")
             except:
@@ -415,12 +432,25 @@ async def refinery(interaction: discord.Interaction):
 async def leaderboard(interaction: discord.Interaction, limit: int = 10):
     """Display top refiners by melange earned"""
     try:
-        # Defer the response to prevent interaction timeout
-        await interaction.response.defer(thinking=True)
+        # Try to defer the response, but handle expired interactions gracefully
+        try:
+            await interaction.response.defer(thinking=True)
+            use_followup = True
+        except Exception as defer_error:
+            if "Unknown interaction" in str(defer_error) or "NotFound" in str(defer_error):
+                # Interaction expired, we'll need to send a new message
+                use_followup = False
+                logger.warning(f"Interaction expired for leaderboard command, user: {interaction.user.id}")
+            else:
+                # Re-raise if it's a different error
+                raise defer_error
         
         # Validate limit
         if not 5 <= limit <= 25:
-            await interaction.followup.send("❌ Limit must be between 5 and 25.", ephemeral=True)
+            if use_followup:
+                await interaction.followup.send("❌ Limit must be between 5 and 25.", ephemeral=True)
+            else:
+                await interaction.channel.send("❌ Limit must be between 5 and 25.")
             return
         
         leaderboard_data = await get_database().get_leaderboard(limit)
@@ -428,7 +458,10 @@ async def leaderboard(interaction: discord.Interaction, limit: int = 10):
         if not leaderboard_data:
             embed = EmbedBuilder("🏆 Spice Refinery Rankings", color=0x95A5A6, timestamp=interaction.created_at)
             embed.set_description("🏜️ No refiners found yet! Be the first to start harvesting spice sand with `/harvest`.")
-            await interaction.followup.send(embed=embed.build())
+            if use_followup:
+                await interaction.followup.send(embed=embed.build())
+            else:
+                await interaction.channel.send(embed=embed.build())
             return
         
         # Get conversion rate and build leaderboard
@@ -452,16 +485,23 @@ async def leaderboard(interaction: discord.Interaction, limit: int = 10):
                  .add_field("⚙️ Refinement Rate", f"{sand_per_melange} sand = 1 melange")
                  .set_footer(f"Showing top {len(leaderboard_data)} refiners • Updated", bot.user.display_avatar.url if bot.user else None))
         
-        await interaction.followup.send(embed=embed.build())
+        # Send response based on whether defer was successful
+        if use_followup:
+            await interaction.followup.send(embed=embed.build())
+        else:
+            await interaction.channel.send(embed=embed.build())
         
     except Exception as error:
         logger.error(f"Error in leaderboard command: {error}")
         try:
-            # Since we deferred, always use followup.send
-            await interaction.followup.send("❌ An error occurred while fetching the leaderboard.", ephemeral=True)
-        except Exception as followup_error:
-            logger.error(f"Error sending followup message: {followup_error}")
-            # If followup fails, try to send to the channel
+            # Send error response based on whether defer was successful
+            if use_followup:
+                await interaction.followup.send("❌ An error occurred while fetching the leaderboard.", ephemeral=True)
+            else:
+                await interaction.channel.send("❌ An error occurred while fetching the leaderboard.")
+        except Exception as response_error:
+            logger.error(f"Error sending error response: {response_error}")
+            # If all else fails, try to send to the channel
             try:
                 await interaction.channel.send("❌ An error occurred while fetching the leaderboard.")
             except:
@@ -626,8 +666,18 @@ async def reset(interaction: discord.Interaction, confirm: bool):
 async def ledger(interaction: discord.Interaction):
     """View your complete spice harvest ledger"""
     try:
-        # Defer the response to prevent interaction timeout
-        await interaction.response.defer(thinking=True)
+        # Try to defer the response, but handle expired interactions gracefully
+        try:
+            await interaction.response.defer(thinking=True)
+            use_followup = True
+        except Exception as defer_error:
+            if "Unknown interaction" in str(defer_error) or "NotFound" in str(defer_error):
+                # Interaction expired, we'll need to send a new message
+                use_followup = False
+                logger.warning(f"Interaction expired for ledger command, user: {interaction.user.id}")
+            else:
+                # Re-raise if it's a different error
+                raise defer_error
         
         deposits_data = await get_database().get_user_deposits(str(interaction.user.id))
         
@@ -635,7 +685,10 @@ async def ledger(interaction: discord.Interaction):
             embed = (EmbedBuilder("📋 Spice Harvest Ledger", color=0x95A5A6, timestamp=interaction.created_at)
                      .set_description("🏜️ You haven't harvested any spice sand yet! Use `/harvest` to start tracking your harvests.")
                      .set_footer(f"Requested by {interaction.user.display_name}", interaction.user.display_avatar.url))
-            await interaction.followup.send(embed=embed.build(), ephemeral=True)
+            if use_followup:
+                await interaction.followup.send(embed=embed.build(), ephemeral=True)
+            else:
+                await interaction.channel.send(embed=embed.build())
             return
         
         # Build harvest ledger
@@ -658,16 +711,23 @@ async def ledger(interaction: discord.Interaction):
                  .add_field("💰 Payment Summary", f"**Unpaid Harvest:** {total_unpaid:,} sand\n**Paid Harvest:** {total_paid:,} sand\n**Total Harvests:** {len(deposits_data)}", inline=False)
                  .set_footer(f"Spice Refinery • {interaction.user.display_name}", interaction.user.display_avatar.url))
         
-        await interaction.followup.send(embed=embed.build())
+        # Send response based on whether defer was successful
+        if use_followup:
+            await interaction.followup.send(embed=embed.build())
+        else:
+            await interaction.channel.send(embed=embed.build())
         
     except Exception as error:
         logger.error(f"Error in ledger command: {error}")
         try:
-            # Since we deferred, always use followup.send
-            await interaction.followup.send("❌ An error occurred while fetching your harvest ledger.", ephemeral=True)
-        except Exception as followup_error:
-            logger.error(f"Error sending followup message: {followup_error}")
-            # If followup fails, try to send to the channel
+            # Send error response based on whether defer was successful
+            if use_followup:
+                await interaction.followup.send("❌ An error occurred while fetching your harvest ledger.", ephemeral=True)
+            else:
+                await interaction.channel.send("❌ An error occurred while fetching your harvest ledger.")
+        except Exception as response_error:
+            logger.error(f"Error sending error response: {response_error}")
+            # If all else fails, try to send to the channel
             try:
                 await interaction.channel.send("❌ An error occurred while fetching your harvest ledger.")
             except:
