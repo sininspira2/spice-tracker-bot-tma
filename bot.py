@@ -301,7 +301,7 @@ async def harvest(interaction: discord.Interaction, amount: int):
         
         # Calculate melange conversion
         total_melange_earned = total_sand // sand_per_melange
-        current_melange = user['total_melange'] or 0
+        current_melange = user['total_melange'] if user else 0
         new_melange = total_melange_earned - current_melange
         
         if new_melange > 0:
