@@ -97,6 +97,7 @@ Your bot automatically deploys to Fly.io when you push working code to main bran
 | `DATABASE_URL` | Supabase PostgreSQL connection string | ✅ Yes |
 | `ADMIN_ROLE_IDS` | Comma-separated list of Discord role IDs for admin access | ❌ No |
 | `ALLOWED_ROLE_IDS` | Comma-separated list of Discord role IDs for basic bot access | ❌ No |
+| `SAND_PER_MELANGE` | Amount of spice sand required for 1 melange | ❌ No (default: 50) |
 | `PORT` | Health check server port | ❌ No (default: 8080) |
 
 ### Troubleshooting

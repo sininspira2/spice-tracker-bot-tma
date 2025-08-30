@@ -32,6 +32,10 @@ def get_database():
         database = Database()
     return database
 
+def get_sand_per_melange() -> int:
+    """Get the spice sand to melange conversion rate from environment variables"""
+    return int(os.getenv('SAND_PER_MELANGE', '50'))
+
 # Register commands with the bot's command tree
 def register_commands():
     """Register all decorated commands with the bot's command tree"""
@@ -63,8 +67,7 @@ def register_commands():
         },
         'conversion': {
             'aliases': ['rate'],
-            'description': "Set the spice sand to melange conversion rate (Admin only)",
-            'params': {'sand_per_melange': "Amount of spice sand required for 1 melange"},
+            'description': "View the current spice sand to melange conversion rate",
             'function': conversion
         },
         'split': {
@@ -124,8 +127,8 @@ def register_commands():
                         await cmd_data['function'](interaction, limit)
                 elif command_name == 'conversion':
                     @bot.tree.command(name=command_name, description=cmd_data['description'])
-                    async def wrapper(interaction: discord.Interaction, sand_per_melange: int):
-                        await cmd_data['function'](interaction, sand_per_melange)
+                    async def wrapper(interaction: discord.Interaction):
+                        await cmd_data['function'](interaction)
                 elif command_name == 'split':
                     @bot.tree.command(name=command_name, description=cmd_data['description'])
                     async def wrapper(interaction: discord.Interaction, total_sand: int, participants: int, harvester_percentage: float = None):
@@ -173,8 +176,8 @@ def register_commands():
                             await cmd_data['function'](interaction, limit)
                     elif 'sand_per_melange' in cmd_data['params']:  # conversion/rate
                         @bot.tree.command(name=alias_name, description=cmd_data['description'])
-                        async def wrapper(interaction: discord.Interaction, sand_per_melange: int):
-                            await cmd_data['function'](interaction, sand_per_melange)
+                        async def wrapper(interaction: discord.Interaction):
+                            await cmd_data['function'](interaction)
                     elif 'total_sand' in cmd_data['params']:  # split
                         @bot.tree.command(name=alias_name, description=cmd_data['description'])
                         async def wrapper(interaction: discord.Interaction, total_sand: int, participants: int, harvester_percentage: float = None):
@@ -288,7 +291,7 @@ async def harvest(interaction: discord.Interaction, amount: int):
         await interaction.response.defer(thinking=True)
         
         # Get conversion rate and add deposit
-        sand_per_melange = int(await get_database().get_setting('sand_per_melange') or 50)
+        sand_per_melange = get_sand_per_melange()
         await get_database().add_deposit(str(interaction.user.id), interaction.user.display_name, amount)
         
         # Get user data and calculate totals
@@ -344,7 +347,7 @@ async def refinery(interaction: discord.Interaction):
             return
         
         # Calculate progress
-        sand_per_melange = int(await get_database().get_setting('sand_per_melange') or 50)
+        sand_per_melange = get_sand_per_melange()
         remaining_sand = total_sand % sand_per_melange
         sand_needed = sand_per_melange - remaining_sand if total_sand > 0 else sand_per_melange
         progress_percent = int((remaining_sand / sand_per_melange) * 100) if total_sand > 0 else 0
@@ -389,7 +392,7 @@ async def leaderboard(interaction: discord.Interaction, limit: int = 10):
             return
         
         # Get conversion rate and build leaderboard
-        sand_per_melange = int(await get_database().get_setting('sand_per_melange') or 50)
+        sand_per_melange = get_sand_per_melange()
         medals = ['🥇', '🥈', '🥉']
         
         leaderboard_text = ""
@@ -415,30 +418,20 @@ async def leaderboard(interaction: discord.Interaction, limit: int = 10):
         logger.error(f"Error in leaderboard command: {error}")
         await interaction.response.send_message("❌ An error occurred while fetching the leaderboard.", ephemeral=True)
 
-async def conversion(interaction: discord.Interaction, sand_per_melange: int):
-    """Set the spice sand to melange conversion rate (Admin only)"""
+async def conversion(interaction: discord.Interaction):
+    """View the current spice sand to melange conversion rate"""
     try:
-        # Check if user has admin permissions
-        if not interaction.user.guild_permissions.administrator:
-            await interaction.response.send_message("❌ You need administrator permissions to use this command.", ephemeral=True)
-            return
         
-        # Validate input
-        if not 1 <= sand_per_melange <= 1000:
-            await interaction.response.send_message("❌ Conversion rate must be between 1 and 1,000.", ephemeral=True)
-            return
+        # Get current rate from environment
+        current_rate = get_sand_per_melange()
         
-        # Get current rate and update
-        current_rate = int(await get_database().get_setting('sand_per_melange') or 50)
-        await get_database().set_setting('sand_per_melange', str(sand_per_melange))
-        
-        embed = (EmbedBuilder("⚙️ Refinement Rate Updated", color=0x27AE60, timestamp=interaction.created_at)
-                 .add_field("📊 Rate Change", f"**Previous Rate:** {current_rate} sand = 1 melange\n**New Rate:** {sand_per_melange} sand = 1 melange", inline=False)
-                 .add_field("⚠️ Important Note", "This change affects future calculations only. Existing refinery data remains unchanged.", inline=False)
-                 .set_footer(f"Changed by {interaction.user.display_name}", interaction.user.display_avatar.url))
+        embed = (EmbedBuilder("⚙️ Refinement Rate Information", color=0x3498DB, timestamp=interaction.created_at)
+                 .add_field("📊 Current Rate", f"**{current_rate} sand = 1 melange**", inline=False)
+                 .add_field("⚠️ Important Note", "The conversion rate is set via environment variables and cannot be changed through commands. Contact an administrator to modify the SAND_PER_MELANGE environment variable.", inline=False)
+                 .set_footer(f"Requested by {interaction.user.display_name}", interaction.user.display_avatar.url))
         
         await interaction.response.send_message(embed=embed.build())
-        print(f'Refinement rate changed from {current_rate} to {sand_per_melange} by {interaction.user.display_name} ({interaction.user.id})')
+        print(f'Refinement rate info requested by {interaction.user.display_name} ({interaction.user.id}) - Current rate: {current_rate}')
         
     except Exception as error:
         logger.error(f"Error in conversion command: {error}")
@@ -463,7 +456,7 @@ async def split(interaction: discord.Interaction, total_sand: int, participants:
             return
         
         # Calculate splits
-        sand_per_melange = int(await get_database().get_setting('sand_per_melange') or 50)
+        sand_per_melange = get_sand_per_melange()
         harvester_sand = int(total_sand * (harvester_percentage / 100))
         remaining_sand = total_sand - harvester_sand
         
@@ -494,7 +487,7 @@ async def split(interaction: discord.Interaction, total_sand: int, participants:
 async def help_command(interaction: discord.Interaction):
     """Show all available commands and their descriptions"""
     try:
-        sand_per_melange = int(await get_database().get_setting('sand_per_melange') or 50)
+        sand_per_melange = get_sand_per_melange()
         
         embed = (EmbedBuilder("🏜️ Spice Refinery Commands", 
                               description="Track your spice sand harvests and melange production in the Dune: Awakening universe!",
@@ -507,11 +500,11 @@ async def help_command(interaction: discord.Interaction):
                            "**`/split [total_sand] [harvester_%]`**\nSplit harvested spice among expedition members. Harvester % is optional.\n\n"
                            "**`/help`**\nDisplay this help message with all commands.", inline=False)
                  .add_field("⚙️ Guild Admin Commands", 
-                           "**`/conversion [sand_per_melange]`**\nSet refinement rate (1-1,000 sand per melange).\n\n"
+                           "**`/conversion`**\nView the current refinement rate.\n\n"
                            "**`/payment [user]`**\nProcess payment for a harvester's deposits.\n\n"
                            "**`/payroll`**\nProcess payments for all unpaid harvesters.\n\n"
                            "**`/reset confirm:True`**\nReset all refinery statistics (requires confirmation).", inline=False)
-                 .add_field("📋 Current Settings", f"**Refinement Rate:** {sand_per_melange} sand = 1 melange\n**Default Harvester %:** {os.getenv('DEFAULT_HARVESTER_PERCENTAGE', '25.0')}%", inline=False)
+                 .add_field("📋 Current Settings", f"**Refinement Rate:** {sand_per_melange} sand = 1 melange (set via SAND_PER_MELANGE env var)\n**Default Harvester %:** {os.getenv('DEFAULT_HARVESTER_PERCENTAGE', '25.0')}%", inline=False)
                  .add_field("💡 Example Usage", 
                            "• `/harvest 250` or `/sand 250` - Harvest 250 spice sand\n"
                            "• `/refinery` or `/status` - Check your refinery status\n"
