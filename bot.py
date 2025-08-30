@@ -38,6 +38,11 @@ def get_sand_per_melange() -> int:
 
 async def send_response(interaction: discord.Interaction, content=None, embed=None, ephemeral=False, use_followup=True):
     """Helper function to send responses using the appropriate method based on use_followup"""
+    # Validate inputs
+    if not interaction or not interaction.guild:
+        logger.error("Invalid interaction or guild in send_response")
+        return
+    
     try:
         if use_followup:
             if content:
@@ -57,16 +62,22 @@ async def send_response(interaction: discord.Interaction, content=None, embed=No
                 await interaction.channel.send(content)
             elif embed:
                 await interaction.channel.send(embed=embed)
-        except:
-            pass  # Last resort - just log the error
+        except Exception as fallback_error:
+            logger.error(f"Fallback response also failed: {fallback_error}")
+            # Last resort - just log the error, don't raise
 
 def handle_interaction_expiration(func):
     """Decorator to handle interaction expiration gracefully"""
     async def wrapper(interaction: discord.Interaction, *args, **kwargs):
         use_followup = True
         try:
-            # Try to defer the response
-            await interaction.response.defer(thinking=True)
+            # Try to defer the response with a timeout
+            import asyncio
+            await asyncio.wait_for(interaction.response.defer(thinking=True), timeout=5.0)
+        except asyncio.TimeoutError:
+            # Defer timed out, fall back to channel messages
+            use_followup = False
+            logger.warning(f"Defer timeout for {func.__name__} command, user: {interaction.user.id}")
         except Exception as defer_error:
             if "Unknown interaction" in str(defer_error) or "NotFound" in str(defer_error):
                 # Interaction expired, we'll need to send channel messages
@@ -86,8 +97,12 @@ def handle_interaction_expiration(func):
             # Log the error but don't re-raise it
             logger.error(f"Error in {func.__name__} command: {func_error}")
             
-            # Send error response based on whether defer was successful
-            await send_response(interaction, "❌ An error occurred while processing your command.", use_followup=use_followup, ephemeral=True)
+            # Try to send error response, but don't let it fail the decorator
+            try:
+                await send_response(interaction, "❌ An error occurred while processing your command.", use_followup=use_followup, ephemeral=True)
+            except Exception as response_error:
+                logger.error(f"Failed to send error response for {func.__name__}: {response_error}")
+                # Don't re-raise - just log the failure
             
             # Return None to indicate error occurred
             return None
