@@ -319,28 +319,51 @@ async def harvest(interaction: discord.Interaction, amount: int, use_followup: b
         user = await get_database().get_user(str(interaction.user.id))
         total_sand = await get_database().get_user_total_sand(str(interaction.user.id))
         
+        # Ensure user exists and has valid data
+        if not user:
+            # Create user if they don't exist
+            await get_database().upsert_user(str(interaction.user.id), interaction.user.display_name)
+            user = await get_database().get_user(str(interaction.user.id))
+        
         # Debug logging
         logger.bot_event(f"Harvest debug - User: {user}, Total sand: {total_sand}, User ID: {interaction.user.id}")
+        logger.bot_event(f"Harvest debug - Sand per melange: {sand_per_melange}")
         
         # Calculate melange conversion
-        total_melange_earned = total_sand // sand_per_melange
-        current_melange = user['total_melange'] if user and user['total_melange'] is not None else 0
-        new_melange = total_melange_earned - current_melange
-        
-        if new_melange > 0:
-            await get_database().update_user_melange(str(interaction.user.id), new_melange)
+        try:
+            total_melange_earned = total_sand // sand_per_melange
+            current_melange = user['total_melange'] if user and user['total_melange'] is not None else 0
+            new_melange = max(0, total_melange_earned - current_melange)  # Ensure new_melange is never negative
+            
+            # Only update melange if we have new melange to add
+            if new_melange > 0:
+                await get_database().update_user_melange(str(interaction.user.id), new_melange)
+                logger.bot_event(f"Harvest debug - Updated user melange by {new_melange}")
+            
+            logger.bot_event(f"Harvest debug - Final values: current_melange={current_melange}, new_melange={new_melange}")
+        except Exception as calc_error:
+            logger.error(f"Error in melange calculation: {calc_error}")
+            current_melange = 0
+            new_melange = 0
         
         # Build response
-        remaining_sand = total_sand % sand_per_melange
-        sand_needed = sand_per_melange - remaining_sand
+        try:
+            remaining_sand = total_sand % sand_per_melange
+            sand_needed = max(0, sand_per_melange - remaining_sand)  # Ensure sand_needed is never negative
+            
+            embed = (EmbedBuilder("🏜️ Spice Harvest Logged", color=0xE67E22, timestamp=interaction.created_at)
+                     .add_field("📊 Harvest Summary", f"**Spice Sand Harvested:** {amount:,}\n**Total Unpaid Harvest:** {total_sand:,}")
+                     .add_field("✨ Melange Production", f"**Total Melange:** {(current_melange + new_melange):,}\n**Conversion Rate:** {sand_per_melange} sand = 1 melange")
+                     .add_field("🎯 Next Refinement", f"**Sand Until Next Melange:** {sand_needed:,}", inline=False)
+                     .set_footer(f"Harvested by {interaction.user.display_name}", interaction.user.display_avatar.url))
+        except Exception as embed_error:
+            logger.error(f"Error building embed: {embed_error}")
+            # Fallback to simple embed
+            embed = (EmbedBuilder("🏜️ Spice Harvest Logged", color=0xE67E22, timestamp=interaction.created_at)
+                     .add_field("📊 Harvest Summary", f"**Spice Sand Harvested:** {amount:,}\n**Total Unpaid Harvest:** {total_sand:,}")
+                     .set_footer(f"Harvested by {interaction.user.display_name}", interaction.user.display_avatar.url))
         
-        embed = (EmbedBuilder("🏜️ Spice Harvest Logged", color=0xE67E22, timestamp=interaction.created_at)
-                 .add_field("📊 Harvest Summary", f"**Spice Sand Harvested:** {amount:,}\n**Total Unpaid Harvest:** {total_sand:,}")
-                 .add_field("✨ Melange Production", f"**Total Melange:** {(current_melange + new_melange):,}\n**Conversion Rate:** {sand_per_melange} sand = 1 melange")
-                 .add_field("🎯 Next Refinement", f"**Sand Until Next Melange:** {sand_needed:,}", inline=False)
-                 .set_footer(f"Harvested by {interaction.user.display_name}", interaction.user.display_avatar.url))
-        
-        if new_melange > 0:
+        if new_melange and new_melange > 0:
             embed.set_description(f"🎉 **You produced {new_melange:,} melange from this harvest!**")
         
         # Send response based on whether defer was successful
