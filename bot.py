@@ -372,16 +372,27 @@ async def refinery(interaction: discord.Interaction):
     except Exception as error:
         logger.error(f"Error in refinery command: {error}")
         try:
-            await interaction.followup.send("❌ An error occurred while fetching your refinery status.", ephemeral=True)
-        except:
-            await interaction.channel.send("❌ An error occurred while fetching your refinery status.")
+            if not interaction.response.is_done():
+                await interaction.response.send_message("❌ An error occurred while fetching your refinery status.", ephemeral=True)
+            else:
+                await interaction.followup.send("❌ An error occurred while fetching your refinery status.", ephemeral=True)
+        except Exception as followup_error:
+            logger.error(f"Error sending followup message: {followup_error}")
+            # If all else fails, try to send to the channel
+            try:
+                await interaction.channel.send("❌ An error occurred while fetching your refinery status.")
+            except:
+                pass  # Last resort - just log the error
 
 async def leaderboard(interaction: discord.Interaction, limit: int = 10):
     """Display top refiners by melange earned"""
     try:
+        # Defer the response to prevent interaction timeout
+        await interaction.response.defer(thinking=True)
+        
         # Validate limit
         if not 5 <= limit <= 25:
-            await interaction.response.send_message("❌ Limit must be between 5 and 25.", ephemeral=True)
+            await interaction.followup.send("❌ Limit must be between 5 and 25.", ephemeral=True)
             return
         
         leaderboard_data = await get_database().get_leaderboard(limit)
@@ -389,7 +400,7 @@ async def leaderboard(interaction: discord.Interaction, limit: int = 10):
         if not leaderboard_data:
             embed = EmbedBuilder("🏆 Spice Refinery Rankings", color=0x95A5A6, timestamp=interaction.created_at)
             embed.set_description("🏜️ No refiners found yet! Be the first to start harvesting spice sand with `/harvest`.")
-            await interaction.response.send_message(embed=embed.build())
+            await interaction.followup.send(embed=embed.build())
             return
         
         # Get conversion rate and build leaderboard
@@ -413,7 +424,7 @@ async def leaderboard(interaction: discord.Interaction, limit: int = 10):
                  .add_field("⚙️ Refinement Rate", f"{sand_per_melange} sand = 1 melange")
                  .set_footer(f"Showing top {len(leaderboard_data)} refiners • Updated", bot.user.display_avatar.url if bot.user else None))
         
-        await interaction.response.send_message(embed=embed.build())
+        await interaction.followup.send(embed=embed.build())
         
     except Exception as error:
         logger.error(f"Error in leaderboard command: {error}")
