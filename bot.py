@@ -325,10 +325,17 @@ async def harvest(interaction: discord.Interaction, amount: int):
     except Exception as error:
         logger.error(f"Error in harvest command: {error}")
         try:
-            await interaction.followup.send("❌ An error occurred while processing your harvest.", ephemeral=True)
-        except:
-            # If followup fails, try to send a new message
-            await interaction.channel.send("❌ An error occurred while processing your harvest.")
+            if not interaction.response.is_done():
+                await interaction.response.send_message("❌ An error occurred while processing your harvest.", ephemeral=True)
+            else:
+                await interaction.followup.send("❌ An error occurred while processing your harvest.", ephemeral=True)
+        except Exception as followup_error:
+            logger.error(f"Error sending followup message: {followup_error}")
+            # If all else fails, try to send to the channel
+            try:
+                await interaction.channel.send("❌ An error occurred while processing your harvest.")
+            except:
+                pass  # Last resort - just log the error
 
 async def refinery(interaction: discord.Interaction):
     """Show your total sand and melange statistics"""
@@ -600,13 +607,16 @@ async def reset(interaction: discord.Interaction, confirm: bool):
 async def ledger(interaction: discord.Interaction):
     """View your complete spice harvest ledger"""
     try:
+        # Defer the response to prevent interaction timeout
+        await interaction.response.defer(thinking=True)
+        
         deposits_data = await get_database().get_user_deposits(str(interaction.user.id))
         
         if not deposits_data:
             embed = (EmbedBuilder("📋 Spice Harvest Ledger", color=0x95A5A6, timestamp=interaction.created_at)
                      .set_description("🏜️ You haven't harvested any spice sand yet! Use `/harvest` to start tracking your harvests.")
                      .set_footer(f"Requested by {interaction.user.display_name}", interaction.user.display_avatar.url))
-            await interaction.response.send_message(embed=embed.build(), ephemeral=True)
+            await interaction.followup.send(embed=embed.build(), ephemeral=True)
             return
         
         # Build harvest ledger
@@ -629,18 +639,32 @@ async def ledger(interaction: discord.Interaction):
                  .add_field("💰 Payment Summary", f"**Unpaid Harvest:** {total_unpaid:,} sand\n**Paid Harvest:** {total_paid:,} sand\n**Total Harvests:** {len(deposits_data)}", inline=False)
                  .set_footer(f"Spice Refinery • {interaction.user.display_name}", interaction.user.display_avatar.url))
         
-        await interaction.response.send_message(embed=embed.build())
+        await interaction.followup.send(embed=embed.build())
         
     except Exception as error:
         logger.error(f"Error in ledger command: {error}")
-        await interaction.response.send_message("❌ An error occurred while fetching your harvest ledger.", ephemeral=True)
+        try:
+            if not interaction.response.is_done():
+                await interaction.response.send_message("❌ An error occurred while fetching your harvest ledger.", ephemeral=True)
+            else:
+                await interaction.followup.send("❌ An error occurred while fetching your harvest ledger.", ephemeral=True)
+        except Exception as followup_error:
+            logger.error(f"Error sending followup message: {followup_error}")
+            # If all else fails, try to send to the channel
+            try:
+                await interaction.channel.send("❌ An error occurred while fetching your harvest ledger.")
+            except:
+                pass  # Last resort - just log the error
 
 async def payment(interaction: discord.Interaction, user: discord.Member):
     """Process payment for a harvester's deposits (Admin only)"""
     try:
+        # Defer the response to prevent interaction timeout
+        await interaction.response.defer(thinking=True)
+        
         # Check if user has admin permissions
         if not interaction.user.guild_permissions.administrator:
-            await interaction.response.send_message("❌ You need administrator permissions to use this command.", ephemeral=True)
+            await interaction.followup.send("❌ You need administrator permissions to use this command.", ephemeral=True)
             return
         
         # Get user's unpaid deposits
@@ -650,7 +674,7 @@ async def payment(interaction: discord.Interaction, user: discord.Member):
             embed = (EmbedBuilder("💰 Payment Status", color=0x95A5A6, timestamp=interaction.created_at)
                      .set_description(f"🏜️ **{user.display_name}** has no unpaid harvests to process.")
                      .set_footer(f"Requested by {interaction.user.display_name}", interaction.user.display_avatar.url))
-            await interaction.response.send_message(embed=embed.build())
+            await interaction.followup.send(embed=embed.build())
             return
         
         # Mark all deposits as paid
@@ -663,19 +687,33 @@ async def payment(interaction: discord.Interaction, user: discord.Member):
                  .add_field("📊 Payment Summary", f"**Total Spice Sand Paid:** {total_paid:,}\n**Harvests Processed:** {len(unpaid_deposits)}", inline=False)
                  .set_footer(f"Payment processed by {interaction.user.display_name}", interaction.user.display_avatar.url))
         
-        await interaction.response.send_message(embed=embed.build())
+        await interaction.followup.send(embed=embed.build())
         print(f'Harvester {user.display_name} ({user.id}) paid {total_paid:,} spice sand by {interaction.user.display_name} ({interaction.user.id})')
         
     except Exception as error:
         logger.error(f"Error in payment command: {error}")
-        await interaction.response.send_message("❌ An error occurred while processing the payment.", ephemeral=True)
+        try:
+            if not interaction.response.is_done():
+                await interaction.response.send_message("❌ An error occurred while processing the payment.", ephemeral=True)
+            else:
+                await interaction.followup.send("❌ An error occurred while processing the payment.", ephemeral=True)
+        except Exception as followup_error:
+            logger.error(f"Error sending followup message: {followup_error}")
+            # If all else fails, try to send to the channel
+            try:
+                await interaction.channel.send("❌ An error occurred while processing the payment.")
+            except:
+                pass  # Last resort - just log the error
 
 async def payroll(interaction: discord.Interaction):
     """Process payments for all unpaid harvesters (Admin only)"""
     try:
+        # Defer the response to prevent interaction timeout
+        await interaction.response.defer(thinking=True)
+        
         # Check if user has admin permissions
         if not interaction.user.guild_permissions.administrator:
-            await interaction.response.send_message("❌ You need administrator permissions to use this command.", ephemeral=True)
+            await interaction.followup.send("❌ You need administrator permissions to use this command.", ephemeral=True)
             return
         
         # Get all unpaid deposits
@@ -685,7 +723,7 @@ async def payroll(interaction: discord.Interaction):
             embed = (EmbedBuilder("💰 Payroll Status", color=0x95A5A6, timestamp=interaction.created_at)
                      .set_description("🏜️ There are no unpaid harvests to process.")
                      .set_footer(f"Requested by {interaction.user.display_name}", interaction.user.display_avatar.url))
-            await interaction.response.send_message(embed=embed.build())
+            await interaction.followup.send(embed=embed.build())
             return
         
         # Group deposits by user
@@ -711,12 +749,23 @@ async def payroll(interaction: discord.Interaction):
                  .add_field("📊 Payroll Summary", f"**Total Spice Sand Paid:** {total_paid:,}\n**Harvesters Paid:** {users_paid}\n**Total Harvests:** {len(unpaid_deposits)}", inline=False)
                  .set_footer(f"Guild payroll processed by {interaction.user.display_name}", interaction.user.display_avatar.url))
         
-        await interaction.response.send_message(embed=embed.build())
+        await interaction.followup.send(embed=embed.build())
         print(f'Guild payroll of {total_paid:,} spice sand to {users_paid} harvesters by {interaction.user.display_name} ({interaction.user.id})')
         
     except Exception as error:
         logger.error(f"Error in payroll command: {error}")
-        await interaction.response.send_message("❌ An error occurred while processing the guild payroll.", ephemeral=True)
+        try:
+            if not interaction.response.is_done():
+                await interaction.response.send_message("❌ An error occurred while processing the guild payroll.", ephemeral=True)
+            else:
+                await interaction.followup.send("❌ An error occurred while processing the guild payroll.", ephemeral=True)
+        except Exception as followup_error:
+            logger.error(f"Error sending followup message: {followup_error}")
+            # If all else fails, try to send to the channel
+            try:
+                await interaction.channel.send("❌ An error occurred while processing the guild payroll.")
+            except:
+                pass  # Last resort - just log the error
 
 # Register all commands with the bot's command tree
 register_commands()
