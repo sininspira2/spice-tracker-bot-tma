@@ -56,16 +56,9 @@ def handle_interaction_expiration(func):
         kwargs['use_followup'] = use_followup
         
         try:
-            logger.bot_event(f"Decorator debug - Calling {func.__name__} with use_followup={use_followup}")
             result = await func(interaction, *args, **kwargs)
-            logger.bot_event(f"Decorator debug - {func.__name__} completed successfully")
-            logger.bot_event(f"Decorator debug - About to return result from {func.__name__}")
             return result
         except Exception as func_error:
-            logger.error(f"Decorator debug - {func.__name__} raised exception: {func_error}")
-            logger.error(f"Decorator debug - Exception type: {type(func_error).__name__}")
-            import traceback
-            logger.error(f"Decorator debug - Full traceback: {traceback.format_exc()}")
             raise func_error
     
     return wrapper
@@ -337,10 +330,6 @@ async def harvest(interaction: discord.Interaction, amount: int, use_followup: b
             await get_database().upsert_user(str(interaction.user.id), interaction.user.display_name)
             user = await get_database().get_user(str(interaction.user.id))
         
-        # Debug logging
-        logger.bot_event(f"Harvest debug - User: {user}, Total sand: {total_sand}, User ID: {interaction.user.id}")
-        logger.bot_event(f"Harvest debug - Sand per melange: {sand_per_melange}")
-        
         # Calculate melange conversion
         try:
             total_melange_earned = total_sand // sand_per_melange
@@ -350,9 +339,6 @@ async def harvest(interaction: discord.Interaction, amount: int, use_followup: b
             # Only update melange if we have new melange to add
             if new_melange > 0:
                 await get_database().update_user_melange(str(interaction.user.id), new_melange)
-                logger.bot_event(f"Harvest debug - Updated user melange by {new_melange}")
-            
-            logger.bot_event(f"Harvest debug - Final values: current_melange={current_melange}, new_melange={new_melange}")
         except Exception as calc_error:
             logger.error(f"Error in melange calculation: {calc_error}")
             current_melange = 0
@@ -379,19 +365,10 @@ async def harvest(interaction: discord.Interaction, amount: int, use_followup: b
             embed.set_description(f"🎉 **You produced {new_melange:,} melange from this harvest!**")
         
         # Send response based on whether defer was successful
-        logger.bot_event(f"Harvest debug - About to send response, use_followup={use_followup}")
-        logger.bot_event(f"Harvest debug - Interaction response done: {interaction.response.is_done()}")
-        logger.bot_event(f"Harvest debug - Interaction type: {type(interaction).__name__}")
-        
         if use_followup:
             await interaction.followup.send(embed=embed.build())
-            logger.bot_event("Harvest debug - Successfully sent followup response")
         else:
             await interaction.channel.send(embed=embed.build())
-            logger.bot_event("Harvest debug - Successfully sent channel response")
-        
-        # Log successful completion
-        logger.bot_event("Harvest debug - Command completed successfully without errors")
         
     except Exception as error:
         logger.error(f"Error in harvest command: {error}")
@@ -457,19 +434,11 @@ async def refinery(interaction: discord.Interaction, use_followup: bool):
         
     except Exception as error:
         logger.error(f"Error in refinery command: {error}")
-        try:
-            # Send error response based on whether defer was successful
-            if use_followup:
-                await interaction.followup.send("❌ An error occurred while fetching your refinery status.", ephemeral=True)
-            else:
-                await interaction.channel.send("❌ An error occurred while fetching your refinery status.")
-        except Exception as response_error:
-            logger.error(f"Error sending error response: {response_error}")
-            # If all else fails, try to send to the channel
-            try:
-                await interaction.channel.send("❌ An error occurred while fetching your refinery status.")
-            except:
-                pass  # Last resort - just log the error
+        # Send error response based on whether defer was successful
+        if use_followup:
+            await interaction.followup.send("❌ An error occurred while fetching your refinery status.", ephemeral=True)
+        else:
+            await interaction.channel.send("❌ An error occurred while fetching your refinery status.")
 
 @handle_interaction_expiration
 async def leaderboard(interaction: discord.Interaction, limit: int = 10, use_followup: bool = True):
@@ -523,19 +492,11 @@ async def leaderboard(interaction: discord.Interaction, limit: int = 10, use_fol
         
     except Exception as error:
         logger.error(f"Error in leaderboard command: {error}")
-        try:
-            # Send error response based on whether defer was successful
-            if use_followup:
-                await interaction.followup.send("❌ An error occurred while fetching the leaderboard.", ephemeral=True)
-            else:
-                await interaction.channel.send("❌ An error occurred while fetching the leaderboard.")
-        except Exception as response_error:
-            logger.error(f"Error sending error response: {response_error}")
-            # If all else fails, try to send to the channel
-            try:
-                await interaction.channel.send("❌ An error occurred while fetching the leaderboard.")
-            except:
-                pass  # Last resort - just log the error
+        # Send error response based on whether defer was successful
+        if use_followup:
+            await interaction.followup.send("❌ An error occurred while fetching the leaderboard.", ephemeral=True)
+        else:
+            await interaction.channel.send("❌ An error occurred while fetching the leaderboard.")
 
 @handle_interaction_expiration
 async def conversion(interaction: discord.Interaction, use_followup: bool = True):
@@ -555,7 +516,7 @@ async def conversion(interaction: discord.Interaction, use_followup: bool = True
         
     except Exception as error:
         logger.error(f"Error in conversion command: {error}")
-        await interaction.response.send_message("❌ An error occurred while updating the refinement rate.", ephemeral=True)
+        await interaction.response.send_message("❌ An error occurred while fetching the refinement rate.", ephemeral=True)
 
 @handle_interaction_expiration
 async def split(interaction: discord.Interaction, total_sand: int, participants: int, harvester_percentage: float = None, use_followup: bool = True):
@@ -651,18 +612,11 @@ async def help_command(interaction: discord.Interaction, use_followup: bool = Tr
         
     except Exception as error:
         logger.error(f"Error in help command: {error}")
-        try:
-            if not interaction.response.is_done():
-                await interaction.response.send_message("❌ An error occurred while displaying help.", ephemeral=True)
-            else:
-                await interaction.followup.send("❌ An error occurred while displaying help.", ephemeral=True)
-        except Exception as followup_error:
-            logger.error(f"Error sending followup message: {followup_error}")
-            # If all else fails, try to send to the channel
-            try:
-                await interaction.channel.send("❌ An error occurred while displaying help.")
-            except:
-                pass  # Last resort - just log the error
+        # Send error response based on whether defer was successful
+        if use_followup:
+            await interaction.followup.send("❌ An error occurred while displaying help.", ephemeral=True)
+        else:
+            await interaction.channel.send("❌ An error occurred while displaying help.")
 
 @handle_interaction_expiration
 async def reset(interaction: discord.Interaction, confirm: bool, use_followup: bool = True):
@@ -741,19 +695,11 @@ async def ledger(interaction: discord.Interaction, use_followup: bool = True):
         
     except Exception as error:
         logger.error(f"Error in ledger command: {error}")
-        try:
-            # Send error response based on whether defer was successful
-            if use_followup:
-                await interaction.followup.send("❌ An error occurred while fetching your harvest ledger.", ephemeral=True)
-            else:
-                await interaction.channel.send("❌ An error occurred while fetching your harvest ledger.")
-        except Exception as response_error:
-            logger.error(f"Error sending error response: {response_error}")
-            # If all else fails, try to send to the channel
-            try:
-                await interaction.channel.send("❌ An error occurred while fetching your harvest ledger.")
-            except:
-                pass  # Last resort - just log the error
+        # Send error response based on whether defer was successful
+        if use_followup:
+            await interaction.followup.send("❌ An error occurred while fetching your harvest ledger.", ephemeral=True)
+        else:
+            await interaction.channel.send("❌ An error occurred while fetching your harvest ledger.")
 
 @handle_interaction_expiration
 async def payment(interaction: discord.Interaction, user: discord.Member, use_followup: bool = True):
@@ -799,19 +745,11 @@ async def payment(interaction: discord.Interaction, user: discord.Member, use_fo
         
     except Exception as error:
         logger.error(f"Error in payment command: {error}")
-        try:
-            # Send error response based on whether defer was successful
-            if use_followup:
-                await interaction.followup.send("❌ An error occurred while processing the payment.", ephemeral=True)
-            else:
-                await interaction.channel.send("❌ An error occurred while processing the payment.")
-        except Exception as response_error:
-            logger.error(f"Error sending error response: {response_error}")
-            # If all else fails, try to send to the channel
-            try:
-                await interaction.channel.send("❌ An error occurred while processing the payment.")
-            except:
-                pass  # Last resort - just log the error
+        # Send error response based on whether defer was successful
+        if use_followup:
+            await interaction.followup.send("❌ An error occurred while processing the payment.", ephemeral=True)
+        else:
+            await interaction.channel.send("❌ An error occurred while processing the payment.")
 
 @handle_interaction_expiration
 async def payroll(interaction: discord.Interaction, use_followup: bool = True):
@@ -870,19 +808,11 @@ async def payroll(interaction: discord.Interaction, use_followup: bool = True):
         
     except Exception as error:
         logger.error(f"Error in payroll command: {error}")
-        try:
-            # Send error response based on whether defer was successful
-            if use_followup:
-                await interaction.followup.send("❌ An error occurred while processing the guild payroll.", ephemeral=True)
-            else:
-                await interaction.channel.send("❌ An error occurred while processing the guild payroll.")
-        except Exception as response_error:
-            logger.error(f"Error sending error response: {response_error}")
-            # If all else fails, try to send to the channel
-            try:
-                await interaction.channel.send("❌ An error occurred while processing the guild payroll.")
-            except:
-                pass  # Last resort - just log the error
+        # Send error response based on whether defer was successful
+        if use_followup:
+            await interaction.followup.send("❌ An error occurred while processing the guild payroll.", ephemeral=True)
+        else:
+            await interaction.channel.send("❌ An error occurred while processing the guild payroll.")
 
 # Register all commands with the bot's command tree
 register_commands()
