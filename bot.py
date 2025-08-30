@@ -43,13 +43,14 @@ async def send_response(interaction: discord.Interaction, content=None, embed=No
         logger.error("send_response called with None interaction")
         return
     
-    if not hasattr(interaction, 'guild') or not interaction.guild:
-        logger.error(f"send_response called with invalid guild - interaction type: {type(interaction)}, guild: {getattr(interaction, 'guild', 'NO_GUILD_ATTR')}")
-        return
-    
+    # Check if interaction has required attributes
     if not hasattr(interaction, 'channel') or not interaction.channel:
         logger.error(f"send_response called with invalid channel - interaction type: {type(interaction)}, channel: {getattr(interaction, 'channel', 'NO_CHANNEL_ATTR')}")
         return
+    
+    # Guild can be None for DMs, so we don't require it
+    # But we do need to check if we're in a guild context for certain operations
+    is_guild_context = hasattr(interaction, 'guild') and interaction.guild is not None
     
     try:
         if use_followup:
@@ -78,6 +79,16 @@ def handle_interaction_expiration(func):
     """Decorator to handle interaction expiration gracefully"""
     async def wrapper(interaction: discord.Interaction, *args, **kwargs):
         use_followup = True
+        
+        # Check if this command requires guild context
+        if not hasattr(interaction, 'guild') or not interaction.guild:
+            try:
+                await interaction.response.send_message("❌ This command can only be used in a Discord server, not in direct messages.", ephemeral=True)
+            except:
+                # If we can't send a response, just log it
+                logger.warning(f"Command {func.__name__} called in DM context, cannot proceed")
+            return
+        
         try:
             # Validate interaction before attempting defer
             if not hasattr(interaction, 'response') or not hasattr(interaction, 'user'):
@@ -114,8 +125,8 @@ def handle_interaction_expiration(func):
             # Try to send error response, but don't let it fail the decorator
             try:
                 # Check if interaction is still valid before trying to send response
-                if (hasattr(interaction, 'guild') and interaction.guild and 
-                    hasattr(interaction, 'channel') and interaction.channel):
+                # Guild can be None for DMs, so we only require channel
+                if hasattr(interaction, 'channel') and interaction.channel:
                     await send_response(interaction, "❌ An error occurred while processing your command.", use_followup=use_followup, ephemeral=True)
                 else:
                     logger.warning(f"Interaction invalid for {func.__name__}, skipping error response")
@@ -624,8 +635,12 @@ async def split(interaction: discord.Interaction, total_sand: int, harvester_per
                     for participant_id in participant_ids:
                         # Try to get user info from Discord
                         try:
-                            user = await modal_interaction.guild.fetch_member(int(participant_id))
-                            username = user.display_name
+                            if modal_interaction.guild:
+                                user = await modal_interaction.guild.fetch_member(int(participant_id))
+                                username = user.display_name
+                            else:
+                                # No guild context (DM), use participant ID as username
+                                username = f"User_{participant_id}"
                         except:
                             username = f"User_{participant_id}"
                         
