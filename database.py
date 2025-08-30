@@ -54,94 +54,126 @@ class Database:
     async def migrate_existing_data(self):
         """Migrate existing users with total_sand to the new deposits system"""
         async with self._get_connection() as conn:
-            # Check if migration is needed
-            columns = await conn.fetch("""
-                SELECT column_name 
-                FROM information_schema.columns 
-                WHERE table_name = 'users' AND column_name = 'total_sand'
-            """)
-            
-            if not columns:
-                return 0  # No migration needed
-            
-            # Get users with total_sand > 0
-            users_to_migrate = await conn.fetch('''
-                SELECT user_id, username, total_sand 
-                FROM users 
-                WHERE total_sand > 0
-            ''')
-            
-            migrated_count = 0
-            for user in users_to_migrate:
-                user_id, username, total_sand = user
+            try:
+                # Check if users table exists
+                table_exists = await conn.fetchval("""
+                    SELECT EXISTS (
+                        SELECT FROM information_schema.tables 
+                        WHERE table_name = 'users'
+                    )
+                """)
                 
-                # Create a single deposit record for the existing total_sand
+                if not table_exists:
+                    return 0  # Table doesn't exist yet, no migration needed
+                
+                # Check if migration is needed
+                columns = await conn.fetch("""
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name = 'users' AND column_name = 'total_sand'
+                """)
+                
+                if not columns:
+                    return 0  # No migration needed
+                
+                # Get users with total_sand > 0
+                users_to_migrate = await conn.fetch('''
+                    SELECT user_id, username, total_sand 
+                    FROM users 
+                    WHERE total_sand > 0
+                ''')
+                
+                migrated_count = 0
+                for user in users_to_migrate:
+                    user_id, username, total_sand = user
+                    
+                    # Create a single deposit record for the existing total_sand
+                    await conn.execute('''
+                        INSERT INTO deposits (user_id, username, sand_amount, type, created_at)
+                        VALUES ($1, $2, $3, 'solo', CURRENT_TIMESTAMP)
+                    ''', user_id, username, total_sand)
+                    migrated_count += 1
+                
+                # Remove total_sand column from users table
                 await conn.execute('''
-                    INSERT INTO deposits (user_id, username, sand_amount, type, created_at)
-                    VALUES ($1, $2, $3, 'solo', CURRENT_TIMESTAMP)
-                ''', user_id, username, total_sand)
-                migrated_count += 1
-            
-            # Remove total_sand column from users table
-            await conn.execute('''
-                CREATE TABLE users_new (
-                    user_id TEXT PRIMARY KEY,
-                    username TEXT NOT NULL,
-                    total_melange INTEGER DEFAULT 0,
-                    last_updated TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-                )
-            ''')
-            
-            await conn.execute('''
-                INSERT INTO users_new (user_id, username, total_melange, last_updated)
-                SELECT user_id, username, total_melange, last_updated FROM users
-            ''')
-            
-            await conn.execute('DROP TABLE users')
-            await conn.execute('ALTER TABLE users_new RENAME TO users')
-            
-            return migrated_count
+                    CREATE TABLE users_new (
+                        user_id TEXT PRIMARY KEY,
+                        username TEXT NOT NULL,
+                        total_melange INTEGER DEFAULT 0,
+                        last_updated TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                    )
+                ''')
+                
+                await conn.execute('''
+                    INSERT INTO users_new (user_id, username, total_melange, last_updated)
+                    SELECT user_id, username, total_melange, last_updated FROM users
+                ''')
+                
+                await conn.execute('DROP TABLE users')
+                await conn.execute('ALTER TABLE users_new RENAME TO users')
+                
+                return migrated_count
+                
+            except Exception as e:
+                print(f'Migration of existing data failed: {e}')
+                return 0  # Return 0 to indicate no migration occurred
 
     async def migrate_deposits_to_types(self):
         """Migrate existing deposits to include type field"""
         async with self._get_connection() as conn:
-            # Check if type column exists
-            columns = await conn.fetch("""
-                SELECT column_name 
-                FROM information_schema.columns 
-                WHERE table_name = 'deposits' AND column_name = 'type'
-            """)
-            
-            if columns:
-                return 0  # Migration already done
-            
-            # Add type column with default value
-            await conn.execute('''
-                ALTER TABLE deposits 
-                ADD COLUMN type TEXT DEFAULT 'solo' CHECK (type IN ('solo', 'expedition'))
-            ''')
-            
-            # Add expedition_id column
-            await conn.execute('''
-                ALTER TABLE deposits 
-                ADD COLUMN expedition_id INTEGER
-            ''')
-            
-            # Update all existing deposits to be 'solo' type
-            result = await conn.execute('''
-                UPDATE deposits 
-                SET type = 'solo' 
-                WHERE type IS NULL
-            ''')
-            
-            # Parse the result to get count of updated rows
-            if result:
-                try:
-                    count_str = result.split()[-1]
-                    return int(count_str)
-                except (ValueError, IndexError):
-                    return 0
-            return 0
+            try:
+                # Check if deposits table exists
+                table_exists = await conn.fetchval("""
+                    SELECT EXISTS (
+                        SELECT FROM information_schema.tables 
+                        WHERE table_name = 'deposits'
+                    )
+                """)
+                
+                if not table_exists:
+                    return 0  # Table doesn't exist yet, no migration needed
+                
+                # Check if type column exists
+                columns = await conn.fetch("""
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name = 'deposits' AND column_name = 'type'
+                """)
+                
+                if columns:
+                    return 0  # Migration already done
+                
+                # Add type column with default value
+                await conn.execute('''
+                    ALTER TABLE deposits 
+                    ADD COLUMN type TEXT DEFAULT 'solo' CHECK (type IN ('solo', 'expedition'))
+                ''')
+                
+                # Add expedition_id column
+                await conn.execute('''
+                    ALTER TABLE deposits 
+                    ADD COLUMN expedition_id INTEGER
+                ''')
+                
+                # Update all existing deposits to be 'solo' type
+                result = await conn.execute('''
+                    UPDATE deposits 
+                    SET type = 'solo' 
+                    WHERE type IS NULL
+                ''')
+                
+                # Parse the result to get count of updated rows
+                if result:
+                    try:
+                        count_str = result.split()[-1]
+                        return int(count_str)
+                    except (ValueError, IndexError):
+                        return 0
+                return 0
+                
+            except Exception as e:
+                print(f'Migration to types failed: {e}')
+                return 0  # Return 0 to indicate no migration occurred
 
     async def initialize(self):
         """Initialize database tables"""
@@ -206,16 +238,6 @@ class Database:
                 )
             ''')
             
-            # Create indexes
-            await conn.execute('CREATE INDEX IF NOT EXISTS idx_deposits_user_id ON deposits (user_id)')
-            await conn.execute('CREATE INDEX IF NOT EXISTS idx_deposits_created_at ON deposits (created_at)')
-            await conn.execute('CREATE INDEX IF NOT EXISTS idx_deposits_paid ON deposits (paid)')
-            await conn.execute('CREATE INDEX IF NOT EXISTS idx_deposits_type ON deposits (type)')
-            await conn.execute('CREATE INDEX IF NOT EXISTS idx_deposits_expedition_id ON deposits (expedition_id)')
-            await conn.execute('CREATE INDEX IF NOT EXISTS idx_expeditions_created_at ON expeditions (created_at)')
-            await conn.execute('CREATE INDEX IF NOT EXISTS idx_expedition_participants_expedition_id ON expedition_participants (expedition_id)')
-            await conn.execute('CREATE INDEX IF NOT EXISTS idx_expedition_participants_user_id ON expedition_participants (user_id)')
-            
             # Insert default conversion rate
             await conn.execute(
                 'INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO NOTHING',
@@ -235,6 +257,20 @@ class Database:
             except Exception as e:
                 print(f'Migration failed: {e}')
                 # Continue with initialization even if migration fails
+            
+            # Create indexes AFTER migrations to ensure all columns exist
+            try:
+                await conn.execute('CREATE INDEX IF NOT EXISTS idx_deposits_user_id ON deposits (user_id)')
+                await conn.execute('CREATE INDEX IF NOT EXISTS idx_deposits_created_at ON deposits (created_at)')
+                await conn.execute('CREATE INDEX IF NOT EXISTS idx_deposits_paid ON deposits (paid)')
+                await conn.execute('CREATE INDEX IF NOT EXISTS idx_deposits_type ON deposits (type)')
+                await conn.execute('CREATE INDEX IF NOT EXISTS idx_deposits_expedition_id ON deposits (expedition_id)')
+                await conn.execute('CREATE INDEX IF NOT EXISTS idx_expeditions_created_at ON expeditions (created_at)')
+                await conn.execute('CREATE INDEX IF NOT EXISTS idx_expedition_participants_expedition_id ON expedition_participants (expedition_id)')
+                await conn.execute('CREATE INDEX IF NOT EXISTS idx_expedition_participants_user_id ON expedition_participants (user_id)')
+            except Exception as e:
+                print(f'Index creation failed: {e}')
+                # Continue with initialization even if index creation fails
 
     async def get_user(self, user_id):
         """Get user data by user ID"""
