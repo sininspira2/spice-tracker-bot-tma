@@ -288,8 +288,18 @@ async def harvest(interaction: discord.Interaction, amount: int):
         return
     
     try:
-        # Defer the response to prevent interaction timeout
-        await interaction.response.defer(thinking=True)
+        # Try to defer the response, but handle expired interactions gracefully
+        try:
+            await interaction.response.defer(thinking=True)
+            use_followup = True
+        except Exception as defer_error:
+            if "Unknown interaction" in str(defer_error) or "NotFound" in str(defer_error):
+                # Interaction expired, we'll need to send a new message
+                use_followup = False
+                logger.warning(f"Interaction expired for harvest command, user: {interaction.user.id}")
+            else:
+                # Re-raise if it's a different error
+                raise defer_error
         
         # Get conversion rate and add deposit
         sand_per_melange = get_sand_per_melange()
@@ -323,7 +333,11 @@ async def harvest(interaction: discord.Interaction, amount: int):
         if new_melange > 0:
             embed.set_description(f"🎉 **You produced {new_melange:,} melange from this harvest!**")
         
-        await interaction.followup.send(embed=embed.build())
+        # Send response based on whether defer was successful
+        if use_followup:
+            await interaction.followup.send(embed=embed.build())
+        else:
+            await interaction.channel.send(embed=embed.build())
         
     except Exception as error:
         logger.error(f"Error in harvest command: {error}")
@@ -333,11 +347,14 @@ async def harvest(interaction: discord.Interaction, amount: int):
         logger.error(f"Full traceback: {traceback.format_exc()}")
         
         try:
-            # Since we deferred, always use followup.send
-            await interaction.followup.send("❌ An error occurred while processing your harvest.", ephemeral=True)
-        except Exception as followup_error:
-            logger.error(f"Error sending followup message: {followup_error}")
-            # If followup fails, try to send to the channel
+            # Send error response based on whether defer was successful
+            if use_followup:
+                await interaction.followup.send("❌ An error occurred while processing your harvest.", ephemeral=True)
+            else:
+                await interaction.channel.send("❌ An error occurred while processing your harvest.")
+        except Exception as response_error:
+            logger.error(f"Error sending error response: {response_error}")
+            # If all else fails, try to send to the channel
             try:
                 await interaction.channel.send("❌ An error occurred while processing your harvest.")
             except:
