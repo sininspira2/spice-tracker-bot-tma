@@ -113,31 +113,31 @@ def register_commands():
     # This loop automatically creates slash commands for both main names and aliases
     # Each command points to the same underlying function, so behavior is identical
     for command_name, command_data in commands.items():
-        # Create a closure to capture the current command_data
-        def create_command_wrapper(cmd_data):
+        # Create a closure to capture the current command_data and command_name
+        def create_command_wrapper(cmd_data, cmd_name):
             if 'params' in cmd_data:
                 # Command with parameters - we need to create specific parameter types
-                if command_name == 'harvest':
+                if cmd_name == 'harvest':
                     @bot.tree.command(name=command_name, description=cmd_data['description'])
                     async def wrapper(interaction: discord.Interaction, amount: int):
                         await cmd_data['function'](interaction, amount)
-                elif command_name == 'leaderboard':
+                elif cmd_name == 'leaderboard':
                     @bot.tree.command(name=command_name, description=cmd_data['description'])
                     async def wrapper(interaction: discord.Interaction, limit: int = 10):
                         await cmd_data['function'](interaction, limit)
-                elif command_name == 'conversion':
+                elif cmd_name == 'conversion':
                     @bot.tree.command(name=command_name, description=cmd_data['description'])
                     async def wrapper(interaction: discord.Interaction):
                         await cmd_data['function'](interaction)
-                elif command_name == 'split':
+                elif cmd_name == 'split':
                     @bot.tree.command(name=command_name, description=cmd_data['description'])
                     async def wrapper(interaction: discord.Interaction, total_sand: int, participants: int, harvester_percentage: float = None):
                         await cmd_data['function'](interaction, total_sand, participants, harvester_percentage)
-                elif command_name == 'reset':
+                elif cmd_name == 'reset':
                     @bot.tree.command(name=command_name, description=cmd_data['description'])
                     async def wrapper(interaction: discord.Interaction, confirm: bool):
                         await cmd_data['function'](interaction, confirm)
-                elif command_name == 'payment':
+                elif cmd_name == 'payment':
                     @bot.tree.command(name=command_name, description=cmd_data['description'])
                     async def wrapper(interaction: discord.Interaction, user: discord.Member):
                         await cmd_data['function'](interaction, user)
@@ -159,7 +159,8 @@ def register_commands():
                 return wrapper
         
         # Register main command
-        main_cmd = create_command_wrapper(command_data)
+        main_cmd = create_command_wrapper(command_data, command_name)
+        print(f"Registered command: {command_name}")
         
         # Register aliases
         for alias in command_data['aliases']:
@@ -529,7 +530,18 @@ async def help_command(interaction: discord.Interaction):
         
     except Exception as error:
         logger.error(f"Error in help command: {error}")
-        await interaction.response.send_message("❌ An error occurred while displaying help.", ephemeral=True)
+        try:
+            if not interaction.response.is_done():
+                await interaction.response.send_message("❌ An error occurred while displaying help.", ephemeral=True)
+            else:
+                await interaction.followup.send("❌ An error occurred while displaying help.", ephemeral=True)
+        except Exception as followup_error:
+            logger.error(f"Error sending followup message: {followup_error}")
+            # If all else fails, try to send to the channel
+            try:
+                await interaction.channel.send("❌ An error occurred while displaying help.")
+            except:
+                pass  # Last resort - just log the error
 
 async def reset(interaction: discord.Interaction, confirm: bool):
     """Reset all spice refinery statistics (Admin only - USE WITH CAUTION)"""
