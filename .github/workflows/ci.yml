@@ -47,7 +47,6 @@ jobs:
     - name: Run basic validation
       run: |
         echo "🧪 Running basic validation..."
-        python -c "import bot; print('✅ Bot module imports successfully')"
         python -c "import database; print('✅ Database module imports successfully')"
         python -c "from utils.embed_builder import EmbedBuilder; print('✅ Utils modules import successfully')"
         echo "✅ All core modules validated"

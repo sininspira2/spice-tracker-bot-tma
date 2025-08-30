@@ -22,8 +22,15 @@ intents.guild_messages = True
 # The prefix commands are kept for potential future use or debugging
 bot = commands.Bot(command_prefix='!', intents=intents)
 
-# Initialize database
-database = Database()
+# Initialize database (lazy initialization)
+database = None
+
+def get_database():
+    """Get or create database instance"""
+    global database
+    if database is None:
+        database = Database()
+    return database
 
 # Register commands with the bot's command tree
 def register_commands():
@@ -214,14 +221,14 @@ async def on_ready():
         # Initialize database
         try:
             print("🗄️ Initializing database...")
-            await database.initialize()
+            await get_database().initialize()
             logger.bot_event("Database initialized successfully")
             print('✅ Database initialized successfully.')
             
             # Clean up old deposits (older than 30 days)
             try:
                 print("🧹 Cleaning up old deposits...")
-                cleaned_count = await database.cleanup_old_deposits(30)
+                cleaned_count = await get_database().cleanup_old_deposits(30)
                 if cleaned_count > 0:
                     logger.bot_event(f"Cleaned up {cleaned_count} old paid deposits")
                     print(f'✅ Cleaned up {cleaned_count} old paid deposits.')
@@ -281,12 +288,12 @@ async def harvest(interaction: discord.Interaction, amount: int):
         await interaction.response.defer(thinking=True)
         
         # Get conversion rate and add deposit
-        sand_per_melange = int(await database.get_setting('sand_per_melange') or 50)
-        await database.add_deposit(str(interaction.user.id), interaction.user.display_name, amount)
+        sand_per_melange = int(await get_database().get_setting('sand_per_melange') or 50)
+        await get_database().add_deposit(str(interaction.user.id), interaction.user.display_name, amount)
         
         # Get user data and calculate totals
-        user = await database.get_user(str(interaction.user.id))
-        total_sand = await database.get_user_total_sand(str(interaction.user.id))
+        user = await get_database().get_user(str(interaction.user.id))
+        total_sand = await get_database().get_user_total_sand(str(interaction.user.id))
         
         # Calculate melange conversion
         total_melange_earned = total_sand // sand_per_melange
@@ -294,7 +301,7 @@ async def harvest(interaction: discord.Interaction, amount: int):
         new_melange = total_melange_earned - current_melange
         
         if new_melange > 0:
-            await database.update_user_melange(str(interaction.user.id), new_melange)
+            await get_database().update_user_melange(str(interaction.user.id), new_melange)
         
         # Build response
         remaining_sand = total_sand % sand_per_melange
@@ -325,9 +332,9 @@ async def refinery(interaction: discord.Interaction):
         # Defer the response to prevent interaction timeout
         await interaction.response.defer(thinking=True)
         
-        user = await database.get_user(str(interaction.user.id))
-        total_sand = await database.get_user_total_sand(str(interaction.user.id))
-        paid_sand = await database.get_user_paid_sand(str(interaction.user.id))
+        user = await get_database().get_user(str(interaction.user.id))
+        total_sand = await get_database().get_user_total_sand(str(interaction.user.id))
+        paid_sand = await get_database().get_user_paid_sand(str(interaction.user.id))
         
         if not user and total_sand == 0:
             embed = (EmbedBuilder("🏭 Spice Refinery Status", color=0x95A5A6, timestamp=interaction.created_at)
@@ -337,7 +344,7 @@ async def refinery(interaction: discord.Interaction):
             return
         
         # Calculate progress
-        sand_per_melange = int(await database.get_setting('sand_per_melange') or 50)
+        sand_per_melange = int(await get_database().get_setting('sand_per_melange') or 50)
         remaining_sand = total_sand % sand_per_melange
         sand_needed = sand_per_melange - remaining_sand if total_sand > 0 else sand_per_melange
         progress_percent = int((remaining_sand / sand_per_melange) * 100) if total_sand > 0 else 0
@@ -373,7 +380,7 @@ async def leaderboard(interaction: discord.Interaction, limit: int = 10):
             await interaction.response.send_message("❌ Limit must be between 5 and 25.", ephemeral=True)
             return
         
-        leaderboard_data = await database.get_leaderboard(limit)
+        leaderboard_data = await get_database().get_leaderboard(limit)
         
         if not leaderboard_data:
             embed = EmbedBuilder("🏆 Spice Refinery Rankings", color=0x95A5A6, timestamp=interaction.created_at)
@@ -382,7 +389,7 @@ async def leaderboard(interaction: discord.Interaction, limit: int = 10):
             return
         
         # Get conversion rate and build leaderboard
-        sand_per_melange = int(await database.get_setting('sand_per_melange') or 50)
+        sand_per_melange = int(await get_database().get_setting('sand_per_melange') or 50)
         medals = ['🥇', '🥈', '🥉']
         
         leaderboard_text = ""
@@ -422,8 +429,8 @@ async def conversion(interaction: discord.Interaction, sand_per_melange: int):
             return
         
         # Get current rate and update
-        current_rate = int(await database.get_setting('sand_per_melange') or 50)
-        await database.set_setting('sand_per_melange', str(sand_per_melange))
+        current_rate = int(await get_database().get_setting('sand_per_melange') or 50)
+        await get_database().set_setting('sand_per_melange', str(sand_per_melange))
         
         embed = (EmbedBuilder("⚙️ Refinement Rate Updated", color=0x27AE60, timestamp=interaction.created_at)
                  .add_field("📊 Rate Change", f"**Previous Rate:** {current_rate} sand = 1 melange\n**New Rate:** {sand_per_melange} sand = 1 melange", inline=False)
@@ -456,7 +463,7 @@ async def split(interaction: discord.Interaction, total_sand: int, participants:
             return
         
         # Calculate splits
-        sand_per_melange = int(await database.get_setting('sand_per_melange') or 50)
+        sand_per_melange = int(await get_database().get_setting('sand_per_melange') or 50)
         harvester_sand = int(total_sand * (harvester_percentage / 100))
         remaining_sand = total_sand - harvester_sand
         
@@ -487,7 +494,7 @@ async def split(interaction: discord.Interaction, total_sand: int, participants:
 async def help_command(interaction: discord.Interaction):
     """Show all available commands and their descriptions"""
     try:
-        sand_per_melange = int(await database.get_setting('sand_per_melange') or 50)
+        sand_per_melange = int(await get_database().get_setting('sand_per_melange') or 50)
         
         embed = (EmbedBuilder("🏜️ Spice Refinery Commands", 
                               description="Track your spice sand harvests and melange production in the Dune: Awakening universe!",
@@ -547,7 +554,7 @@ async def reset(interaction: discord.Interaction, confirm: bool):
             return
         
         # Reset all refinery statistics
-        deleted_rows = await database.reset_all_stats()
+        deleted_rows = await get_database().reset_all_stats()
         
         embed = (EmbedBuilder("🔄 Refinery Reset Complete", 
                               description="⚠️ **All refinery statistics have been permanently deleted!**",
@@ -566,7 +573,7 @@ async def reset(interaction: discord.Interaction, confirm: bool):
 async def ledger(interaction: discord.Interaction):
     """View your complete spice harvest ledger"""
     try:
-        deposits_data = await database.get_user_deposits(str(interaction.user.id))
+        deposits_data = await get_database().get_user_deposits(str(interaction.user.id))
         
         if not deposits_data:
             embed = (EmbedBuilder("📋 Spice Harvest Ledger", color=0x95A5A6, timestamp=interaction.created_at)
@@ -610,7 +617,7 @@ async def payment(interaction: discord.Interaction, user: discord.Member):
             return
         
         # Get user's unpaid deposits
-        unpaid_deposits = await database.get_user_deposits(str(user.id), include_paid=False)
+        unpaid_deposits = await get_database().get_user_deposits(str(user.id), include_paid=False)
         
         if not unpaid_deposits:
             embed = (EmbedBuilder("💰 Payment Status", color=0x95A5A6, timestamp=interaction.created_at)
@@ -620,7 +627,7 @@ async def payment(interaction: discord.Interaction, user: discord.Member):
             return
         
         # Mark all deposits as paid
-        await database.mark_all_user_deposits_paid(str(user.id))
+        await get_database().mark_all_user_deposits_paid(str(user.id))
         
         total_paid = sum(deposit['sand_amount'] for deposit in unpaid_deposits)
         
@@ -645,7 +652,7 @@ async def payroll(interaction: discord.Interaction):
             return
         
         # Get all unpaid deposits
-        unpaid_deposits = await database.get_all_unpaid_deposits()
+        unpaid_deposits = await get_database().get_all_unpaid_deposits()
         
         if not unpaid_deposits:
             embed = (EmbedBuilder("💰 Payroll Status", color=0x95A5A6, timestamp=interaction.created_at)
@@ -667,7 +674,7 @@ async def payroll(interaction: discord.Interaction):
         users_paid = 0
         
         for user_id, deposits_list in user_deposits.items():
-            await database.mark_all_user_deposits_paid(user_id)
+            await get_database().mark_all_user_deposits_paid(user_id)
             user_total = sum(deposit['sand_amount'] for deposit in deposits_list)
             total_paid += user_total
             users_paid += 1
