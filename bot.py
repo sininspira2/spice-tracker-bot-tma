@@ -325,13 +325,11 @@ async def harvest(interaction: discord.Interaction, amount: int):
     except Exception as error:
         logger.error(f"Error in harvest command: {error}")
         try:
-            if not interaction.response.is_done():
-                await interaction.response.send_message("❌ An error occurred while processing your harvest.", ephemeral=True)
-            else:
-                await interaction.followup.send("❌ An error occurred while processing your harvest.", ephemeral=True)
+            # Since we deferred, always use followup.send
+            await interaction.followup.send("❌ An error occurred while processing your harvest.", ephemeral=True)
         except Exception as followup_error:
             logger.error(f"Error sending followup message: {followup_error}")
-            # If all else fails, try to send to the channel
+            # If followup fails, try to send to the channel
             try:
                 await interaction.channel.send("❌ An error occurred while processing your harvest.")
             except:
@@ -379,13 +377,11 @@ async def refinery(interaction: discord.Interaction):
     except Exception as error:
         logger.error(f"Error in refinery command: {error}")
         try:
-            if not interaction.response.is_done():
-                await interaction.response.send_message("❌ An error occurred while fetching your refinery status.", ephemeral=True)
-            else:
-                await interaction.followup.send("❌ An error occurred while fetching your refinery status.", ephemeral=True)
+            # Since we deferred, always use followup.send
+            await interaction.followup.send("❌ An error occurred while fetching your refinery status.", ephemeral=True)
         except Exception as followup_error:
             logger.error(f"Error sending followup message: {followup_error}")
-            # If all else fails, try to send to the channel
+            # If followup fails, try to send to the channel
             try:
                 await interaction.channel.send("❌ An error occurred while fetching your refinery status.")
             except:
@@ -436,13 +432,11 @@ async def leaderboard(interaction: discord.Interaction, limit: int = 10):
     except Exception as error:
         logger.error(f"Error in leaderboard command: {error}")
         try:
-            if not interaction.response.is_done():
-                await interaction.response.send_message("❌ An error occurred while fetching the leaderboard.", ephemeral=True)
-            else:
-                await interaction.followup.send("❌ An error occurred while fetching the leaderboard.", ephemeral=True)
+            # Since we deferred, always use followup.send
+            await interaction.followup.send("❌ An error occurred while fetching the leaderboard.", ephemeral=True)
         except Exception as followup_error:
             logger.error(f"Error sending followup message: {followup_error}")
-            # If all else fails, try to send to the channel
+            # If followup fails, try to send to the channel
             try:
                 await interaction.channel.send("❌ An error occurred while fetching the leaderboard.")
             except:
@@ -644,13 +638,11 @@ async def ledger(interaction: discord.Interaction):
     except Exception as error:
         logger.error(f"Error in ledger command: {error}")
         try:
-            if not interaction.response.is_done():
-                await interaction.response.send_message("❌ An error occurred while fetching your harvest ledger.", ephemeral=True)
-            else:
-                await interaction.followup.send("❌ An error occurred while fetching your harvest ledger.", ephemeral=True)
+            # Since we deferred, always use followup.send
+            await interaction.followup.send("❌ An error occurred while fetching your harvest ledger.", ephemeral=True)
         except Exception as followup_error:
             logger.error(f"Error sending followup message: {followup_error}")
-            # If all else fails, try to send to the channel
+            # If followup fails, try to send to the channel
             try:
                 await interaction.channel.send("❌ An error occurred while fetching your harvest ledger.")
             except:
@@ -693,13 +685,11 @@ async def payment(interaction: discord.Interaction, user: discord.Member):
     except Exception as error:
         logger.error(f"Error in payment command: {error}")
         try:
-            if not interaction.response.is_done():
-                await interaction.response.send_message("❌ An error occurred while processing the payment.", ephemeral=True)
-            else:
-                await interaction.followup.send("❌ An error occurred while processing the payment.", ephemeral=True)
+            # Since we deferred, always use followup.send
+            await interaction.followup.send("❌ An error occurred while processing the payment.", ephemeral=True)
         except Exception as followup_error:
             logger.error(f"Error sending followup message: {followup_error}")
-            # If all else fails, try to send to the channel
+            # If followup fails, try to send to the channel
             try:
                 await interaction.channel.send("❌ An error occurred while processing the payment.")
             except:
@@ -755,13 +745,11 @@ async def payroll(interaction: discord.Interaction):
     except Exception as error:
         logger.error(f"Error in payroll command: {error}")
         try:
-            if not interaction.response.is_done():
-                await interaction.response.send_message("❌ An error occurred while processing the guild payroll.", ephemeral=True)
-            else:
-                await interaction.followup.send("❌ An error occurred while processing the guild payroll.", ephemeral=True)
+            # Since we deferred, always use followup.send
+            await interaction.followup.send("❌ An error occurred while processing the guild payroll.", ephemeral=True)
         except Exception as followup_error:
             logger.error(f"Error sending followup message: {followup_error}")
-            # If all else fails, try to send to the channel
+            # If followup fails, try to send to the channel
             try:
                 await interaction.channel.send("❌ An error occurred while processing the guild payroll.")
             except:
