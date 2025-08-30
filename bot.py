@@ -331,35 +331,23 @@ async def harvest(interaction: discord.Interaction, amount: int, use_followup: b
             user = await get_database().get_user(str(interaction.user.id))
         
         # Calculate melange conversion
-        try:
-            total_melange_earned = total_sand // sand_per_melange
-            current_melange = user['total_melange'] if user and user['total_melange'] is not None else 0
-            new_melange = max(0, total_melange_earned - current_melange)  # Ensure new_melange is never negative
-            
-            # Only update melange if we have new melange to add
-            if new_melange > 0:
-                await get_database().update_user_melange(str(interaction.user.id), new_melange)
-        except Exception as calc_error:
-            logger.error(f"Error in melange calculation: {calc_error}")
-            current_melange = 0
-            new_melange = 0
+        total_melange_earned = total_sand // sand_per_melange
+        current_melange = user['total_melange'] if user and user['total_melange'] is not None else 0
+        new_melange = max(0, total_melange_earned - current_melange)  # Ensure new_melange is never negative
+        
+        # Only update melange if we have new melange to add
+        if new_melange > 0:
+            await get_database().update_user_melange(str(interaction.user.id), new_melange)
         
         # Build response
-        try:
-            remaining_sand = total_sand % sand_per_melange
-            sand_needed = max(0, sand_per_melange - remaining_sand)  # Ensure sand_needed is never negative
-            
-            embed = (EmbedBuilder("🏜️ Spice Harvest Logged", color=0xE67E22, timestamp=interaction.created_at)
-                     .add_field("📊 Harvest Summary", f"**Spice Sand Harvested:** {amount:,}\n**Total Unpaid Harvest:** {total_sand:,}")
-                     .add_field("✨ Melange Production", f"**Total Melange:** {(current_melange + new_melange):,}\n**Conversion Rate:** {sand_per_melange} sand = 1 melange")
-                     .add_field("🎯 Next Refinement", f"**Sand Until Next Melange:** {sand_needed:,}", inline=False)
-                     .set_footer(f"Harvested by {interaction.user.display_name}", interaction.user.display_avatar.url))
-        except Exception as embed_error:
-            logger.error(f"Error building embed: {embed_error}")
-            # Fallback to simple embed
-            embed = (EmbedBuilder("🏜️ Spice Harvest Logged", color=0xE67E22, timestamp=interaction.created_at)
-                     .add_field("📊 Harvest Summary", f"**Spice Sand Harvested:** {amount:,}\n**Total Unpaid Harvest:** {total_sand:,}")
-                     .set_footer(f"Harvested by {interaction.user.display_name}", interaction.user.display_avatar.url))
+        remaining_sand = total_sand % sand_per_melange
+        sand_needed = max(0, sand_per_melange - remaining_sand)  # Ensure sand_needed is never negative
+        
+        embed = (EmbedBuilder("🏜️ Spice Harvest Logged", color=0xE67E22, timestamp=interaction.created_at)
+                 .add_field("📊 Harvest Summary", f"**Spice Sand Harvested:** {amount:,}\n**Total Unpaid Harvest:** {total_sand:,}")
+                 .add_field("✨ Melange Production", f"**Total Melange:** {(current_melange + new_melange):,}\n**Conversion Rate:** {sand_per_melange} sand = 1 melange")
+                 .add_field("🎯 Next Refinement", f"**Sand Until Next Melange:** {sand_needed:,}", inline=False)
+                 .set_footer(f"Harvested by {interaction.user.display_name}", interaction.user.display_avatar.url))
         
         if new_melange and new_melange > 0:
             embed.set_description(f"🎉 **You produced {new_melange:,} melange from this harvest!**")
@@ -372,24 +360,11 @@ async def harvest(interaction: discord.Interaction, amount: int, use_followup: b
         
     except Exception as error:
         logger.error(f"Error in harvest command: {error}")
-        logger.error(f"Error type: {type(error).__name__}")
-        logger.error(f"Error details: {str(error)}")
-        import traceback
-        logger.error(f"Full traceback: {traceback.format_exc()}")
-        
-        try:
-            # Send error response based on whether defer was successful
-            if use_followup:
-                await interaction.followup.send("❌ An error occurred while processing your harvest.", ephemeral=True)
-            else:
-                await interaction.channel.send("❌ An error occurred while processing your harvest.")
-        except Exception as response_error:
-            logger.error(f"Error sending error response: {response_error}")
-            # If all else fails, try to send to the channel
-            try:
-                await interaction.channel.send("❌ An error occurred while processing your harvest.")
-            except:
-                pass  # Last resort - just log the error
+        # Send error response based on whether defer was successful
+        if use_followup:
+            await interaction.followup.send("❌ An error occurred while processing your harvest.", ephemeral=True)
+        else:
+            await interaction.channel.send("❌ An error occurred while processing your harvest.")
 
 @handle_interaction_expiration
 async def refinery(interaction: discord.Interaction, use_followup: bool):
