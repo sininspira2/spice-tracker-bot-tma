@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 from database import Database
 from utils.embed_builder import EmbedBuilder
 from utils.logger import logger
-from utils.command_utils import create_command_function, log_command_metrics
+from utils.command_utils import log_command_metrics
 from utils.database_utils import timed_database_operation, validate_user_exists, get_user_stats
 from utils.embed_utils import (
     build_status_embed, 
@@ -330,12 +330,89 @@ def register_commands():
     # Register all commands and their aliases
     for command_name, command_data in commands.items():
         # Register main command
-        main_cmd = create_command_function(command_data, command_name, bot)
+        if 'params' in command_data:
+            if command_name == 'harvest':
+                @bot.tree.command(name=command_name, description=command_data['description'])
+                async def wrapper(interaction: discord.Interaction, amount: int):
+                    await command_data['function'](interaction, amount)
+            elif command_name == 'leaderboard':
+                @bot.tree.command(name=command_name, description=command_data['description'])
+                async def wrapper(interaction: discord.Interaction, limit: int = 10):
+                    await command_data['function'](interaction, limit)
+            elif command_name == 'split':
+                @bot.tree.command(name=command_name, description=command_data['description'])
+                async def wrapper(interaction: discord.Interaction, total_sand: int, harvester_percentage: float = None):
+                    await command_data['function'](interaction, total_sand, harvester_percentage)
+            elif command_name == 'reset':
+                @bot.tree.command(name=command_name, description=command_data['description'])
+                async def wrapper(interaction: discord.Interaction, confirm: bool):
+                    await command_data['function'](interaction, confirm)
+            elif command_name == 'payment':
+                @bot.tree.command(name=command_name, description=command_data['description'])
+                async def wrapper(interaction: discord.Interaction, user: discord.Member):
+                    await command_data['function'](interaction, user)
+            elif command_name == 'expedition':
+                @bot.tree.command(name=command_name, description=command_data['description'])
+                async def wrapper(interaction: discord.Interaction, expedition_id: int):
+                    await command_data['function'](interaction, expedition_id)
+            else:
+                @bot.tree.command(name=command_name, description=command_data['description'])
+                async def wrapper(interaction: discord.Interaction):
+                    await command_data['function'](interaction)
+        else:
+            @bot.tree.command(name=command_name, description=command_data['description'])
+            async def wrapper(interaction: discord.Interaction):
+                await command_data['function'](interaction)
+        
+        # Add parameter descriptions
+        if 'params' in command_data:
+            for param_name, param_desc in command_data['params'].items():
+                wrapper = discord.app_commands.describe(**{param_name: param_desc})(wrapper)
+        
         print(f"Registered command: {command_name}")
         
-        # Register aliases
+        # Register aliases with the same function
         for alias in command_data['aliases']:
-            alias_cmd = create_command_function(command_data, alias, bot)
+            if 'params' in command_data:
+                if command_name == 'harvest':
+                    @bot.tree.command(name=alias, description=command_data['description'])
+                    async def alias_wrapper(interaction: discord.Interaction, amount: int):
+                        await command_data['function'](interaction, amount)
+                elif command_name == 'leaderboard':
+                    @bot.tree.command(name=alias, description=command_data['description'])
+                    async def alias_wrapper(interaction: discord.Interaction, limit: int = 10):
+                        await command_data['function'](interaction, limit)
+                elif command_name == 'split':
+                    @bot.tree.command(name=alias, description=command_data['description'])
+                    async def alias_wrapper(interaction: discord.Interaction, total_sand: int, harvester_percentage: float = None):
+                        await command_data['function'](interaction, total_sand, harvester_percentage)
+                elif command_name == 'reset':
+                    @bot.tree.command(name=alias, description=command_data['description'])
+                    async def alias_wrapper(interaction: discord.Interaction, confirm: bool):
+                        await command_data['function'](interaction, confirm)
+                elif command_name == 'payment':
+                    @bot.tree.command(name=alias, description=command_data['description'])
+                    async def alias_wrapper(interaction: discord.Interaction, user: discord.Member):
+                        await command_data['function'](interaction, user)
+                elif command_name == 'expedition':
+                    @bot.tree.command(name=alias, description=command_data['description'])
+                    async def alias_wrapper(interaction: discord.Interaction, expedition_id: int):
+                        await command_data['function'](interaction, expedition_id)
+                else:
+                    @bot.tree.command(name=alias, description=command_data['description'])
+                    async def alias_wrapper(interaction: discord.Interaction):
+                        await command_data['function'](interaction)
+            else:
+                @bot.tree.command(name=alias, description=command_data['description'])
+                async def alias_wrapper(interaction: discord.Interaction):
+                    await command_data['function'](interaction)
+            
+            # Add parameter descriptions for aliases
+            if 'params' in command_data:
+                for param_name, param_desc in command_data['params'].items():
+                    alias_wrapper = discord.app_commands.describe(**{param_name: param_desc})(alias_wrapper)
+            
+            print(f"Registered alias: {alias}")
 
 @bot.event
 async def on_ready():

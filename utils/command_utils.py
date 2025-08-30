@@ -14,45 +14,47 @@ def create_command_function(cmd_data: Dict[str, Any], cmd_name: str, bot: comman
         # Command without parameters
         @bot.tree.command(name=cmd_name, description=cmd_data['description'])
         async def wrapper(interaction: discord.Interaction):
+            # The decorator will add use_followup parameter automatically
             await cmd_data['function'](interaction)
         return wrapper
     
-    # Command with parameters - create based on parameter types
-    param_types = {}
-    for param_name in cmd_data['params'].keys():
-        if param_name == 'amount':
-            param_types[param_name] = int
-        elif param_name == 'limit':
-            param_types[param_name] = int
-        elif param_name == 'total_sand':
-            param_types[param_name] = int
-        elif param_name == 'harvester_percentage':
-            param_types[param_name] = float
-        elif param_name == 'confirm':
-            param_types[param_name] = bool
-        elif param_name == 'user':
-            param_types[param_name] = discord.Member
-        elif param_name == 'expedition_id':
-            param_types[param_name] = int
-        else:
-            param_types[param_name] = str  # Default to string
-    
-    # Create command with proper parameter types
-    @bot.tree.command(name=cmd_name, description=cmd_data['description'])
-    async def wrapper(interaction: discord.Interaction, **kwargs):
-        # Convert parameters to proper types and call function
-        converted_kwargs = {}
-        for param_name, param_type in param_types.items():
-            if param_name in kwargs:
-                try:
-                    converted_kwargs[param_name] = param_type(kwargs[param_name])
-                except (ValueError, TypeError):
-                    # Import send_response here to avoid circular imports
-                    from bot import send_response
-                    await send_response(interaction, f"❌ Invalid value for {param_name}. Expected {param_type.__name__}.", ephemeral=True)
-                    return
-        
-        await cmd_data['function'](interaction, **converted_kwargs)
+    # Create command with proper parameter types based on the specific command
+    if cmd_name == 'harvest':
+        @bot.tree.command(name=cmd_name, description=cmd_data['description'])
+        async def wrapper(interaction: discord.Interaction, amount: int):
+            # The decorator will add use_followup parameter automatically
+            await cmd_data['function'](interaction, amount)
+    elif cmd_name == 'leaderboard':
+        @bot.tree.command(name=cmd_name, description=cmd_data['description'])
+        async def wrapper(interaction: discord.Interaction, limit: int = 10):
+            # The decorator will add use_followup parameter automatically
+            await cmd_data['function'](interaction, limit)
+    elif cmd_name == 'split':
+        @bot.tree.command(name=cmd_name, description=cmd_data['description'])
+        async def wrapper(interaction: discord.Interaction, total_sand: int, harvester_percentage: float = None):
+            # The decorator will add use_followup parameter automatically
+            await cmd_data['function'](interaction, total_sand, harvester_percentage)
+    elif cmd_name == 'reset':
+        @bot.tree.command(name=cmd_name, description=cmd_data['description'])
+        async def wrapper(interaction: discord.Interaction, confirm: bool):
+            # The decorator will add use_followup parameter automatically
+            await cmd_data['function'](interaction, confirm)
+    elif cmd_name == 'payment':
+        @bot.tree.command(name=cmd_name, description=cmd_data['description'])
+        async def wrapper(interaction: discord.Interaction, user: discord.Member):
+            # The decorator will add use_followup parameter automatically
+            await cmd_data['function'](interaction, user)
+    elif cmd_name == 'expedition':
+        @bot.tree.command(name=cmd_name, description=cmd_data['description'])
+        async def wrapper(interaction: discord.Interaction, expedition_id: int):
+            # The decorator will add use_followup parameter automatically
+            await cmd_data['function'](interaction, expedition_id)
+    else:
+        # Generic fallback for other commands
+        @bot.tree.command(name=cmd_name, description=cmd_data['description'])
+        async def wrapper(interaction: discord.Interaction):
+            # The decorator will add use_followup parameter automatically
+            await cmd_data['function'](interaction)
     
     # Add parameter descriptions
     for param_name, param_desc in cmd_data['params'].items():
