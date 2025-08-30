@@ -38,9 +38,17 @@ def get_sand_per_melange() -> int:
 
 async def send_response(interaction: discord.Interaction, content=None, embed=None, ephemeral=False, use_followup=True):
     """Helper function to send responses using the appropriate method based on use_followup"""
-    # Validate inputs
-    if not interaction or not interaction.guild:
-        logger.error("Invalid interaction or guild in send_response")
+    # Validate inputs with better error logging
+    if not interaction:
+        logger.error("send_response called with None interaction")
+        return
+    
+    if not hasattr(interaction, 'guild') or not interaction.guild:
+        logger.error(f"send_response called with invalid guild - interaction type: {type(interaction)}, guild: {getattr(interaction, 'guild', 'NO_GUILD_ATTR')}")
+        return
+    
+    if not hasattr(interaction, 'channel') or not interaction.channel:
+        logger.error(f"send_response called with invalid channel - interaction type: {type(interaction)}, channel: {getattr(interaction, 'channel', 'NO_CHANNEL_ATTR')}")
         return
     
     try:
@@ -71,6 +79,12 @@ def handle_interaction_expiration(func):
     async def wrapper(interaction: discord.Interaction, *args, **kwargs):
         use_followup = True
         try:
+            # Validate interaction before attempting defer
+            if not hasattr(interaction, 'response') or not hasattr(interaction, 'user'):
+                logger.warning(f"Invalid interaction object for {func.__name__}, falling back to channel messages")
+                use_followup = False
+                return
+            
             # Try to defer the response with a timeout
             import asyncio
             await asyncio.wait_for(interaction.response.defer(thinking=True), timeout=5.0)
@@ -99,7 +113,12 @@ def handle_interaction_expiration(func):
             
             # Try to send error response, but don't let it fail the decorator
             try:
-                await send_response(interaction, "❌ An error occurred while processing your command.", use_followup=use_followup, ephemeral=True)
+                # Check if interaction is still valid before trying to send response
+                if (hasattr(interaction, 'guild') and interaction.guild and 
+                    hasattr(interaction, 'channel') and interaction.channel):
+                    await send_response(interaction, "❌ An error occurred while processing your command.", use_followup=use_followup, ephemeral=True)
+                else:
+                    logger.warning(f"Interaction invalid for {func.__name__}, skipping error response")
             except Exception as response_error:
                 logger.error(f"Failed to send error response for {func.__name__}: {response_error}")
                 # Don't re-raise - just log the failure
