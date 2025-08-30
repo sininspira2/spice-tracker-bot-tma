@@ -54,7 +54,15 @@ def handle_interaction_expiration(func):
         
         # Add use_followup to kwargs so the function can use it
         kwargs['use_followup'] = use_followup
-        return await func(interaction, *args, **kwargs)
+        
+        try:
+            logger.bot_event(f"Decorator debug - Calling {func.__name__} with use_followup={use_followup}")
+            result = await func(interaction, *args, **kwargs)
+            logger.bot_event(f"Decorator debug - {func.__name__} completed successfully")
+            return result
+        except Exception as func_error:
+            logger.error(f"Decorator debug - {func.__name__} raised exception: {func_error}")
+            raise func_error
     
     return wrapper
 
@@ -367,10 +375,20 @@ async def harvest(interaction: discord.Interaction, amount: int, use_followup: b
             embed.set_description(f"🎉 **You produced {new_melange:,} melange from this harvest!**")
         
         # Send response based on whether defer was successful
-        if use_followup:
-            await interaction.followup.send(embed=embed.build())
-        else:
-            await interaction.channel.send(embed=embed.build())
+        logger.bot_event(f"Harvest debug - About to send response, use_followup={use_followup}")
+        try:
+            if use_followup:
+                await interaction.followup.send(embed=embed.build())
+                logger.bot_event("Harvest debug - Successfully sent followup response")
+            else:
+                await interaction.channel.send(embed=embed.build())
+                logger.bot_event("Harvest debug - Successfully sent channel response")
+        except Exception as response_error:
+            logger.error(f"Error sending harvest response: {response_error}")
+            raise response_error
+        
+        # Log successful completion
+        logger.bot_event("Harvest debug - Command completed successfully without errors")
         
     except Exception as error:
         logger.error(f"Error in harvest command: {error}")
