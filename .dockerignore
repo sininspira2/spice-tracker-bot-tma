@@ -3,26 +3,26 @@
 .gitignore
 
 # Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
+__pycache__
+*.pyc
+*.pyo
+*.pyd
 .Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
+env
+pip-log.txt
+pip-delete-this-directory.txt
+.tox
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.git
+.mypy_cache
+.pytest_cache
+.hypothesis
 
 # Virtual environments
 .env
@@ -38,24 +38,41 @@ venv.bak/
 .idea/
 *.swp
 *.swo
+*~
 
 # OS
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
 
-# Logs
-*.log
+# Project specific
 
-# Database (will be created fresh on Railway)
 *.db
-*.sqlite
-*.sqlite3
-
-# Test files
-test_*.py
-*_test.py
-tests/
+.env.local
+.env.development
+.env.test
+.env.production
 
 # Documentation
 README.md
+*.md
+docs/
+
+# Tests
+test_*.py
+*_test.py
+tests/
+.pytest_cache/
+
+# CI/CD
 .github/
+.gitlab-ci.yml
+.travis.yml
+.circleci/
+
+# Supabase local development
+supabase/

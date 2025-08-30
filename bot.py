@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 import os
 import time
+import datetime
 from dotenv import load_dotenv
 from database import Database
 from utils.embed_builder import EmbedBuilder
@@ -12,12 +13,28 @@ load_dotenv()
 
 # Bot configuration
 intents = discord.Intents.default()
+# For slash commands, we don't need message_content intent
 intents.message_content = False
 intents.reactions = True
+intents.guilds = True
+intents.guild_messages = True
+# Note: command_prefix is set but not used since we're using slash commands
+# The prefix commands are kept for potential future use or debugging
 bot = commands.Bot(command_prefix='!', intents=intents)
 
-# Initialize database
-database = Database()
+# Initialize database (lazy initialization)
+database = None
+
+def get_database():
+    """Get or create database instance"""
+    global database
+    if database is None:
+        database = Database()
+    return database
+
+def get_sand_per_melange() -> int:
+    """Get the spice sand to melange conversion rate from environment variables"""
+    return int(os.getenv('SAND_PER_MELANGE', '50'))
 
 # Register commands with the bot's command tree
 def register_commands():
@@ -50,8 +67,7 @@ def register_commands():
         },
         'conversion': {
             'aliases': ['rate'],
-            'description': "Set the spice sand to melange conversion rate (Admin only)",
-            'params': {'sand_per_melange': "Amount of spice sand required for 1 melange"},
+            'description': "View the current spice sand to melange conversion rate",
             'function': conversion
         },
         'split': {
@@ -100,10 +116,36 @@ def register_commands():
         # Create a closure to capture the current command_data
         def create_command_wrapper(cmd_data):
             if 'params' in cmd_data:
-                # Command with parameters
-                @bot.tree.command(name=command_name, description=cmd_data['description'])
-                async def wrapper(interaction: discord.Interaction, **kwargs):
-                    await cmd_data['function'](interaction, **kwargs)
+                # Command with parameters - we need to create specific parameter types
+                if command_name == 'harvest':
+                    @bot.tree.command(name=command_name, description=cmd_data['description'])
+                    async def wrapper(interaction: discord.Interaction, amount: int):
+                        await cmd_data['function'](interaction, amount)
+                elif command_name == 'leaderboard':
+                    @bot.tree.command(name=command_name, description=cmd_data['description'])
+                    async def wrapper(interaction: discord.Interaction, limit: int = 10):
+                        await cmd_data['function'](interaction, limit)
+                elif command_name == 'conversion':
+                    @bot.tree.command(name=command_name, description=cmd_data['description'])
+                    async def wrapper(interaction: discord.Interaction):
+                        await cmd_data['function'](interaction)
+                elif command_name == 'split':
+                    @bot.tree.command(name=command_name, description=cmd_data['description'])
+                    async def wrapper(interaction: discord.Interaction, total_sand: int, participants: int, harvester_percentage: float = None):
+                        await cmd_data['function'](interaction, total_sand, participants, harvester_percentage)
+                elif command_name == 'reset':
+                    @bot.tree.command(name=command_name, description=cmd_data['description'])
+                    async def wrapper(interaction: discord.Interaction, confirm: bool):
+                        await cmd_data['function'](interaction, confirm)
+                elif command_name == 'payment':
+                    @bot.tree.command(name=command_name, description=cmd_data['description'])
+                    async def wrapper(interaction: discord.Interaction, user: discord.Member):
+                        await cmd_data['function'](interaction, user)
+                else:
+                    # Generic fallback for other commands
+                    @bot.tree.command(name=command_name, description=cmd_data['description'])
+                    async def wrapper(interaction: discord.Interaction):
+                        await cmd_data['function'](interaction)
                 
                 # Add parameter descriptions
                 for param_name, param_desc in cmd_data['params'].items():
@@ -123,10 +165,36 @@ def register_commands():
         for alias in command_data['aliases']:
             def create_alias_wrapper(cmd_data, alias_name):
                 if 'params' in cmd_data:
-                    # Alias with parameters
-                    @bot.tree.command(name=alias_name, description=cmd_data['description'])
-                    async def wrapper(interaction: discord.Interaction, **kwargs):
-                        await cmd_data['function'](interaction, **kwargs)
+                    # Alias with parameters - we need to create specific parameter types
+                    if 'amount' in cmd_data['params']:  # harvest/sand
+                        @bot.tree.command(name=alias_name, description=cmd_data['description'])
+                        async def wrapper(interaction: discord.Interaction, amount: int):
+                            await cmd_data['function'](interaction, amount)
+                    elif 'limit' in cmd_data['params']:  # leaderboard/top
+                        @bot.tree.command(name=alias_name, description=cmd_data['description'])
+                        async def wrapper(interaction: discord.Interaction, limit: int = 10):
+                            await cmd_data['function'](interaction, limit)
+                    elif 'sand_per_melange' in cmd_data['params']:  # conversion/rate
+                        @bot.tree.command(name=alias_name, description=cmd_data['description'])
+                        async def wrapper(interaction: discord.Interaction):
+                            await cmd_data['function'](interaction)
+                    elif 'total_sand' in cmd_data['params']:  # split
+                        @bot.tree.command(name=alias_name, description=cmd_data['description'])
+                        async def wrapper(interaction: discord.Interaction, total_sand: int, participants: int, harvester_percentage: float = None):
+                            await cmd_data['function'](interaction, total_sand, participants, harvester_percentage)
+                    elif 'confirm' in cmd_data['params']:  # reset
+                        @bot.tree.command(name=alias_name, description=cmd_data['description'])
+                        async def wrapper(interaction: discord.Interaction, confirm: bool):
+                            await cmd_data['function'](interaction, confirm)
+                    elif 'user' in cmd_data['params']:  # payment/pay
+                        @bot.tree.command(name=alias_name, description=cmd_data['description'])
+                        async def wrapper(interaction: discord.Interaction, user: discord.Member):
+                            await cmd_data['function'](interaction, user)
+                    else:
+                        # Generic fallback for other commands
+                        @bot.tree.command(name=alias_name, description=cmd_data['description'])
+                        async def wrapper(interaction: discord.Interaction):
+                            await cmd_data['function'](interaction)
                     
                     # Add parameter descriptions
                     for param_name, param_desc in cmd_data['params'].items():
@@ -143,42 +211,73 @@ def register_commands():
 
 @bot.event
 async def on_ready():
-    if bot.user:
-        logger.bot_event("Bot started", bot_name=bot.user.name, bot_id=str(bot.user.id), guild_count=len(bot.guilds))
-        print(f'{bot.user.name}#{bot.user.discriminator} is online!')
-    else:
-        logger.bot_event("Bot started", bot_name="Unknown")
-        print('Bot is online!')
-    
-    # Initialize database
     try:
-        await database.initialize()
-        logger.bot_event("initialize", "database", True)
-        print('Database initialized successfully.')
+        if bot.user:
+            logger.bot_event(f"Bot started - {bot.user.name} ({bot.user.id}) in {len(bot.guilds)} guilds")
+            print(f'{bot.user.name}#{bot.user.discriminator} is online!')
+        else:
+            logger.bot_event("Bot started - Unknown")
+            print('Bot is online!')
         
-        # Clean up old deposits (older than 30 days)
+        print("🔄 Starting bot initialization...")
+        
+        # Initialize database
         try:
-            cleaned_count = await database.cleanup_old_deposits(30)
-            if cleaned_count > 0:
-                logger.bot_event("cleanup", "old_deposits", True, cleaned_count=cleaned_count)
-                print(f'Cleaned up {cleaned_count} old paid deposits.')
-        except Exception as cleanup_error:
-            logger.bot_event("cleanup", "old_deposits", False, error=str(cleanup_error))
-            print(f'Failed to clean up old deposits: {cleanup_error}')
+            print("🗄️ Initializing database...")
+            await get_database().initialize()
+            logger.bot_event("Database initialized successfully")
+            print('✅ Database initialized successfully.')
+            
+            # Clean up old deposits (older than 30 days)
+            try:
+                print("🧹 Cleaning up old deposits...")
+                cleaned_count = await get_database().cleanup_old_deposits(30)
+                if cleaned_count > 0:
+                    logger.bot_event(f"Cleaned up {cleaned_count} old paid deposits")
+                    print(f'✅ Cleaned up {cleaned_count} old paid deposits.')
+                else:
+                    print("✅ No old deposits to clean up.")
+            except Exception as cleanup_error:
+                logger.bot_event(f"Failed to clean up old deposits: {cleanup_error}")
+                print(f'⚠️ Failed to clean up old deposits: {cleanup_error}')
+                
+        except Exception as error:
+            logger.bot_event(f"Failed to initialize database: {error}")
+            print(f'❌ Failed to initialize database: {error}')
+            print(f'❌ Error type: {type(error).__name__}')
+            import traceback
+            print(f'❌ Full traceback: {traceback.format_exc()}')
+            return
+        
+        # Sync slash commands
+        try:
+            print("🔄 Syncing slash commands...")
+            # Sync to guilds for immediate availability
+            for guild in bot.guilds:
+                try:
+                    guild_synced = await bot.tree.sync(guild=guild)
+                    print(f'✅ Synced {len(guild_synced)} commands to guild: {guild.name}')
+                except Exception as guild_error:
+                    print(f'⚠️ Failed to sync to guild {guild.name}: {guild_error}')
+            
+            # Sync globally (takes up to 1 hour to propagate)
+            synced = await bot.tree.sync()
+            logger.bot_event(f"Synced {len(synced)} commands")
+            print(f'✅ Synced {len(synced)} commands.')
+            print("🎉 Bot is fully ready!")
+        except Exception as error:
+            logger.bot_event(f"Command sync failed: {error}")
+            print(f'❌ Failed to sync commands: {error}')
+            print(f'❌ Error type: {type(error).__name__}')
+            import traceback
+            print(f'❌ Full traceback: {traceback.format_exc()}')
             
     except Exception as error:
-        logger.bot_event("initialize", "database", False, error=str(error))
-        print(f'Failed to initialize database: {error}')
-        return
-    
-    # Sync slash commands
-    try:
-        synced = await bot.tree.sync()
-        logger.bot_event("Commands synced", synced_count=len(synced))
-        print(f'Synced {len(synced)} commands.')
-    except Exception as error:
-        logger.bot_event("Command sync failed", error=str(error))
-        print(f'Failed to sync commands: {error}')
+        print(f'❌ CRITICAL ERROR in on_ready: {error}')
+        print(f'❌ Error type: {type(error).__name__}')
+        import traceback
+        print(f'❌ Full traceback: {traceback.format_exc()}')
+        logger.error(f"Critical error in on_ready: {error}")
 
 async def harvest(interaction: discord.Interaction, amount: int):
     """Log spice sand harvests and calculate melange conversion"""
@@ -188,13 +287,16 @@ async def harvest(interaction: discord.Interaction, amount: int):
         return
     
     try:
+        # Defer the response to prevent interaction timeout
+        await interaction.response.defer(thinking=True)
+        
         # Get conversion rate and add deposit
-        sand_per_melange = int(await database.get_setting('sand_per_melange') or 50)
-        await database.add_deposit(str(interaction.user.id), interaction.user.display_name, amount)
+        sand_per_melange = get_sand_per_melange()
+        await get_database().add_deposit(str(interaction.user.id), interaction.user.display_name, amount)
         
         # Get user data and calculate totals
-        user = await database.get_user(str(interaction.user.id))
-        total_sand = await database.get_user_total_sand(str(interaction.user.id))
+        user = await get_database().get_user(str(interaction.user.id))
+        total_sand = await get_database().get_user_total_sand(str(interaction.user.id))
         
         # Calculate melange conversion
         total_melange_earned = total_sand // sand_per_melange
@@ -202,7 +304,7 @@ async def harvest(interaction: discord.Interaction, amount: int):
         new_melange = total_melange_earned - current_melange
         
         if new_melange > 0:
-            await database.update_user_melange(str(interaction.user.id), new_melange)
+            await get_database().update_user_melange(str(interaction.user.id), new_melange)
         
         # Build response
         remaining_sand = total_sand % sand_per_melange
@@ -217,28 +319,35 @@ async def harvest(interaction: discord.Interaction, amount: int):
         if new_melange > 0:
             embed.set_description(f"🎉 **You produced {new_melange:,} melange from this harvest!**")
         
-        await interaction.response.send_message(embed=embed.build())
+        await interaction.followup.send(embed=embed.build())
         
     except Exception as error:
         logger.error(f"Error in harvest command: {error}")
-        await interaction.response.send_message("❌ An error occurred while processing your harvest.", ephemeral=True)
+        try:
+            await interaction.followup.send("❌ An error occurred while processing your harvest.", ephemeral=True)
+        except:
+            # If followup fails, try to send a new message
+            await interaction.channel.send("❌ An error occurred while processing your harvest.")
 
 async def refinery(interaction: discord.Interaction):
     """Show your total sand and melange statistics"""
     try:
-        user = await database.get_user(str(interaction.user.id))
-        total_sand = await database.get_user_total_sand(str(interaction.user.id))
-        paid_sand = await database.get_user_paid_sand(str(interaction.user.id))
+        # Defer the response to prevent interaction timeout
+        await interaction.response.defer(thinking=True)
+        
+        user = await get_database().get_user(str(interaction.user.id))
+        total_sand = await get_database().get_user_total_sand(str(interaction.user.id))
+        paid_sand = await get_database().get_user_paid_sand(str(interaction.user.id))
         
         if not user and total_sand == 0:
             embed = (EmbedBuilder("🏭 Spice Refinery Status", color=0x95A5A6, timestamp=interaction.created_at)
                      .set_description("🏜️ You haven't harvested any spice sand yet! Use `/harvest` to start tracking your harvests.")
                      .set_footer(f"Requested by {interaction.user.display_name}", interaction.user.display_avatar.url))
-            await interaction.response.send_message(embed=embed.build(), ephemeral=True)
+            await interaction.followup.send(embed=embed.build(), ephemeral=True)
             return
         
         # Calculate progress
-        sand_per_melange = int(await database.get_setting('sand_per_melange') or 50)
+        sand_per_melange = get_sand_per_melange()
         remaining_sand = total_sand % sand_per_melange
         sand_needed = sand_per_melange - remaining_sand if total_sand > 0 else sand_per_melange
         progress_percent = int((remaining_sand / sand_per_melange) * 100) if total_sand > 0 else 0
@@ -249,7 +358,7 @@ async def refinery(interaction: discord.Interaction):
         progress_bar = '▓' * filled_bars + '░' * (progress_bar_length - filled_bars)
         
         embed = (EmbedBuilder("🏭 Spice Refinery Status", color=0x3498DB, timestamp=interaction.created_at)
-                 .add_thumbnail(interaction.user.display_avatar.url)
+                 .set_thumbnail(interaction.user.display_avatar.url)
                  .add_field("🏜️ Harvest Summary", f"**Unpaid Harvest:** {total_sand:,}\n**Paid Harvest:** {paid_sand:,}")
                  .add_field("✨ Melange Production", f"**Total Melange:** {user['total_melange'] if user else 0:,}")
                  .add_field("⚙️ Refinement Rate", f"{sand_per_melange} sand = 1 melange")
@@ -257,11 +366,14 @@ async def refinery(interaction: discord.Interaction):
                  .add_field("📅 Last Activity", f"<t:{int(user['last_updated'].timestamp()) if user else interaction.created_at.timestamp()}:F>", inline=False)
                  .set_footer(f"Spice Refinery • {interaction.user.display_name}", interaction.user.display_avatar.url))
         
-        await interaction.response.send_message(embed=embed.build())
+        await interaction.followup.send(embed=embed.build())
         
     except Exception as error:
         logger.error(f"Error in refinery command: {error}")
-        await interaction.response.send_message("❌ An error occurred while fetching your refinery status.", ephemeral=True)
+        try:
+            await interaction.followup.send("❌ An error occurred while fetching your refinery status.", ephemeral=True)
+        except:
+            await interaction.channel.send("❌ An error occurred while fetching your refinery status.")
 
 async def leaderboard(interaction: discord.Interaction, limit: int = 10):
     """Display top refiners by melange earned"""
@@ -271,7 +383,7 @@ async def leaderboard(interaction: discord.Interaction, limit: int = 10):
             await interaction.response.send_message("❌ Limit must be between 5 and 25.", ephemeral=True)
             return
         
-        leaderboard_data = await database.get_leaderboard(limit)
+        leaderboard_data = await get_database().get_leaderboard(limit)
         
         if not leaderboard_data:
             embed = EmbedBuilder("🏆 Spice Refinery Rankings", color=0x95A5A6, timestamp=interaction.created_at)
@@ -280,7 +392,7 @@ async def leaderboard(interaction: discord.Interaction, limit: int = 10):
             return
         
         # Get conversion rate and build leaderboard
-        sand_per_melange = int(await database.get_setting('sand_per_melange') or 50)
+        sand_per_melange = get_sand_per_melange()
         medals = ['🥇', '🥈', '🥉']
         
         leaderboard_text = ""
@@ -306,30 +418,20 @@ async def leaderboard(interaction: discord.Interaction, limit: int = 10):
         logger.error(f"Error in leaderboard command: {error}")
         await interaction.response.send_message("❌ An error occurred while fetching the leaderboard.", ephemeral=True)
 
-async def conversion(interaction: discord.Interaction, sand_per_melange: int):
-    """Set the spice sand to melange conversion rate (Admin only)"""
+async def conversion(interaction: discord.Interaction):
+    """View the current spice sand to melange conversion rate"""
     try:
-        # Check if user has admin permissions
-        if not interaction.user.guild_permissions.administrator:
-            await interaction.response.send_message("❌ You need administrator permissions to use this command.", ephemeral=True)
-            return
         
-        # Validate input
-        if not 1 <= sand_per_melange <= 1000:
-            await interaction.response.send_message("❌ Conversion rate must be between 1 and 1,000.", ephemeral=True)
-            return
+        # Get current rate from environment
+        current_rate = get_sand_per_melange()
         
-        # Get current rate and update
-        current_rate = int(await database.get_setting('sand_per_melange') or 50)
-        await database.set_setting('sand_per_melange', str(sand_per_melange))
-        
-        embed = (EmbedBuilder("⚙️ Refinement Rate Updated", color=0x27AE60, timestamp=interaction.created_at)
-                 .add_field("📊 Rate Change", f"**Previous Rate:** {current_rate} sand = 1 melange\n**New Rate:** {sand_per_melange} sand = 1 melange", inline=False)
-                 .add_field("⚠️ Important Note", "This change affects future calculations only. Existing refinery data remains unchanged.", inline=False)
-                 .set_footer(f"Changed by {interaction.user.display_name}", interaction.user.display_avatar.url))
+        embed = (EmbedBuilder("⚙️ Refinement Rate Information", color=0x3498DB, timestamp=interaction.created_at)
+                 .add_field("📊 Current Rate", f"**{current_rate} sand = 1 melange**", inline=False)
+                 .add_field("⚠️ Important Note", "The conversion rate is set via environment variables and cannot be changed through commands. Contact an administrator to modify the SAND_PER_MELANGE environment variable.", inline=False)
+                 .set_footer(f"Requested by {interaction.user.display_name}", interaction.user.display_avatar.url))
         
         await interaction.response.send_message(embed=embed.build())
-        print(f'Refinement rate changed from {current_rate} to {sand_per_melange} by {interaction.user.display_name} ({interaction.user.id})')
+        print(f'Refinement rate info requested by {interaction.user.display_name} ({interaction.user.id}) - Current rate: {current_rate}')
         
     except Exception as error:
         logger.error(f"Error in conversion command: {error}")
@@ -354,7 +456,7 @@ async def split(interaction: discord.Interaction, total_sand: int, participants:
             return
         
         # Calculate splits
-        sand_per_melange = int(await database.get_setting('sand_per_melange') or 50)
+        sand_per_melange = get_sand_per_melange()
         harvester_sand = int(total_sand * (harvester_percentage / 100))
         remaining_sand = total_sand - harvester_sand
         
@@ -385,7 +487,7 @@ async def split(interaction: discord.Interaction, total_sand: int, participants:
 async def help_command(interaction: discord.Interaction):
     """Show all available commands and their descriptions"""
     try:
-        sand_per_melange = int(await database.get_setting('sand_per_melange') or 50)
+        sand_per_melange = get_sand_per_melange()
         
         embed = (EmbedBuilder("🏜️ Spice Refinery Commands", 
                               description="Track your spice sand harvests and melange production in the Dune: Awakening universe!",
@@ -398,11 +500,11 @@ async def help_command(interaction: discord.Interaction):
                            "**`/split [total_sand] [harvester_%]`**\nSplit harvested spice among expedition members. Harvester % is optional.\n\n"
                            "**`/help`**\nDisplay this help message with all commands.", inline=False)
                  .add_field("⚙️ Guild Admin Commands", 
-                           "**`/conversion [sand_per_melange]`**\nSet refinement rate (1-1,000 sand per melange).\n\n"
+                           "**`/conversion`**\nView the current refinement rate.\n\n"
                            "**`/payment [user]`**\nProcess payment for a harvester's deposits.\n\n"
                            "**`/payroll`**\nProcess payments for all unpaid harvesters.\n\n"
                            "**`/reset confirm:True`**\nReset all refinery statistics (requires confirmation).", inline=False)
-                 .add_field("📋 Current Settings", f"**Refinement Rate:** {sand_per_melange} sand = 1 melange\n**Default Harvester %:** {os.getenv('DEFAULT_HARVESTER_PERCENTAGE', '25.0')}%", inline=False)
+                 .add_field("📋 Current Settings", f"**Refinement Rate:** {sand_per_melange} sand = 1 melange (set via SAND_PER_MELANGE env var)\n**Default Harvester %:** {os.getenv('DEFAULT_HARVESTER_PERCENTAGE', '25.0')}%", inline=False)
                  .add_field("💡 Example Usage", 
                            "• `/harvest 250` or `/sand 250` - Harvest 250 spice sand\n"
                            "• `/refinery` or `/status` - Check your refinery status\n"
@@ -445,7 +547,7 @@ async def reset(interaction: discord.Interaction, confirm: bool):
             return
         
         # Reset all refinery statistics
-        deleted_rows = await database.reset_all_stats()
+        deleted_rows = await get_database().reset_all_stats()
         
         embed = (EmbedBuilder("🔄 Refinery Reset Complete", 
                               description="⚠️ **All refinery statistics have been permanently deleted!**",
@@ -464,7 +566,7 @@ async def reset(interaction: discord.Interaction, confirm: bool):
 async def ledger(interaction: discord.Interaction):
     """View your complete spice harvest ledger"""
     try:
-        deposits_data = await database.get_user_deposits(str(interaction.user.id))
+        deposits_data = await get_database().get_user_deposits(str(interaction.user.id))
         
         if not deposits_data:
             embed = (EmbedBuilder("📋 Spice Harvest Ledger", color=0x95A5A6, timestamp=interaction.created_at)
@@ -489,7 +591,7 @@ async def ledger(interaction: discord.Interaction):
                 total_unpaid += deposit['sand_amount']
         
         embed = (EmbedBuilder("📋 Spice Harvest Ledger", description=ledger_text, color=0x3498DB, timestamp=interaction.created_at)
-                 .add_thumbnail(interaction.user.display_avatar.url)
+                 .set_thumbnail(interaction.user.display_avatar.url)
                  .add_field("💰 Payment Summary", f"**Unpaid Harvest:** {total_unpaid:,} sand\n**Paid Harvest:** {total_paid:,} sand\n**Total Harvests:** {len(deposits_data)}", inline=False)
                  .set_footer(f"Spice Refinery • {interaction.user.display_name}", interaction.user.display_avatar.url))
         
@@ -508,7 +610,7 @@ async def payment(interaction: discord.Interaction, user: discord.Member):
             return
         
         # Get user's unpaid deposits
-        unpaid_deposits = await database.get_user_deposits(str(user.id), include_paid=False)
+        unpaid_deposits = await get_database().get_user_deposits(str(user.id), include_paid=False)
         
         if not unpaid_deposits:
             embed = (EmbedBuilder("💰 Payment Status", color=0x95A5A6, timestamp=interaction.created_at)
@@ -518,7 +620,7 @@ async def payment(interaction: discord.Interaction, user: discord.Member):
             return
         
         # Mark all deposits as paid
-        await database.mark_all_user_deposits_paid(str(user.id))
+        await get_database().mark_all_user_deposits_paid(str(user.id))
         
         total_paid = sum(deposit['sand_amount'] for deposit in unpaid_deposits)
         
@@ -543,7 +645,7 @@ async def payroll(interaction: discord.Interaction):
             return
         
         # Get all unpaid deposits
-        unpaid_deposits = await database.get_all_unpaid_deposits()
+        unpaid_deposits = await get_database().get_all_unpaid_deposits()
         
         if not unpaid_deposits:
             embed = (EmbedBuilder("💰 Payroll Status", color=0x95A5A6, timestamp=interaction.created_at)
@@ -565,7 +667,7 @@ async def payroll(interaction: discord.Interaction):
         users_paid = 0
         
         for user_id, deposits_list in user_deposits.items():
-            await database.mark_all_user_deposits_paid(user_id)
+            await get_database().mark_all_user_deposits_paid(user_id)
             user_total = sum(deposit['sand_amount'] for deposit in deposits_list)
             total_paid += user_total
             users_paid += 1
@@ -601,20 +703,35 @@ async def on_error(event, *args, **kwargs):
                  event=event, args=str(args), kwargs=str(kwargs))
     print(f'Discord event error: {event}')
 
-# Railway health check endpoint
+# Fly.io health check endpoint
 import http.server
 import socketserver
 import threading
 
 def start_health_server():
-    """Start a simple HTTP server for Railway health checks"""
+    """Start a robust HTTP server for Fly.io health checks with keep-alive"""
     class HealthHandler(http.server.BaseHTTPRequestHandler):
         def do_GET(self):
             if self.path == '/health':
                 self.send_response(200)
                 self.send_header('Content-type', 'text/plain')
+                self.send_header('Cache-Control', 'no-cache, no-store, must-revalidate')
+                self.send_header('Connection', 'keep-alive')
                 self.end_headers()
-                self.wfile.write(b'OK')
+                
+                # Return bot status information
+                status = {
+                    'status': 'healthy',
+                    'bot_ready': bot.is_ready(),
+                    'guild_count': len(bot.guilds),
+                    'timestamp': datetime.datetime.utcnow().isoformat()
+                }
+                self.wfile.write(str(status).encode())
+            elif self.path == '/ping':
+                self.send_response(200)
+                self.send_header('Content-type', 'text/plain')
+                self.end_headers()
+                self.wfile.write(b'pong')
             else:
                 self.send_response(404)
                 self.end_headers()
@@ -625,26 +742,41 @@ def start_health_server():
     try:
         port = int(os.getenv('PORT', 8080))
         with socketserver.TCPServer(("", port), HealthHandler) as httpd:
-            logger.bot_event("Health server started", port=port)
+            logger.bot_event(f"Health server started on port {port}")
             print(f"Health check server started on port {port}")
             httpd.serve_forever()
     except Exception as e:
-        logger.error("Health server failed to start", error=str(e))
+        logger.error(f"Health server failed to start: {e}")
         print(f"Health server failed to start: {e}")
 
 # Run the bot
 if __name__ == '__main__':
-    # Start health check server in a separate thread for Railway
+    # Start health check server in a separate thread for Fly.io
     health_thread = threading.Thread(target=start_health_server, daemon=True)
     health_thread.start()
+    
+    # Start a keep-alive thread to prevent machine from going idle
+    def keep_alive():
+        """Send periodic pings to keep the machine alive"""
+        import requests
+        import time
+        while True:
+            try:
+                time.sleep(300)  # Every 5 minutes
+                requests.get('http://localhost:8080/ping', timeout=5)
+            except:
+                pass  # Ignore errors, just keep trying
+    
+    keep_alive_thread = threading.Thread(target=keep_alive, daemon=True)
+    keep_alive_thread.start()
     
     token = os.getenv('DISCORD_TOKEN')
     if not token:
         logger.error("DISCORD_TOKEN environment variable is not set")
         print("❌ ERROR: DISCORD_TOKEN environment variable is not set!")
-        print("Please set the DISCORD_TOKEN environment variable in Railway or your .env file")
+        print("Please set the DISCORD_TOKEN environment variable in Fly.io or your .env file")
         exit(1)
     
-    logger.bot_event("Bot starting", has_token=bool(token))
+    logger.bot_event(f"Bot starting - Token present: {bool(token)}")
     print("Starting Discord bot...")
     bot.run(token)
