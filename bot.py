@@ -59,9 +59,13 @@ def handle_interaction_expiration(func):
             logger.bot_event(f"Decorator debug - Calling {func.__name__} with use_followup={use_followup}")
             result = await func(interaction, *args, **kwargs)
             logger.bot_event(f"Decorator debug - {func.__name__} completed successfully")
+            logger.bot_event(f"Decorator debug - About to return result from {func.__name__}")
             return result
         except Exception as func_error:
             logger.error(f"Decorator debug - {func.__name__} raised exception: {func_error}")
+            logger.error(f"Decorator debug - Exception type: {type(func_error).__name__}")
+            import traceback
+            logger.error(f"Decorator debug - Full traceback: {traceback.format_exc()}")
             raise func_error
     
     return wrapper
@@ -376,16 +380,15 @@ async def harvest(interaction: discord.Interaction, amount: int, use_followup: b
         
         # Send response based on whether defer was successful
         logger.bot_event(f"Harvest debug - About to send response, use_followup={use_followup}")
-        try:
-            if use_followup:
-                await interaction.followup.send(embed=embed.build())
-                logger.bot_event("Harvest debug - Successfully sent followup response")
-            else:
-                await interaction.channel.send(embed=embed.build())
-                logger.bot_event("Harvest debug - Successfully sent channel response")
-        except Exception as response_error:
-            logger.error(f"Error sending harvest response: {response_error}")
-            raise response_error
+        logger.bot_event(f"Harvest debug - Interaction response done: {interaction.response.is_done()}")
+        logger.bot_event(f"Harvest debug - Interaction type: {type(interaction).__name__}")
+        
+        if use_followup:
+            await interaction.followup.send(embed=embed.build())
+            logger.bot_event("Harvest debug - Successfully sent followup response")
+        else:
+            await interaction.channel.send(embed=embed.build())
+            logger.bot_event("Harvest debug - Successfully sent channel response")
         
         # Log successful completion
         logger.bot_event("Harvest debug - Command completed successfully without errors")
