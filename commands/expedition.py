@@ -19,7 +19,7 @@ from utils.logger import logger
 
 
 @handle_interaction_expiration
-async def expedition_details(interaction, expedition_id: int, use_followup: bool = True):
+async def expedition(interaction, expedition_id: int, use_followup: bool = True):
     """View details of a specific expedition"""
     command_start = time.time()
     
@@ -81,7 +81,7 @@ async def expedition_details(interaction, expedition_id: int, use_followup: bool
         
     except Exception as error:
         total_time = time.time() - command_start
-        logger.error(f"Error in expedition_details command: {error}", 
+        logger.error(f"Error in expedition command: {error}", 
                     user_id=str(interaction.user.id),
                     username=interaction.user.display_name,
                     expedition_id=expedition_id,
