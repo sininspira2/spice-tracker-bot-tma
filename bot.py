@@ -5,6 +5,8 @@ A Discord bot for tracking spice sand harvests and melange production in Dune: A
 
 import discord
 from discord.ext import commands
+from discord import app_commands
+from typing import Literal, Optional
 import os
 import time
 import http.server
@@ -91,27 +93,8 @@ async def on_ready():
         register_time = time.time() - register_start
         print(f"✅ Command registration completed in {register_time:.3f}s")
         
-        # Sync slash commands globally
-        try:
-            print("🔄 Syncing slash commands globally...")
-            sync_start = time.time()
-            
-            synced = await bot.tree.sync()
-            sync_time = time.time() - sync_start
-            
-            logger.bot_event(f"Global command sync completed", 
-                           sync_time=f"{sync_time:.3f}s",
-                           commands_synced=len(synced))
-            print(f'✅ Synced {len(synced)} commands globally in {sync_time:.3f}s.')
-            print("🎉 Bot is fully ready!")
-            
-        except Exception as error:
-            sync_time = time.time() - sync_start
-            logger.bot_event(f"Command sync failed: {error}", sync_time=f"{sync_time:.3f}s")
-            print(f'❌ Failed to sync commands in {sync_time:.3f}s: {error}')
-            print(f'❌ Error type: {type(error).__name__}')
-            import traceback
-            print(f'❌ Full traceback: {traceback.format_exc()}')
+        # Commands registered, ready for manual sync
+        print("🎉 Bot is ready! Use the !sync command to sync slash commands.")
         
         # Log total bot startup time
         total_startup_time = time.time() - bot_start_time
@@ -138,6 +121,7 @@ def register_commands():
     
     # Harvest command
     @bot.tree.command(name="harvest", description="Log spice sand harvests and calculate melange conversion")
+    @app_commands.describe(amount="Amount of spice sand harvested (1-10,000)")
     async def harvest_cmd(interaction: discord.Interaction, amount: int):  # noqa: F841
         await harvest(interaction, amount, True)
     
@@ -148,6 +132,7 @@ def register_commands():
     
     # Leaderboard command
     @bot.tree.command(name="leaderboard", description="Display top spice refiners by melange production")
+    @app_commands.describe(limit="Number of top refiners to display (5-25, default: 10)")
     async def leaderboard_cmd(interaction: discord.Interaction, limit: int = 10):  # noqa: F841
         await leaderboard(interaction, limit, True)
     
@@ -158,6 +143,10 @@ def register_commands():
     
     # Split command
     @bot.tree.command(name="split", description="Split harvested spice sand among expedition members")
+    @app_commands.describe(
+        total_sand="Total spice sand to split equally",
+        users="List of Discord users to split with (use @mentions)"
+    )
     async def split_cmd(interaction: discord.Interaction, total_sand: int, users: str):  # noqa: F841
         await split(interaction, total_sand, users, True)
     
@@ -168,6 +157,7 @@ def register_commands():
     
     # Reset command
     @bot.tree.command(name="reset", description="Reset all spice refinery statistics (Admin only - USE WITH CAUTION)")
+    @app_commands.describe(confirm="Confirm that you want to delete all refinery data (True/False)")
     async def reset_cmd(interaction: discord.Interaction, confirm: bool):  # noqa: F841
         await reset(interaction, confirm, True)
     
@@ -178,11 +168,13 @@ def register_commands():
     
     # Expedition command
     @bot.tree.command(name="expedition", description="View details of a specific expedition")
+    @app_commands.describe(expedition_id="ID of the expedition to view")
     async def expedition_cmd(interaction: discord.Interaction, expedition_id: int):  # noqa: F841
         await expedition(interaction, expedition_id, True)
     
     # Payment command
     @bot.tree.command(name="payment", description="Process payment for a harvester's deposits (Admin only)")
+    @app_commands.describe(user="Harvester to pay")
     async def payment_cmd(interaction: discord.Interaction, user: discord.Member):  # noqa: F841
         await payment(interaction, user, True)
     
@@ -192,6 +184,48 @@ def register_commands():
         await payroll(interaction, True)
     
     print(f"✅ Registered all commands explicitly")
+
+
+# Manual sync command (recommended by Discord.py docs)
+@commands.command()
+@commands.guild_only()
+@commands.is_owner()
+async def sync(
+    ctx: commands.Context,
+    guilds: commands.Greedy[discord.Object],
+    spec: Optional[Literal["~", "*", "^"]] = None
+) -> None:
+    """Sync slash commands. Use !sync for global, !sync ~ for current guild."""
+    if not guilds:
+        if spec == "~":
+            synced = await ctx.bot.tree.sync(guild=ctx.guild)
+        elif spec == "*":
+            ctx.bot.tree.copy_global_to(guild=ctx.guild)
+            synced = await ctx.bot.tree.sync(guild=ctx.guild)
+        elif spec == "^":
+            ctx.bot.tree.clear_commands(guild=ctx.guild)
+            await ctx.bot.tree.sync(guild=ctx.guild)
+            synced = []
+        else:
+            synced = await ctx.bot.tree.sync()
+
+        await ctx.send(
+            f"Synced {len(synced)} commands {'globally' if spec is None else 'to the current guild.'}"
+        )
+        return
+
+    ret = 0
+    for guild in guilds:
+        try:
+            await ctx.bot.tree.sync(guild=guild)
+        except discord.HTTPException:
+            pass
+        else:
+            ret += 1
+
+    await ctx.send(f"Synced the tree to {ret}/{len(guilds)}.")
+
+bot.add_command(sync)
 
 
 # Error handling
