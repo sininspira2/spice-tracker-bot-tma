@@ -157,90 +157,65 @@ async def on_ready():
 
 # Register commands with the bot's command tree
 def register_commands():
-    """Register all commands with the bot's command tree using pre-discovered signatures"""
-    from commands import COMMAND_METADATA, COMMAND_SIGNATURES, COMMANDS
+    """Register all commands explicitly with their exact signatures"""
+    from commands import harvest, refinery, leaderboard, conversion, split, help, reset, ledger, expedition, payment, payroll
     
-    def create_wrapper(cmd_name: str, cmd_function: callable, params: list):
-        """Create a command wrapper dynamically using the discovered signature"""
-        import discord
-        from typing import get_origin, get_args
-        
-        if not params:
-            # No parameters beyond interaction
-            @bot.tree.command(name=cmd_name, description=COMMAND_METADATA[cmd_name]['description'])
-            async def wrapper(interaction: discord.Interaction):
-                await cmd_function(interaction, True)
-            return wrapper
-        
-        # Build dynamic parameter list for the wrapper function
-        wrapper_params = ['interaction: discord.Interaction']
-        call_args = ['interaction']
-        
-        for param in params:
-            param_name = param['name']
-            param_annotation = param['annotation']
-            param_default = param['default']
-            
-            # Convert annotation to proper Discord.py type
-            if param_annotation == int:
-                type_str = 'int'
-            elif param_annotation == str:
-                type_str = 'str'
-            elif param_annotation == bool:
-                type_str = 'bool'
-            elif param_annotation == discord.Member or str(param_annotation) == "<class 'discord.member.Member'>":
-                type_str = 'discord.Member'
-            else:
-                type_str = 'str'  # Default fallback
-            
-            # Build parameter string with default value if present
-            if param_default is not None:
-                if isinstance(param_default, str):
-                    wrapper_params.append(f'{param_name}: {type_str} = "{param_default}"')
-                else:
-                    wrapper_params.append(f'{param_name}: {type_str} = {param_default}')
-            else:
-                wrapper_params.append(f'{param_name}: {type_str}')
-            
-            call_args.append(param_name)
-        
-        # Create the dynamic wrapper function
-        wrapper_signature = f"async def wrapper({', '.join(wrapper_params)}):"
-        wrapper_body = f"    await cmd_function({', '.join(call_args)}, True)"
-        wrapper_code = f"{wrapper_signature}\n{wrapper_body}"
-        
-        # Create local namespace for execution
-        local_namespace = {
-            'cmd_function': cmd_function,
-            'discord': discord
-        }
-        
-        # Execute the dynamic function definition
-        exec(wrapper_code, globals(), local_namespace)
-        dynamic_wrapper = local_namespace['wrapper']
-        
-        # Apply the Discord command decorator
-        return bot.tree.command(name=cmd_name, description=COMMAND_METADATA[cmd_name]['description'])(dynamic_wrapper)
+    # Harvest command
+    @bot.tree.command(name="harvest", description="Log spice sand harvests and calculate melange conversion")
+    async def harvest_cmd(interaction: discord.Interaction, amount: int):  # noqa: F841
+        await harvest(interaction, amount, True)
     
-    # Register all discovered commands
-    for command_name in COMMAND_METADATA.keys():
-        try:
-            command_function = COMMANDS[command_name]
-            command_params = COMMAND_SIGNATURES[command_name]
-            
-            # Create and register the main command
-            wrapper = create_wrapper(command_name, command_function, command_params)
-            print(f"✅ Registered command: {command_name} (params: {len(command_params)})")
-            
-            # Register aliases using the same signature
-            for alias in COMMAND_METADATA[command_name]['aliases']:
-                alias_wrapper = create_wrapper(alias, command_function, command_params)
-                print(f"✅ Registered alias: {alias}")
-                
-        except Exception as e:
-            print(f"❌ Failed to register {command_name}: {e}")
+    # Refinery command
+    @bot.tree.command(name="refinery", description="View your spice refinery statistics and progress")
+    async def refinery_cmd(interaction: discord.Interaction):  # noqa: F841
+        await refinery(interaction, True)
     
-    print(f"🎯 Command registration completed")
+    # Leaderboard command
+    @bot.tree.command(name="leaderboard", description="Display top spice refiners by melange production")
+    async def leaderboard_cmd(interaction: discord.Interaction, limit: int = 10):  # noqa: F841
+        await leaderboard(interaction, limit, True)
+    
+    # Conversion command
+    @bot.tree.command(name="conversion", description="View the current spice sand to melange conversion rate")
+    async def conversion_cmd(interaction: discord.Interaction):  # noqa: F841
+        await conversion(interaction, True)
+    
+    # Split command
+    @bot.tree.command(name="split", description="Split harvested spice sand among expedition members")
+    async def split_cmd(interaction: discord.Interaction, total_sand: int, users: str):  # noqa: F841
+        await split(interaction, total_sand, users, True)
+    
+    # Help command
+    @bot.tree.command(name="help", description="Show all available spice tracking commands")
+    async def help_cmd(interaction: discord.Interaction):  # noqa: F841
+        await help(interaction, True)
+    
+    # Reset command
+    @bot.tree.command(name="reset", description="Reset all spice refinery statistics (Admin only - USE WITH CAUTION)")
+    async def reset_cmd(interaction: discord.Interaction, confirm: bool):  # noqa: F841
+        await reset(interaction, confirm, True)
+    
+    # Ledger command
+    @bot.tree.command(name="ledger", description="View your complete spice harvest ledger")
+    async def ledger_cmd(interaction: discord.Interaction):  # noqa: F841
+        await ledger(interaction, True)
+    
+    # Expedition command
+    @bot.tree.command(name="expedition", description="View details of a specific expedition")
+    async def expedition_cmd(interaction: discord.Interaction, expedition_id: int):  # noqa: F841
+        await expedition(interaction, expedition_id, True)
+    
+    # Payment command
+    @bot.tree.command(name="payment", description="Process payment for a harvester's deposits (Admin only)")
+    async def payment_cmd(interaction: discord.Interaction, user: discord.Member):  # noqa: F841
+        await payment(interaction, user, True)
+    
+    # Payroll command
+    @bot.tree.command(name="payroll", description="Process payments for all unpaid harvesters (Admin only)")
+    async def payroll_cmd(interaction: discord.Interaction):  # noqa: F841
+        await payroll(interaction, True)
+    
+    print(f"✅ Registered all commands explicitly")
 
 
 # Error handling
