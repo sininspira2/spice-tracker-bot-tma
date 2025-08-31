@@ -33,7 +33,7 @@ async def harvest(interaction, amount: int, use_followup: bool):
     # Database operations with timing using utility functions
     
     # Add deposit with timing
-    add_deposit_time = await timed_database_operation(
+    _, add_deposit_time = await timed_database_operation(
         "add_deposit",
         get_database().add_deposit,
         str(interaction.user.id), interaction.user.display_name, amount
@@ -51,8 +51,9 @@ async def harvest(interaction, amount: int, use_followup: bool):
     new_melange = max(0, total_melange_earned - current_melange)  # Ensure new_melange is never negative
     
     # Only update melange if we have new melange to add
+    update_melange_time = 0
     if new_melange > 0:
-        update_melange_time = await timed_database_operation(
+        _, update_melange_time = await timed_database_operation(
             "update_user_melange",
             get_database().update_user_melange,
             str(interaction.user.id), new_melange
@@ -94,6 +95,7 @@ async def harvest(interaction, amount: int, use_followup: bool):
         total_time,
         amount=amount,
         add_deposit_time=f"{add_deposit_time:.3f}s",
+        update_melange_time=f"{update_melange_time:.3f}s",
         **user_stats['timing'],
         response_time=f"{response_time:.3f}s",
         new_melange=new_melange
