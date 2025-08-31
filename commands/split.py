@@ -104,9 +104,6 @@ async def split(interaction, total_sand: int, users: str, use_followup: bool = T
             if not display_name or display_name.strip() == "":
                 display_name = f"User_{user_id}"
             
-            # Ensure this participant exists in the users table
-            await validate_user_exists(get_database(), user_id, display_name)
-            
             # Calculate participant share (add leftover to first participant)
             participant_sand = share_per_participant
             if leftover_sand > 0 and user_id == unique_user_ids[0]:
@@ -115,24 +112,32 @@ async def split(interaction, total_sand: int, users: str, use_followup: bool = T
             participant_melange = participant_sand // sand_per_melange
             participant_leftover = participant_sand % sand_per_melange
             
-            # Add to database using user_id for all operations
-            await get_database().add_expedition_participant(
-                expedition_id,
-                user_id,  # Use user_id for database operations
-                display_name,  # Username only for display
-                participant_sand,
-                participant_melange,
-                participant_leftover,
-                is_harvester=False  # All participants are equal in this version
-            )
-            
-            # Create expedition deposit for participant using user_id
-            await get_database().add_expedition_deposit(
-                user_id,  # Use user_id for database operations
-                display_name,  # Username only for display
-                participant_sand,
-                expedition_id
-            )
+            # Batch database operations to reduce connection overhead
+            try:
+                # Ensure this participant exists in the users table
+                await validate_user_exists(get_database(), user_id, display_name)
+                
+                # Add to database using user_id for all operations
+                await get_database().add_expedition_participant(
+                    expedition_id,
+                    user_id,  # Use user_id for database operations
+                    display_name,  # Username only for display
+                    participant_sand,
+                    participant_melange,
+                    participant_leftover,
+                    is_harvester=False  # All participants are equal in this version
+                )
+                
+                # Create expedition deposit for participant using user_id
+                await get_database().add_expedition_deposit(
+                    user_id,  # Use user_id for database operations
+                    display_name,  # Username only for display
+                    participant_sand,
+                    expedition_id
+                )
+            except Exception as participant_error:
+                logger.error(f"Failed to process participant {display_name}: {participant_error}")
+                raise
             
             # Mark if this is the initiator
             initiator_mark = " (initiator)" if user_id == str(interaction.user.id) else ""

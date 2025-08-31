@@ -29,9 +29,13 @@ class Database:
                 conn = await asyncpg.connect(
                     self.database_url,
                     statement_cache_size=0,  # Disable prepared statements for pgbouncer compatibility
-                    command_timeout=60,      # Set command timeout
+                    command_timeout=30,      # Reduce timeout for faster failures
+                    connect_timeout=10,      # Add connection timeout
                     server_settings={
-                        'application_name': 'spice_tracker_bot'
+                        'application_name': 'spice_tracker_bot',
+                        'tcp_keepalives_idle': '600',
+                        'tcp_keepalives_interval': '30',
+                        'tcp_keepalives_count': '3'
                     }
                 )
                 
