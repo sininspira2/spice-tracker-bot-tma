@@ -186,48 +186,62 @@ def register_commands():
     # Register all commands and their aliases dynamically
     for command_name, command_data in commands.items():
         try:
-            # Create a dynamic command registration function
+            # Create a truly dynamic command wrapper using introspection
             def create_command_wrapper(cmd_name, cmd_data):
-                """Create a command wrapper with the correct signature using introspection"""
-                if 'params' in cmd_data:
-                    # Commands with parameters - use introspection to determine signature
-                    import inspect
-                    sig = inspect.signature(cmd_data['function'])
-                    params = list(sig.parameters.values())
+                """Create a command wrapper by introspecting the actual function signature"""
+                import inspect
+                sig = inspect.signature(cmd_data['function'])
+                params = list(sig.parameters.values())
+                
+                # Skip the first parameter (interaction) and internal parameters
+                command_params = []
+                for param in params[1:]:  # Skip interaction parameter
+                    if param.name != 'use_followup':  # Skip internal parameter
+                        command_params.append(param)
+                
+                if command_params:
+                    # Create the command with the actual parameter types from the function
+                    @bot.tree.command(name=cmd_name, description=cmd_data['description'])
+                    async def wrapper(interaction: discord.Interaction):
+                        # Extract parameters from interaction data
+                        kwargs = {}
+                        for param in command_params:
+                            param_name = param.name
+                            if hasattr(interaction, 'data') and 'options' in interaction.data:
+                                for option in interaction.data['options']:
+                                    if option['name'] == param_name:
+                                        # Convert the value to the expected type
+                                        value = option['value']
+                                        if param.annotation != inspect.Parameter.empty:
+                                            try:
+                                                if param.annotation == bool:
+                                                    value = bool(value)
+                                                elif param.annotation == int:
+                                                    value = int(value)
+                                                elif param.annotation == float:
+                                                    value = float(value)
+                                                elif param.annotation == str:
+                                                    value = str(value)
+                                                elif param.annotation == discord.Member:
+                                                    value = interaction.guild.get_member(int(value)) if interaction.guild else None
+                                            except (ValueError, TypeError):
+                                                # If conversion fails, use the raw value
+                                                pass
+                                        kwargs[param_name] = value
+                                        break
+                        
+                        # Call the original function with the extracted parameters
+                        await cmd_data['function'](interaction, **kwargs)
                     
-                    # Skip the first parameter (interaction)
-                    if len(params) > 1:
-                        # Create parameter annotations for Discord
-                        param_annotations = {}
-                        param_defaults = {}
-                        
-                        for param in params[1:]:  # Skip interaction parameter
-                            if param.name != 'use_followup':  # Skip internal parameter
-                                param_annotations[param.name] = param.annotation
-                                if param.default != inspect.Parameter.empty:
-                                    param_defaults[param.name] = param.default
-                        
-                        # Create the command with proper signature
-                        @bot.tree.command(name=cmd_name, description=cmd_data['description'])
-                        async def wrapper(interaction: discord.Interaction, **kwargs):
-                            # Call the original function with the correct parameters
-                            await cmd_data['function'](interaction, **kwargs)
-                        
-                        # Add parameter descriptions if available
-                        if 'params' in cmd_data:
-                            for param_name, param_desc in cmd_data['params'].items():
-                                if param_name != 'use_followup':  # Skip internal parameter
-                                    wrapper = discord.app_commands.describe(**{param_name: param_desc})(wrapper)
-                        
-                        return wrapper
-                    else:
-                        # No additional parameters (just interaction)
-                        @bot.tree.command(name=cmd_name, description=cmd_data['description'])
-                        async def wrapper(interaction: discord.Interaction):
-                            await cmd_data['function'](interaction)
-                        return wrapper
+                    # Add parameter descriptions if available
+                    if 'params' in cmd_data:
+                        for param_name, param_desc in cmd_data['params'].items():
+                            if param_name != 'use_followup':  # Skip internal parameter
+                                wrapper = discord.app_commands.describe(**{param_name: param_desc})(wrapper)
+                    
+                    return wrapper
                 else:
-                    # Commands without parameters
+                    # No additional parameters (just interaction)
                     @bot.tree.command(name=cmd_name, description=cmd_data['description'])
                     async def wrapper(interaction: discord.Interaction):
                         await cmd_data['function'](interaction)
