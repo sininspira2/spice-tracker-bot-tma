@@ -157,27 +157,84 @@ async def on_ready():
 
 # Register commands with the bot's command tree
 def register_commands():
-    """Register all commands with the bot's command tree"""
-    from commands import COMMAND_METADATA
+    """Register all commands with the bot's command tree using pre-discovered signatures"""
+    from commands import COMMAND_METADATA, COMMAND_SIGNATURES, COMMANDS
     
-    for command_name, metadata in COMMAND_METADATA.items():
+    def create_wrapper(cmd_name: str, cmd_function: callable, params: list):
+        """Create a command wrapper dynamically using the discovered signature"""
+        import discord
+        from typing import get_origin, get_args
+        
+        if not params:
+            # No parameters beyond interaction
+            @bot.tree.command(name=cmd_name, description=COMMAND_METADATA[cmd_name]['description'])
+            async def wrapper(interaction: discord.Interaction):
+                await cmd_function(interaction, True)
+            return wrapper
+        
+        # Build dynamic parameter list for the wrapper function
+        wrapper_params = ['interaction: discord.Interaction']
+        call_args = ['interaction']
+        
+        for param in params:
+            param_name = param['name']
+            param_annotation = param['annotation']
+            param_default = param['default']
+            
+            # Convert annotation to proper Discord.py type
+            if param_annotation == int:
+                type_str = 'int'
+            elif param_annotation == str:
+                type_str = 'str'
+            elif param_annotation == bool:
+                type_str = 'bool'
+            elif param_annotation == discord.Member or str(param_annotation) == "<class 'discord.member.Member'>":
+                type_str = 'discord.Member'
+            else:
+                type_str = 'str'  # Default fallback
+            
+            # Build parameter string with default value if present
+            if param_default is not None:
+                if isinstance(param_default, str):
+                    wrapper_params.append(f'{param_name}: {type_str} = "{param_default}"')
+                else:
+                    wrapper_params.append(f'{param_name}: {type_str} = {param_default}')
+            else:
+                wrapper_params.append(f'{param_name}: {type_str}')
+            
+            call_args.append(param_name)
+        
+        # Create the dynamic wrapper function
+        wrapper_signature = f"async def wrapper({', '.join(wrapper_params)}):"
+        wrapper_body = f"    await cmd_function({', '.join(call_args)}, True)"
+        wrapper_code = f"{wrapper_signature}\n{wrapper_body}"
+        
+        # Create local namespace for execution
+        local_namespace = {
+            'cmd_function': cmd_function,
+            'discord': discord
+        }
+        
+        # Execute the dynamic function definition
+        exec(wrapper_code, globals(), local_namespace)
+        dynamic_wrapper = local_namespace['wrapper']
+        
+        # Apply the Discord command decorator
+        return bot.tree.command(name=cmd_name, description=COMMAND_METADATA[cmd_name]['description'])(dynamic_wrapper)
+    
+    # Register all discovered commands
+    for command_name in COMMAND_METADATA.keys():
         try:
-            # Import and register the command directly
-            command_module = __import__(f'commands.{command_name}', fromlist=[command_name])
-            command_function = getattr(command_module, command_name)
+            command_function = COMMANDS[command_name]
+            command_params = COMMAND_SIGNATURES[command_name]
             
-            # Create the command with proper parameters
-            @bot.tree.command(name=command_name, description=metadata['description'])
-            async def wrapper(interaction: discord.Interaction, *args):
-                await command_function(interaction, *args)
+            # Create and register the main command
+            wrapper = create_wrapper(command_name, command_function, command_params)
+            print(f"✅ Registered command: {command_name} (params: {len(command_params)})")
             
-            print(f"✅ Registered command: {command_name}")
-            
-            # Register aliases
-            for alias in metadata['aliases']:
-                @bot.tree.command(name=alias, description=metadata['description'])
-                async def alias_wrapper(interaction: discord.Interaction, *args):
-                    await command_function(interaction, *args)
+            # Register aliases using the same signature
+            for alias in COMMAND_METADATA[command_name]['aliases']:
+                alias_wrapper = create_wrapper(alias, command_function, command_params)
                 print(f"✅ Registered alias: {alias}")
                 
         except Exception as e:

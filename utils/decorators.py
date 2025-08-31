@@ -4,6 +4,7 @@ Decorators for Discord bot commands.
 
 import time
 import asyncio
+import functools
 from utils.logger import logger
 from utils.helpers import send_response
 import inspect
@@ -11,6 +12,7 @@ import inspect
 
 def handle_interaction_expiration(func):
     """Decorator to handle interaction expiration gracefully"""
+    @functools.wraps(func)
     async def wrapper(interaction, *args, **kwargs):
         command_start_time = time.time()
         use_followup = True
