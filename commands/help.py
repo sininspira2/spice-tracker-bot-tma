@@ -15,7 +15,7 @@ from utils.helpers import get_sand_per_melange, send_response
 
 
 @handle_interaction_expiration
-async def help_command(interaction, use_followup: bool = True):
+async def help(interaction, use_followup: bool = True):
     """Show all available commands and their descriptions"""
     sand_per_melange = get_sand_per_melange()
     
