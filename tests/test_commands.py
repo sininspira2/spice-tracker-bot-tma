@@ -18,11 +18,11 @@ class TestCommandResponsiveness:
             ('refinery', 'refinery', [True], {}),
             ('leaderboard', 'leaderboard', [10, True], {}),
             ('conversion', 'conversion', [True], {}),
-            ('split', 'split', [1000, 10.0, True], {}),
-            ('help', 'help_command', [True], {}),
+            ('split', 'split', [1000, '@user1 @user2', True], {}),
+            ('help', 'help', [True], {}),
             ('reset', 'reset', [True, True], {}),
             ('ledger', 'ledger', [True], {}),
-            ('expedition', 'expedition_details', [1, True], {}),
+            ('expedition', 'expedition', [1, True], {}),
             ('payment', 'payment', [Mock(id=123, display_name="TestUser"), True], {}),
             ('payroll', 'payroll', [True], {}),
         ]
@@ -67,8 +67,8 @@ class TestCommandResponsiveness:
         edge_cases = [
             ('harvest', 'harvest', [0, True], {}),  # Too low
             ('harvest', 'harvest', [15000, True], {}),  # Too high
-            ('split', 'split', [0, 10.0, True], {}),  # Invalid sand amount
-            ('split', 'split', [1000, 150.0, True], {}),  # Invalid percentage
+            ('split', 'split', [0, '@user1', True], {}),  # Invalid sand amount
+            ('split', 'split', [1000, '@user1', True], {}),  # Valid split
             ('reset', 'reset', [False, True], {}),  # Not confirmed
         ]
         
@@ -128,10 +128,10 @@ class TestCommandResponsiveness:
             'leaderboard': 'leaderboard',
             'conversion': 'conversion',
             'split': 'split',
-            'help': 'help_command',  # Different function name
+            'help': 'help',
             'reset': 'reset',
             'ledger': 'ledger',
-            'expedition': 'expedition_details',  # Different function name
+            'expedition': 'expedition',
             'payment': 'payment',
             'payroll': 'payroll',
         }
