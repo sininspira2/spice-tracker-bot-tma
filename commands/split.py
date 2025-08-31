@@ -57,6 +57,10 @@ async def split(interaction, total_sand: int, users: str, use_followup: bool = T
         # Get conversion rate
         sand_per_melange = get_sand_per_melange()
         
+        # Ensure the initiator exists in the users table before creating expedition
+        from utils.database_utils import validate_user_exists
+        await validate_user_exists(get_database(), str(interaction.user.id), interaction.user.display_name)
+        
         # Create expedition record
         expedition_id = await get_database().create_expedition(
             str(interaction.user.id),
@@ -99,6 +103,9 @@ async def split(interaction, total_sand: int, users: str, use_followup: bool = T
             # Ensure we have a valid display name
             if not display_name or display_name.strip() == "":
                 display_name = f"User_{user_id}"
+            
+            # Ensure this participant exists in the users table
+            await validate_user_exists(get_database(), user_id, display_name)
             
             # Calculate participant share (add leftover to first participant)
             participant_sand = share_per_participant
@@ -158,5 +165,12 @@ async def split(interaction, total_sand: int, users: str, use_followup: bool = T
         logger.bot_event(f"Expedition {expedition_id} created by {interaction.user.display_name} ({interaction.user.id}) - {total_sand} sand, {total_participants} participants")
         
     except Exception as error:
-        logger.error(f"Error in split command: {error}")
-        await send_response(interaction, "❌ An error occurred while creating the expedition.", use_followup=use_followup, ephemeral=True)
+        import traceback
+        logger.error(f"Error in split command: {error}", 
+                    user_id=str(interaction.user.id),
+                    username=interaction.user.display_name,
+                    traceback=traceback.format_exc())
+        try:
+            await send_response(interaction, "❌ An error occurred while creating the expedition.", use_followup=use_followup, ephemeral=True)
+        except Exception as response_error:
+            logger.error(f"Failed to send error response: {response_error}")
