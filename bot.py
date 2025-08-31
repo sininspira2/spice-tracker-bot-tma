@@ -91,42 +91,18 @@ async def on_ready():
         register_time = time.time() - register_start
         print(f"✅ Command registration completed in {register_time:.3f}s")
         
-        # Sync slash commands
+        # Sync slash commands globally
         try:
-            print("🔄 Syncing slash commands...")
+            print("🔄 Syncing slash commands globally...")
             sync_start = time.time()
             
-            # Sync to guilds for immediate availability
-            guild_sync_start = time.time()
-            guild_sync_success = 0
-            guild_sync_failed = 0
-            for guild in bot.guilds:
-                try:
-                    guild_synced = await bot.tree.sync(guild=guild)
-                    print(f'✅ Synced {len(guild_synced)} commands to guild: {guild.name}')
-                    guild_sync_success += 1
-                except Exception as guild_error:
-                    print(f'⚠️ Failed to sync to guild {guild.name}: {guild_error}')
-                    guild_sync_failed += 1
-            
-            guild_sync_time = time.time() - guild_sync_start
-            logger.bot_event(f"Guild command sync completed", 
-                           guild_sync_time=f"{guild_sync_time:.3f}s",
-                           guilds_success=guild_sync_success,
-                           guilds_failed=guild_sync_failed)
-            
-            # Sync globally (takes up to 1 hour to propagate)
-            global_sync_start = time.time()
             synced = await bot.tree.sync()
-            global_sync_time = time.time() - global_sync_start
+            sync_time = time.time() - sync_start
             
-            total_sync_time = time.time() - sync_start
-            logger.bot_event(f"Command sync completed", 
-                           total_sync_time=f"{total_sync_time:.3f}s",
-                           guild_sync_time=f"{guild_sync_time:.3f}s",
-                           global_sync_time=f"{global_sync_time:.3f}s",
+            logger.bot_event(f"Global command sync completed", 
+                           sync_time=f"{sync_time:.3f}s",
                            commands_synced=len(synced))
-            print(f'✅ Synced {len(synced)} commands in {total_sync_time:.3f}s.')
+            print(f'✅ Synced {len(synced)} commands globally in {sync_time:.3f}s.')
             print("🎉 Bot is fully ready!")
             
         except Exception as error:
