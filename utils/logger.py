@@ -1,5 +1,6 @@
 import logging
 import os
+from datetime import datetime
 from typing import Optional
 
 class BotLogger:
@@ -9,21 +10,24 @@ class BotLogger:
         self.logger = logging.getLogger(name)
         self.logger.setLevel(logging.INFO)
         
-        # Fly.io-friendly console handler - no formatter to avoid duplicate timestamps/levels
+        # Fly.io-friendly console handler
         handler = logging.StreamHandler()
         handler.setLevel(logging.INFO)
         
-        # No formatter - let Fly.io handle timestamps and levels
+        # Clean, simple formatter for Fly.io
+        formatter = logging.Formatter('%(asctime)s | %(levelname)s | %(message)s')
+        handler.setFormatter(formatter)
         
         # Avoid duplicate handlers
         if not self.logger.handlers:
             self.logger.addHandler(handler)
     
-    def _format_message(self, message: str, **kwargs) -> str:
-        """Format log message with clean, readable data - no timestamp/level since Fly.io provides that"""
+    def _format_message(self, level: str, message: str, **kwargs) -> str:
+        """Format log message with clean, readable data"""
+        timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
         
         # Build clean message
-        parts = [message]
+        parts = [f"[{level.upper()}] {message}"]
         
         # Add key-value pairs in clean format
         for key, value in kwargs.items():
@@ -42,22 +46,22 @@ class BotLogger:
     
     def info(self, message: str, **kwargs):
         """Log info level message"""
-        formatted = self._format_message(message, **kwargs)
+        formatted = self._format_message("INFO", message, **kwargs)
         self.logger.info(formatted)
     
     def warning(self, message: str, **kwargs):
         """Log warning level message"""
-        formatted = self._format_message(message, **kwargs)
+        formatted = self._format_message("WARNING", message, **kwargs)
         self.logger.warning(formatted)
     
     def error(self, message: str, **kwargs):
         """Log error level message"""
-        formatted = self._format_message(message, **kwargs)
+        formatted = self._format_message("ERROR", message, **kwargs)
         self.logger.error(formatted)
     
     def debug(self, message: str, **kwargs):
         """Log debug level message"""
-        formatted = self._format_message(message, **kwargs)
+        formatted = self._format_message("DEBUG", message, **kwargs)
         self.logger.debug(formatted)
     
     def command_executed(self, command: str, user_id: str, username: str, 
