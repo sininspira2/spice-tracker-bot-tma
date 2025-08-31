@@ -84,6 +84,13 @@ async def on_ready():
             print(f'❌ Full traceback: {traceback.format_exc()}')
             return
         
+        # Register commands BEFORE syncing
+        print("🔧 Registering commands...")
+        register_start = time.time()
+        register_commands()
+        register_time = time.time() - register_start
+        print(f"✅ Command registration completed in {register_time:.3f}s")
+        
         # Sync slash commands
         try:
             print("🔄 Syncing slash commands...")
@@ -137,9 +144,6 @@ async def on_ready():
                          db_init_time=f"{db_init_time:.3f}s",
                          guild_count=len(bot.guilds))
         print(f"🚀 Bot startup completed in {total_startup_time:.3f}s")
-        
-        # Register commands
-        register_commands()
             
     except Exception as error:
         total_startup_time = time.time() - bot_start_time
@@ -153,113 +157,105 @@ async def on_ready():
 
 # Register commands with the bot's command tree
 def register_commands():
-    """Register all commands with the bot's command tree"""
+    """Register all commands with the bot's command tree using dynamic discovery"""
     
-    # Command definitions with aliases
     # Get command metadata from the commands package
     from commands import COMMAND_METADATA
     
     # Build commands dictionary with functions
     commands = {}
     for command_name, metadata in COMMAND_METADATA.items():
-        # Import the command function dynamically
-        command_module = __import__(f'commands.{command_name}', fromlist=[command_name])
-        command_function = getattr(command_module, command_name)
-        
-        commands[command_name] = {
-            'aliases': metadata['aliases'],
-            'description': metadata['description'],
-            'function': command_function
-        }
-        if 'params' in metadata:
-            commands[command_name]['params'] = metadata['params']
+        try:
+            # Import the command function dynamically
+            command_module = __import__(f'commands.{command_name}', fromlist=[command_name])
+            command_function = getattr(command_module, command_name)
+            
+            commands[command_name] = {
+                'aliases': metadata['aliases'],
+                'description': metadata['description'],
+                'function': command_function
+            }
+            if 'params' in metadata:
+                commands[command_name]['params'] = metadata['params']
+                
+            print(f"Discovered command: {command_name}")
+        except Exception as e:
+            print(f"❌ Failed to import command {command_name}: {e}")
+            continue
     
-    # Register all commands and their aliases
+    # Register all commands and their aliases dynamically
     for command_name, command_data in commands.items():
-        # Register main command
-        if 'params' in command_data:
-            if command_name == 'harvest':
-                @bot.tree.command(name=command_name, description=command_data['description'])
-                async def wrapper(interaction: discord.Interaction, amount: int):
-                    await command_data['function'](interaction, amount)
-            elif command_name == 'leaderboard':
-                @bot.tree.command(name=command_name, description=command_data['description'])
-                async def wrapper(interaction: discord.Interaction, limit: int = 10):
-                    await command_data['function'](interaction, limit)
-            elif command_name == 'split':
-                @bot.tree.command(name=command_name, description=command_data['description'])
-                async def wrapper(interaction: discord.Interaction, total_sand: int, users: str):
-                    await command_data['function'](interaction, total_sand, users)
-            elif command_name == 'reset':
-                @bot.tree.command(name=command_name, description=command_data['description'])
-                async def wrapper(interaction: discord.Interaction, confirm: bool):
-                    await command_data['function'](interaction, confirm)
-            elif command_name == 'payment':
-                @bot.tree.command(name=command_name, description=command_data['description'])
-                async def wrapper(interaction: discord.Interaction, user: discord.Member):
-                    await command_data['function'](interaction, user)
-            elif command_name == 'expedition':
-                @bot.tree.command(name=command_name, description=command_data['description'])
-                async def wrapper(interaction: discord.Interaction, expedition_id: int):
-                    await command_data['function'](interaction, expedition_id)
-            else:
-                @bot.tree.command(name=command_name, description=command_data['description'])
-                async def wrapper(interaction: discord.Interaction):
-                    await command_data['function'](interaction)
-        else:
-            @bot.tree.command(name=command_name, description=command_data['description'])
-            async def wrapper(interaction: discord.Interaction):
-                await command_data['function'](interaction)
-        
-        # Add parameter descriptions
-        if 'params' in command_data:
-            for param_name, param_desc in command_data['params'].items():
-                wrapper = discord.app_commands.describe(**{param_name: param_desc})(wrapper)
-        
-        print(f"Registered command: {command_name}")
-        
-        # Register aliases with the same function
-        for alias in command_data['aliases']:
-            if 'params' in command_data:
-                if command_name == 'harvest':
-                    @bot.tree.command(name=alias, description=command_data['description'])
-                    async def alias_wrapper(interaction: discord.Interaction, amount: int):
-                        await command_data['function'](interaction, amount)
-                elif command_name == 'leaderboard':
-                    @bot.tree.command(name=alias, description=command_data['description'])
-                    async def alias_wrapper(interaction: discord.Interaction, limit: int = 10):
-                        await command_data['function'](interaction, limit)
-                elif command_name == 'split':
-                    @bot.tree.command(name=alias, description=command_data['description'])
-                    async def alias_wrapper(interaction: discord.Interaction, total_sand: int, users: str):
-                        await command_data['function'](interaction, total_sand, users)
-                elif command_name == 'reset':
-                    @bot.tree.command(name=alias, description=command_data['description'])
-                    async def alias_wrapper(interaction: discord.Interaction, confirm: bool):
-                        await command_data['function'](interaction, confirm)
-                elif command_name == 'payment':
-                    @bot.tree.command(name=alias, description=command_data['description'])
-                    async def alias_wrapper(interaction: discord.Interaction, user: discord.Member):
-                        await command_data['function'](interaction, user)
-                elif command_name == 'expedition':
-                    @bot.tree.command(name=alias, description=command_data['description'])
-                    async def alias_wrapper(interaction: discord.Interaction, expedition_id: int):
-                        await command_data['function'](interaction, expedition_id)
+        try:
+            # Create a dynamic command registration function
+            def create_command_wrapper(cmd_name, cmd_data):
+                """Create a command wrapper with the correct signature using introspection"""
+                if 'params' in cmd_data:
+                    # Commands with parameters - use introspection to determine signature
+                    import inspect
+                    sig = inspect.signature(cmd_data['function'])
+                    params = list(sig.parameters.values())
+                    
+                    # Skip the first parameter (interaction)
+                    if len(params) > 1:
+                        # Create parameter annotations for Discord
+                        param_annotations = {}
+                        param_defaults = {}
+                        
+                        for param in params[1:]:  # Skip interaction parameter
+                            if param.name != 'use_followup':  # Skip internal parameter
+                                param_annotations[param.name] = param.annotation
+                                if param.default != inspect.Parameter.empty:
+                                    param_defaults[param.name] = param.default
+                        
+                        # Create the command with proper signature
+                        @bot.tree.command(name=cmd_name, description=cmd_data['description'])
+                        async def wrapper(interaction: discord.Interaction, **kwargs):
+                            # Call the original function with the correct parameters
+                            await cmd_data['function'](interaction, **kwargs)
+                        
+                        # Add parameter descriptions if available
+                        if 'params' in cmd_data:
+                            for param_name, param_desc in cmd_data['params'].items():
+                                if param_name != 'use_followup':  # Skip internal parameter
+                                    wrapper = discord.app_commands.describe(**{param_name: param_desc})(wrapper)
+                        
+                        return wrapper
+                    else:
+                        # No additional parameters (just interaction)
+                        @bot.tree.command(name=cmd_name, description=cmd_data['description'])
+                        async def wrapper(interaction: discord.Interaction):
+                            await cmd_data['function'](interaction)
+                        return wrapper
                 else:
-                    @bot.tree.command(name=alias, description=command_data['description'])
-                    async def alias_wrapper(interaction: discord.Interaction):
-                        await command_data['function'](interaction)
-            else:
-                @bot.tree.command(name=alias, description=command_data['description'])
-                async def alias_wrapper(interaction: discord.Interaction):
-                    await command_data['function'](interaction)
+                    # Commands without parameters
+                    @bot.tree.command(name=cmd_name, description=cmd_data['description'])
+                    async def wrapper(interaction: discord.Interaction):
+                        await cmd_data['function'](interaction)
+                    return wrapper
             
-            # Add parameter descriptions for aliases
-            if 'params' in command_data:
-                for param_name, param_desc in command_data['params'].items():
-                    alias_wrapper = discord.app_commands.describe(**{param_name: param_desc})(alias_wrapper)
+            # Register main command
+            main_command = create_command_wrapper(command_name, command_data)
+            print(f"✅ Registered command: {command_name}")
             
-            print(f"Registered alias: {alias}")
+            # Register aliases with the same function
+            for alias in command_data['aliases']:
+                try:
+                    alias_command = create_command_wrapper(alias, command_data)
+                    print(f"✅ Registered alias: {alias} -> {command_name}")
+                except Exception as alias_error:
+                    print(f"⚠️ Failed to register alias {alias}: {alias_error}")
+                    
+        except Exception as cmd_error:
+            print(f"❌ Failed to register command {command_name}: {cmd_error}")
+            continue
+    
+    print(f"🎯 Command registration completed. Total commands: {len(commands)}")
+    
+    # Verify commands were registered with Discord
+    registered_commands = bot.tree.get_commands()
+    print(f"🔍 Discord tree now contains {len(registered_commands)} commands:")
+    for cmd in registered_commands:
+        print(f"  - /{cmd.name}: {cmd.description}")
 
 
 # Error handling
