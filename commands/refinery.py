@@ -35,14 +35,16 @@ async def refinery(interaction, use_followup: bool):
         await send_response(interaction, embed=embed.build(), use_followup=use_followup, ephemeral=True)
         return
     
-    # Calculate progress
+    # Calculate progress and melange owed
     sand_per_melange = get_sand_per_melange()
+    melange_owed = user_stats['total_sand'] // sand_per_melange
     remaining_sand = user_stats['total_sand'] % sand_per_melange
     sand_needed = sand_per_melange - remaining_sand if user_stats['total_sand'] > 0 else sand_per_melange
     
     # Build progress fields
     progress_fields = {
         "🏜️ Harvest Summary": f"**Unpaid Harvest:** {user_stats['total_sand']:,}\n**Paid Harvest:** {user_stats['paid_sand']:,}",
+        "💰 Payment Owed": f"**Melange Owed:** {melange_owed:,}\n**Sand Ready:** {user_stats['total_sand'] - remaining_sand:,}",
         "✨ Melange Production": f"**Total Melange:** {user_stats['user']['total_melange'] if user_stats['user'] else 0:,}",
         "⚙️ Refinement Rate": f"{sand_per_melange} sand = 1 melange",
         "📅 Last Activity": f"<t:{int(user_stats['user']['last_updated'].timestamp()) if user_stats['user'] else interaction.created_at.timestamp()}:F>"
@@ -74,5 +76,7 @@ async def refinery(interaction, use_followup: bool):
         **user_stats['timing'],
         response_time=f"{response_time:.3f}s",
         total_sand=user_stats['total_sand'],
-        paid_sand=user_stats['paid_sand']
+        paid_sand=user_stats['paid_sand'],
+        melange_owed=melange_owed,
+        sand_ready=user_stats['total_sand'] - remaining_sand
     )
