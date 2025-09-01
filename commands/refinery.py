@@ -3,11 +3,11 @@ Refinery command for viewing spice refinery statistics and progress.
 """
 
 import time
-from utils.database_utils import get_user_stats, timed_database_operation
-from utils.embed_utils import build_info_embed, build_progress_embed
+from utils.database_utils import get_user_stats
+from utils.embed_utils import build_info_embed, build_status_embed
 from utils.command_utils import log_command_metrics
 from utils.decorators import handle_interaction_expiration
-from utils.helpers import get_database, get_sand_per_melange, send_response
+from utils.helpers import send_response
 
 # Command metadata
 COMMAND_METADATA = {
@@ -34,36 +34,24 @@ async def refinery(interaction, use_followup: bool = True):
         await send_response(interaction, embed=embed.build(), use_followup=use_followup, ephemeral=True)
         return
 
-    # Calculate total sand from deposits and progress 
-    deposits_data, _ = await timed_database_operation(
-        "get_user_deposits",
-        get_database().get_user_deposits,
-        str(interaction.user.id)
-    )
-    total_sand = sum(deposit['sand_amount'] for deposit in deposits_data)
-    
-    # Calculate progress and melange status
-    sand_per_melange = get_sand_per_melange()
-    remaining_sand = total_sand % sand_per_melange
-
-    # Build progress fields
+    # Build melange status fields - no sand information needed
     last_activity_timestamp = (
         user_stats['user']['last_updated'].timestamp()
         if user_stats['user'] else interaction.created_at.timestamp()
     )
 
-    progress_fields = {
-        "💎 Melange": f"**Total:** {user_stats['total_melange']:,} | **Pending:** {user_stats['pending_melange']:,} | **Paid:** {user_stats['paid_melange']:,}",
-        "⚙️ Production": f"**Progress:** {remaining_sand:,}/{sand_per_melange} sand → next melange",
+    # Focus purely on melange - the primary currency
+    fields = {
+        "💎 Melange Status": f"**Total:** {user_stats['total_melange']:,} | **Pending:** {user_stats['pending_melange']:,} | **Paid:** {user_stats['paid_melange']:,}",
         "💰 Last Activity": f"<t:{int(last_activity_timestamp)}:R>"
     }
 
-    # Use utility function for progress embed
-    embed = build_progress_embed(
+    # Use utility function for status embed (no progress bar needed)
+    embed = build_status_embed(
         title="🏭 Spice Refinery Status",
-        current=remaining_sand,
-        total=sand_per_melange,
-        progress_fields=progress_fields,
+        description=f"💎 **{user_stats['total_melange']:,} total melange** in your refinery",
+        color=0xF39C12,
+        fields=fields,
         thumbnail=interaction.user.display_avatar.url,
         timestamp=interaction.created_at
     )
@@ -82,9 +70,7 @@ async def refinery(interaction, use_followup: bool = True):
         total_time,
         **user_stats['timing'],
         response_time=f"{response_time:.3f}s",
-        total_sand=total_sand,
         total_melange=user_stats['total_melange'],
         pending_melange=user_stats['pending_melange'],
-        paid_melange=user_stats['paid_melange'],
-        sand_ready=total_sand - remaining_sand
+        paid_melange=user_stats['paid_melange']
     )

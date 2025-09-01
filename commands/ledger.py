@@ -45,10 +45,8 @@ async def ledger(interaction, use_followup: bool = True):
         await send_response(interaction, embed=embed.build(), use_followup=use_followup, ephemeral=True)
         return
     
-    # Build deposit history (just a log, no payment status per deposit)
+    # Build deposit history (sand amounts are just for audit/history)
     ledger_text = ""
-    total_sand_deposited = 0
-    sand_per_melange = get_sand_per_melange()
     
     for deposit in deposits_data:
         # Handle null created_at timestamps
@@ -57,19 +55,14 @@ async def ledger(interaction, use_followup: bool = True):
         else:
             date_str = "Unknown date"
         
-        # Show deposit type
+        # Show deposit type and sand amount (for historical record only)
         deposit_type = "🚀 Expedition" if deposit['type'] == 'expedition' else "🏜️ Solo"
-        
         ledger_text += f"**{deposit['sand_amount']:,} sand** {deposit_type} - {date_str}\n"
-        total_sand_deposited += deposit['sand_amount']
     
-    # Calculate total melange earned from all deposits
-    total_melange_earned = total_sand_deposited // sand_per_melange
-    
-    # Use utility function for embed building
+    # Use utility function for embed building - focus on melange
     fields = {
-        "💎 Melange Status": f"**Total Earned:** {user_stats['total_melange']:,} | **Paid:** {user_stats['paid_melange']:,} | **Pending:** {user_stats['pending_melange']:,}",
-        "📊 Deposit Summary": f"**Total Deposits:** {len(deposits_data)} | **Total Sand:** {total_sand_deposited:,} | **Melange Value:** {total_melange_earned:,}"
+        "💎 Melange Status": f"**Total:** {user_stats['total_melange']:,} | **Paid:** {user_stats['paid_melange']:,} | **Pending:** {user_stats['pending_melange']:,}",
+        "📊 Activity Summary": f"**Total Deposits:** {len(deposits_data)} recorded"
     }
     
     embed = build_status_embed(
@@ -97,6 +90,5 @@ async def ledger(interaction, use_followup: bool = True):
         get_stats_time=f"{get_stats_time:.3f}s",
         response_time=f"{response_time:.3f}s",
         result_count=len(deposits_data),
-        total_sand_deposited=total_sand_deposited,
-        total_melange_earned=total_melange_earned
+        total_melange=user_stats['total_melange']
     )

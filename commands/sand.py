@@ -45,18 +45,9 @@ async def sand(interaction, amount: int, use_followup: bool = True):
     # Ensure user exists and has valid data
     user = await validate_user_exists(get_database(), str(interaction.user.id), interaction.user.display_name)
     
-    # Calculate total sand from all deposits
-    deposits_data, _ = await timed_database_operation(
-        "get_user_deposits",
-        get_database().get_user_deposits,
-        str(interaction.user.id)
-    )
-    total_sand = sum(deposit['sand_amount'] for deposit in deposits_data)
-    
-    # Calculate melange conversion
-    total_melange_earned = total_sand // sand_per_melange
+    # Convert sand directly to melange
+    new_melange = amount // sand_per_melange
     current_melange = user_stats['total_melange']
-    new_melange = max(0, total_melange_earned - current_melange)  # Ensure new_melange is never negative
     
     # Only update melange if we have new melange to add
     update_melange_time = 0
@@ -67,16 +58,14 @@ async def sand(interaction, amount: int, use_followup: bool = True):
             str(interaction.user.id), new_melange
         )
     
-    # Build response
-    remaining_sand = total_sand % sand_per_melange
-    sand_needed = max(0, sand_per_melange - remaining_sand)  # Ensure sand_needed is never negative
+    # Build information-dense response focused on melange
+    leftover_sand = amount % sand_per_melange
+    description = f"🎉 **+{new_melange:,} melange produced!**" if new_melange > 0 else f"📦 **{amount:,} sand processed**"
     
-    # Build information-dense response
-    description = f"🎉 **+{new_melange:,} melange produced!**" if new_melange > 0 else f"📦 **{amount:,} sand added to reserves**"
-    
+    # Show only melange information - sand is just temporary input
     fields = {
-        "📊 Current Status": f"**Sand:** {total_sand:,} | **Melange:** {(current_melange + new_melange):,}",
-        "⚙️ Production": f"**Ready for Melange:** {total_sand - remaining_sand:,} | **Remaining:** {remaining_sand:,} | **Next:** {sand_needed:,}"
+        "💎 Melange Status": f"**Total:** {(current_melange + new_melange):,} | **New:** +{new_melange:,}",
+        "⚙️ Conversion": f"**Processed:** {amount:,} sand → {new_melange:,} melange" + (f" ({leftover_sand} sand unused)" if leftover_sand > 0 else "")
     }
     
     embed = build_status_embed(
