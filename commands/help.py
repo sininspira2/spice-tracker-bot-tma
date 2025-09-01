@@ -21,7 +21,7 @@ async def help(interaction, use_followup: bool = True):
     
     # Use utility function for embed building
     fields = {
-        "📊 Harvester Commands": "**`/harvest [amount]`**\nLog spice sand harvests (1-10,000). Automatically converts to melange.\n\n"
+        "📊 Harvester Commands": "**`/sand [amount]`**\nLog spice sand harvests (1-10,000). Automatically converts to melange.\n\n"
                                  "**`/refinery`**\nView your refinery statistics and melange production progress.\n\n"
                                  "**`/ledger`**\nView your complete harvest ledger with payment status.\n\n"
                                  "**`/expedition [id]`**\nView details of a specific expedition.\n\n"
@@ -37,7 +37,7 @@ async def help(interaction, use_followup: bool = True):
                                    "**`/sync`**\nSync slash commands (Bot Owner Only).\n\n"
                                    "**`/reset confirm:True`**\nReset all refinery statistics (requires confirmation).",
         "📋 Current Settings": f"**Refinement Rate:** {sand_per_melange} sand = 1 melange (set via SAND_PER_MELANGE env var)",
-        "💡 Example Usage": "• `/harvest 250` - Harvest 250 spice sand\n"
+        "💡 Example Usage": "• `/sand 250` - Harvest 250 spice sand\n"
                             "• `/refinery` - Check your refinery status\n"
                             "• `/ledger` - View your harvest ledger\n"
                             "• `/leaderboard 15` - Show top 15 refiners\n"
