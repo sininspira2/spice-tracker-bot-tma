@@ -730,7 +730,7 @@ class Database:
                            COALESCE(SUM(d.sand_amount), 0) as total_sand,
                            u.total_melange
                     FROM users u
-                    LEFT JOIN deposits d ON u.user_id = d.user_id AND d.paid = FALSE
+                    LEFT JOIN deposits d ON u.user_id = d.user_id
                     GROUP BY u.user_id, u.username, u.total_melange
                     ORDER BY u.total_melange DESC, total_sand DESC
                     LIMIT $1

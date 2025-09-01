@@ -37,7 +37,7 @@ async def leaderboard(interaction, limit: int = 10, use_followup: bool = True):
     if not leaderboard_data:
         embed = build_info_embed(
             title="🏆 Spice Refinery Rankings",
-            info_message="🏜️ No refiners found yet! Be the first to start harvesting spice sand with `/harvest`.",
+            info_message="🏜️ No refiners found yet! Be the first to start harvesting spice sand with `/sand`.",
             color=0x95A5A6,
             timestamp=interaction.created_at
         )
