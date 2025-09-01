@@ -4,7 +4,7 @@ Harvest command for logging spice sand harvests and calculating melange conversi
 
 # Command metadata
 COMMAND_METADATA = {
-    'aliases': ['sand'],
+    'aliases': [],  # ['sand'] - removed for simplicity
     'description': "Log spice sand harvests and calculate melange conversion",
     'params': {'amount': "Amount of spice sand harvested"}
 }

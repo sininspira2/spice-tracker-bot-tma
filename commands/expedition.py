@@ -4,7 +4,7 @@ Expedition command for viewing details of a specific expedition.
 
 # Command metadata
 COMMAND_METADATA = {
-    'aliases': ['exp'],
+    'aliases': [],  # ['exp'] - removed for simplicity
     'description': "View details of a specific expedition",
     'params': {'expedition_id': "ID of the expedition to view"}
 }

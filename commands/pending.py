@@ -4,7 +4,7 @@ Pending command for viewing all users with pending melange payments (Admin only)
 
 # Command metadata
 COMMAND_METADATA = {
-    'aliases': ['melange_owed', 'owed'],
+    'aliases': [],  # ['melange_owed', 'owed'] - removed for simplicity
     'description': "View all users with pending melange payments (Admin only)"
 }
 

@@ -4,7 +4,7 @@ Leaderboard command for displaying top spice refiners by melange production.
 
 # Command metadata
 COMMAND_METADATA = {
-    'aliases': ['top'],
+    'aliases': [],  # ['top'] - removed for simplicity
     'description': "Display top spice refiners by melange production",
     'params': {'limit': "Number of top refiners to display (default: 10)"}
 }

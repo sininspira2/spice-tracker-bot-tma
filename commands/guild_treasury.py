@@ -4,7 +4,7 @@ Guild Treasury command for viewing guild's accumulated resources.
 
 # Command metadata
 COMMAND_METADATA = {
-    'aliases': ['treasury', 'guild'],
+    'aliases': [],  # ['treasury', 'guild'] - removed for simplicity
     'description': "View guild treasury balance and statistics",
     'params': {}
 }

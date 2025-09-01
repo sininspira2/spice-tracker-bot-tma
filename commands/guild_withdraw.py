@@ -4,7 +4,7 @@ Guild Withdraw command for transferring sand from guild treasury to users (Admin
 
 # Command metadata
 COMMAND_METADATA = {
-    'aliases': ['withdraw'],
+    'aliases': [],  # ['withdraw'] - removed for simplicity
     'description': "Withdraw sand from guild treasury to give to a user (Admin only)",
     'params': {
         'user': "User to give sand to",

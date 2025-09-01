@@ -4,7 +4,7 @@ Help command for showing all available spice tracking commands.
 
 # Command metadata
 COMMAND_METADATA = {
-    'aliases': ['commands'],
+    'aliases': [],  # ['commands'] - removed for simplicity
     'description': "Show all available spice tracking commands"
 }
 
@@ -37,27 +37,15 @@ async def help(interaction, use_followup: bool = True):
                                    "**`/sync`**\nSync slash commands (Bot Owner Only).\n\n"
                                    "**`/reset confirm:True`**\nReset all refinery statistics (requires confirmation).",
         "📋 Current Settings": f"**Refinement Rate:** {sand_per_melange} sand = 1 melange (set via SAND_PER_MELANGE env var)",
-        "💡 Example Usage": "• `/harvest 250` or `/sand 250` - Harvest 250 spice sand\n"
-                            "• `/refinery` or `/status` - Check your refinery status\n"
-                            "• `/ledger` or `/deposits` - View your harvest ledger\n"
-                            "• `/leaderboard 15` or `/top 15` - Show top 15 refiners\n"
-                            "• `/payment @username` or `/pay @username` - Pay a specific harvester\n"
-                            "• `/payroll` or `/payall` - Pay all harvesters at once\n"
+        "💡 Example Usage": "• `/harvest 250` - Harvest 250 spice sand\n"
+                            "• `/refinery` - Check your refinery status\n"
+                            "• `/ledger` - View your harvest ledger\n"
+                            "• `/leaderboard 15` - Show top 15 refiners\n"
+                            "• `/payment @username` - Pay a specific harvester\n"
+                            "• `/payroll` - Pay all harvesters at once\n"
                             "• `/split 1000 @shon @theycall @ricky` - Split 1000 sand equally among 3 people\n"
                             "• `/split 500 @username @yourself` - Split 500 sand equally between 2 people (including yourself)\n"
-                            "• **Note:** Users must be mentioned with @ symbol. Include @yourself if you want to be part of the split.",
-        "🔄 Command Aliases": "**Harvest:** `/harvest` = `/sand`\n"
-                              "**Status:** `/refinery` = `/status`\n"
-                              "**Ledger:** `/ledger` = `/deposits`\n"
-                              "**Leaderboard:** `/leaderboard` = `/top`\n"
-                              "**Expedition:** `/expedition` = `/exp`\n"
-                              "**Help:** `/help` = `/commands`\n"
-                              "**Conversion:** `/conversion` = `/rate`\n"
-                              "**Payment:** `/payment` = `/pay`\n"
-                              "**Payroll:** `/payroll` = `/payall`\n"
-                              "**Pending:** `/pending` = `/melange_owed` = `/owed`\n"
-                              "**Treasury:** `/guild_treasury` = `/treasury` = `/guild`\n"
-                              "**Withdraw:** `/guild_withdraw` = `/withdraw`"
+                            "• **Note:** Users must be mentioned with @ symbol. Include @yourself if you want to be part of the split."
     }
     
     embed = build_status_embed(

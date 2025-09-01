@@ -4,7 +4,7 @@ Payment command for processing payment for a harvester's deposits (Admin only).
 
 # Command metadata
 COMMAND_METADATA = {
-    'aliases': ['pay'],
+    'aliases': [],  # ['pay'] - removed for simplicity
     'description': "Process payment for a harvester's deposits (Admin only)",
     'params': {'user': "Harvester to pay"}
 }

@@ -4,7 +4,7 @@ Conversion command for viewing the current spice sand to melange conversion rate
 
 # Command metadata
 COMMAND_METADATA = {
-    'aliases': ['rate'],
+    'aliases': [],  # ['rate'] - removed for simplicity
     'description': "View the current spice sand to melange conversion rate"
 }
 

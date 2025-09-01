@@ -11,7 +11,7 @@ from utils.helpers import get_database, get_sand_per_melange, send_response
 
 # Command metadata
 COMMAND_METADATA = {
-    'aliases': ['status'],
+    'aliases': [],  # ['status'] - removed for simplicity
     'description': "View your spice refinery statistics and progress"
 }
 

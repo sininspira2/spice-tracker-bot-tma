@@ -4,7 +4,7 @@ Ledger command for viewing complete spice harvest ledger.
 
 # Command metadata
 COMMAND_METADATA = {
-    'aliases': ['deposits'],
+    'aliases': [],  # ['deposits'] - removed for simplicity
     'description': "View your complete spice harvest ledger"
 }
 

@@ -4,7 +4,7 @@ Payroll command for processing payments for all unpaid harvesters (Admin only).
 
 # Command metadata
 COMMAND_METADATA = {
-    'aliases': ['payall'],
+    'aliases': [],  # ['payall'] - removed for simplicity
     'description': "Process payments for all unpaid harvesters (Admin only)"
 }
 
