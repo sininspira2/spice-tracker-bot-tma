@@ -171,23 +171,19 @@ class Database:
                                         user_id=user_id, sand_amount=sand_amount, deposit_type=deposit_type, expedition_id=expedition_id, error=str(e))
                 raise e
 
-    async def get_user_deposits(self, user_id, include_paid=True):
-        """Get all deposits for a user"""
+    async def get_user_deposits(self, user_id):
+        """Get all deposits for a user (deposits are just sand logs, payments are tracked at user level)"""
         start_time = time.time()
         async with self._get_connection() as conn:
             try:
                 query = '''
-                    SELECT * FROM deposits 
+                    SELECT id, user_id, username, sand_amount, type, expedition_id, created_at
+                    FROM deposits 
                     WHERE user_id = $1
+                    ORDER BY created_at DESC
                 '''
-                params = [user_id]
                 
-                if not include_paid:
-                    query += ' AND paid = FALSE'
-                
-                query += ' ORDER BY created_at DESC'
-                
-                rows = await conn.fetch(query, *params)
+                rows = await conn.fetch(query, user_id)
                 
                 deposits = []
                 for row in rows:
@@ -196,19 +192,17 @@ class Database:
                         'user_id': row[1],
                         'username': row[2],
                         'sand_amount': row[3],
-                        'type': row[4] if len(row) > 4 else 'solo',
-                        'expedition_id': row[5] if len(row) > 5 else None,
-                        'paid': bool(row[6] if len(row) > 6 else row[4]),
-                        'created_at': row[7] if len(row) > 7 else (row[5] if len(row) > 5 else datetime.now()),
-                        'paid_at': row[8] if len(row) > 8 else (row[6] if len(row) > 6 else None)
+                        'type': row[4],
+                        'expedition_id': row[5],
+                        'created_at': row[6]
                     })
                 
                 await self._log_operation("select", "deposits", start_time, success=True, 
-                                        user_id=user_id, include_paid=include_paid, result_count=len(deposits))
+                                        user_id=user_id, result_count=len(deposits))
                 return deposits
             except Exception as e:
                 await self._log_operation("select", "deposits", start_time, success=False, 
-                                        user_id=user_id, include_paid=include_paid, error=str(e))
+                                        user_id=user_id, error=str(e))
                 raise e
 
     async def create_expedition(self, initiator_id, initiator_username, total_sand, sand_per_melange=None, guild_cut_percentage=10.0):
