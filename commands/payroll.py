@@ -15,6 +15,7 @@ from utils.command_utils import log_command_metrics
 from utils.decorators import handle_interaction_expiration
 from utils.helpers import get_database, send_response
 from utils.permissions import is_admin
+from utils.logger import logger
 
 
 @handle_interaction_expiration
@@ -82,4 +83,6 @@ async def payroll(interaction, use_followup: bool = True):
         users_paid=users_paid
     )
     
-    print(f'Payroll processed by {interaction.user.display_name} ({interaction.user.id}) - {users_paid} users paid {total_paid:,} melange')
+    logger.info(f'Payroll processed by {interaction.user.display_name} ({interaction.user.id}) - {users_paid} users paid {total_paid:,} melange',
+                admin_id=str(interaction.user.id), admin_username=interaction.user.display_name,
+                users_paid=users_paid, melange_paid=total_paid)

@@ -16,6 +16,7 @@ from utils.command_utils import log_command_metrics
 from utils.decorators import handle_interaction_expiration
 from utils.helpers import get_database, send_response
 from utils.permissions import is_admin
+from utils.logger import logger
 
 
 @handle_interaction_expiration
@@ -97,4 +98,7 @@ async def payment(interaction, user, use_followup: bool = True):
         total_melange=total_melange
     )
     
-    print(f'User {user.display_name} ({user.id}) paid {paid_amount:,} melange by {interaction.user.display_name} ({interaction.user.id})')
+    logger.info(f'User {user.display_name} ({user.id}) paid {paid_amount:,} melange by {interaction.user.display_name} ({interaction.user.id})',
+                user_id=str(user.id), username=user.display_name, 
+                admin_id=str(interaction.user.id), admin_username=interaction.user.display_name,
+                melange_paid=paid_amount)

@@ -50,9 +50,9 @@ async def expedition(interaction, expedition_id: int, use_followup: bool = True)
         
         for participant in expedition_participants:
             role = "🏭 Primary Harvester" if participant['is_harvester'] else "👥 Expedition Member"
-            status = "✅ Paid" if participant['sand_amount'] == 0 else "⏳ Unpaid"
+            # Note: Expedition participants show sand allocation, not payment status (payments are user-level)
             participant_details.append(f"{role}: **{participant['username']}**\n"
-                                    f"   Sand: {participant['sand_amount']:,} | Melange: {participant['melange_amount']:,} | Leftover: {participant['leftover_sand']:,} - {status}")
+                                    f"   Sand: {participant['sand_amount']:,} | Melange: {participant['melange_amount']:,} | Leftover: {participant['leftover_sand']:,}")
             total_participant_sand += participant['sand_amount']
         
         # Use utility function for embed building

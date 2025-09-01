@@ -81,7 +81,9 @@ async def reset(interaction, confirm: bool, use_followup: bool = True):
             deleted_rows=deleted_rows
         )
         
-        print(f'All refinery statistics reset by {interaction.user.display_name} ({interaction.user.id}) - {deleted_rows} records deleted')
+        logger.info(f'All refinery statistics reset by {interaction.user.display_name} ({interaction.user.id}) - {deleted_rows} records deleted',
+                    admin_id=str(interaction.user.id), admin_username=interaction.user.display_name,
+                    deleted_rows=deleted_rows)
         
     except Exception as error:
         total_time = time.time() - command_start

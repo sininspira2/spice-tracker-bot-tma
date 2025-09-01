@@ -22,7 +22,7 @@ async def help(interaction, use_followup: bool = True):
     fields = {
         "📊 Harvester Commands": "**`/sand [amount]`**\nLog spice sand harvests (1-10,000). Automatically converts to melange.\n\n"
                                  "**`/refinery`**\nView your refinery statistics and melange production progress.\n\n"
-                                 "**`/ledger`**\nView your complete harvest ledger with payment status.\n\n"
+                                 "**`/ledger`**\nView your complete deposit history and melange status.\n\n"
                                  "**`/expedition [id]`**\nView details of a specific expedition.\n\n"
                                  "**`/leaderboard [limit]`**\nShow top refiners by melange production (5-25 users).\n\n"
                                  "**`/split [total_sand] [@users]`**\nSplit harvested spice equally among mentioned users. Mention users with @ symbol. Include @yourself if you want to be part of the split. Creates expedition records and tracks melange owed for payout.\n\n"
