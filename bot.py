@@ -108,7 +108,7 @@ async def on_ready():
 # Register commands with the bot's command tree
 def register_commands():
     """Register all commands explicitly with their exact signatures"""
-    from commands import sand, refinery, leaderboard, conversion, split, help, reset, ledger, expedition, payment, payroll, guild_treasury, guild_withdraw, pending
+    from commands import sand, refinery, leaderboard, split, help, reset, ledger, expedition, payment, payroll, guild_treasury, guild_withdraw, pending
     
     # Sand command (formerly harvest)
     @bot.tree.command(name="sand", description="Log spice sand harvests and calculate melange conversion")
@@ -127,10 +127,7 @@ def register_commands():
     async def leaderboard_cmd(interaction: discord.Interaction, limit: int = 10):  # noqa: F841
         await leaderboard(interaction, limit, True)
     
-    # Conversion command
-    @bot.tree.command(name="conversion", description="View the current spice sand to melange conversion rate")
-    async def conversion_cmd(interaction: discord.Interaction):  # noqa: F841
-        await conversion(interaction, True)
+
     
     # Split command
     @bot.tree.command(name="split", description="Split harvested spice sand among expedition members with guild cut")

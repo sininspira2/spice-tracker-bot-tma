@@ -17,7 +17,7 @@ class TestCommandResponsiveness:
             ('sand', 'sand', [100, True], {}),
             ('refinery', 'refinery', [True], {}),
             ('leaderboard', 'leaderboard', [10, True], {}),
-            ('conversion', 'conversion', [True], {}),
+
             ('split', 'split', [1000, '@user1 @user2', True], {}),
             ('help', 'help', [True], {}),
             ('reset', 'reset', [True, True], {}),
@@ -123,10 +123,9 @@ class TestCommandResponsiveness:
         """Test that all command functions can be imported and are callable."""
         # Map of module names to actual function names
         function_name_map = {
-            'harvest': 'harvest',
+            'sand': 'sand',
             'refinery': 'refinery', 
             'leaderboard': 'leaderboard',
-            'conversion': 'conversion',
             'split': 'split',
             'help': 'help',
             'reset': 'reset',
