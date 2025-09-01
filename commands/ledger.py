@@ -31,7 +31,7 @@ async def ledger(interaction, use_followup: bool = True):
     if not deposits_data:
         embed = build_status_embed(
             title="📋 Spice Harvest Ledger",
-            description="🏜️ You haven't harvested any spice sand yet! Use `/harvest` to start tracking your harvests.",
+            description="🏜️ You haven't harvested any spice sand yet! Use `/sand` to start tracking your harvests.",
             color=0x95A5A6,
             footer=f"Requested by {interaction.user.display_name}",
             timestamp=interaction.created_at
@@ -46,7 +46,13 @@ async def ledger(interaction, use_followup: bool = True):
     
     for deposit in deposits_data:
         status = "✅ Paid" if deposit['paid'] else "⏳ Unpaid"
-        date_str = f"<t:{int(deposit['created_at'].timestamp())}:R>"
+        
+        # Handle null created_at timestamps
+        if deposit['created_at'] and hasattr(deposit['created_at'], 'timestamp'):
+            date_str = f"<t:{int(deposit['created_at'].timestamp())}:R>"
+        else:
+            date_str = "Unknown date"
+            
         ledger_text += f"**{deposit['sand_amount']:,} spice sand** - {status} - {date_str}\n"
         
         if deposit['paid']:
