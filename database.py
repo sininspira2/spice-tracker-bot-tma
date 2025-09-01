@@ -623,8 +623,8 @@ class Database:
         async with self._get_connection() as conn:
             try:
                 rows = await conn.fetch('''
-                    SELECT user_id, username, total_melange, paid_melange,
-                           (total_melange - paid_melange) as pending_melange,
+                    SELECT u.user_id, u.username, u.total_melange, u.paid_melange,
+                           (u.total_melange - u.paid_melange) as pending_melange,
                            COALESCE(SUM(d.sand_amount), 0) as total_sand,
                            COUNT(d.id) as total_deposits
                     FROM users u
