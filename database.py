@@ -784,12 +784,26 @@ class Database:
                 raise e
 
     async def reset_all_stats(self):
-        """Reset all user statistics and deposits"""
+        """Reset all user statistics and deposits (respects foreign key constraints)"""
         start_time = time.time()
         async with self._get_connection() as conn:
             try:
-                result1 = await conn.execute('DELETE FROM deposits')
-                result2 = await conn.execute('DELETE FROM users')
+                # Delete in correct order to respect foreign key constraints
+                # 1. Leaf tables first (no foreign key dependencies)
+                result1 = await conn.execute('DELETE FROM melange_payments')
+                result2 = await conn.execute('DELETE FROM guild_transactions')
+                
+                # 2. Tables that reference both expeditions and users
+                result3 = await conn.execute('DELETE FROM expedition_participants')
+                
+                # 3. Tables that reference users or expeditions
+                result4 = await conn.execute('DELETE FROM deposits')
+                
+                # 4. Expeditions table (references users)
+                result5 = await conn.execute('DELETE FROM expeditions')
+                
+                # 5. Users table last (root table)
+                result6 = await conn.execute('DELETE FROM users')
                 
                 # Parse the result strings to get the count of deleted rows
                 def parse_delete_result(result):
@@ -802,7 +816,10 @@ class Database:
                             return 0
                     return 0
                 
-                deleted_count = parse_delete_result(result1) + parse_delete_result(result2)
+                deleted_count = (parse_delete_result(result1) + parse_delete_result(result2) + 
+                               parse_delete_result(result3) + parse_delete_result(result4) + 
+                               parse_delete_result(result5) + parse_delete_result(result6))
+                
                 await self._log_operation("delete_all", "all_tables", start_time, success=True, 
                                         deleted_count=deleted_count)
                 return deleted_count
