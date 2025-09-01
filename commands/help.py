@@ -34,6 +34,7 @@ async def help(interaction, use_followup: bool = True):
                                    "**`/guild_treasury`**\nView guild treasury balance and melange reserves.\n\n"
                                    "**`/guild_withdraw [user] [amount]`**\nWithdraw sand from guild treasury to give to a user.\n\n"
                                    "**`/conversion`**\nView the current refinement rate.\n\n"
+                                   "**`/sync`**\nSync slash commands (Bot Owner Only).\n\n"
                                    "**`/reset confirm:True`**\nReset all refinery statistics (requires confirmation).",
         "📋 Current Settings": f"**Refinement Rate:** {sand_per_melange} sand = 1 melange (set via SAND_PER_MELANGE env var)",
         "💡 Example Usage": "• `/harvest 250` or `/sand 250` - Harvest 250 spice sand\n"
@@ -53,7 +54,10 @@ async def help(interaction, use_followup: bool = True):
                               "**Help:** `/help` = `/commands`\n"
                               "**Conversion:** `/conversion` = `/rate`\n"
                               "**Payment:** `/payment` = `/pay`\n"
-                              "**Payroll:** `/payroll` = `/payall`"
+                              "**Payroll:** `/payroll` = `/payall`\n"
+                              "**Pending:** `/pending` = `/melange_owed` = `/owed`\n"
+                              "**Treasury:** `/guild_treasury` = `/treasury` = `/guild`\n"
+                              "**Withdraw:** `/guild_withdraw` = `/withdraw`"
     }
     
     embed = build_status_embed(
