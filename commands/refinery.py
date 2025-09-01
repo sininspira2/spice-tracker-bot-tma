@@ -27,7 +27,7 @@ async def refinery(interaction, use_followup: bool = True):
     if not user_stats['user'] and user_stats['total_sand'] == 0:
         embed = build_info_embed(
             title="🏭 Spice Refinery Status",
-            info_message="🏜️ You haven't harvested any spice sand yet! Use `/harvest` to start tracking your harvests.",
+            info_message="🏜️ You haven't harvested any spice sand yet! Use `/sand` to start tracking your harvests.",
             color=0x95A5A6,
             footer=f"Requested by {interaction.user.display_name}",
             timestamp=interaction.created_at
