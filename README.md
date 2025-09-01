@@ -70,7 +70,7 @@ A Discord bot for **Dune: Awakening** guilds to track spice sand collection, man
 - `/guild_withdraw <user> <amount>` - Transfer from treasury (admin only)
 
 ### Admin Commands
-- `/conversion <rate>` - Set sand-to-melange rate (default: 50)
+
 - `/payment <user>` - Pay user's pending melange
 - `/payroll` - Pay all pending melange
 - `/reset confirm:True` - Reset all data
@@ -79,7 +79,7 @@ A Discord bot for **Dune: Awakening** guilds to track spice sand collection, man
 
 ### Individual Harvests
 ```
-/harvest 2500  →  50 melange owed (at 50:1 rate)
+/harvest 2500  →  50 melange owed
 ```
 
 ### Team Expeditions
@@ -128,7 +128,7 @@ Each guild database contains:
 |----------|-------------|----------|
 | `DISCORD_TOKEN` | Bot token | ✅ |
 | `DATABASE_URL` | Supabase connection string | ✅ |
-| `SAND_PER_MELANGE` | Conversion rate | ❌ (default: 50) |
+
 
 ## 🛡️ Permissions
 

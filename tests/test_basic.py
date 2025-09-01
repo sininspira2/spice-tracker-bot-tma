@@ -138,8 +138,8 @@ class TestConfiguration:
         # This should not raise an error
         load_dotenv()
         
-        # Check that we can access environment variables
-        assert isinstance(os.getenv('SAND_PER_MELANGE', '50'), str)
+        # Check that we can access environment variables  
+        # Note: SAND_PER_MELANGE is now hardcoded, not an env var
     
     def test_pytest_configuration(self):
         """Test that pytest configuration is valid."""

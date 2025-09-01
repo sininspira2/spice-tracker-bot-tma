@@ -67,7 +67,7 @@ async def sand(interaction, amount: int, use_followup: bool = True):
     description = f"🎉 **+{new_melange:,} melange produced!**" if new_melange > 0 else f"📦 **{amount:,} sand added to reserves**"
     
     fields = {
-        "📊 Current Status": f"**Sand:** {user_stats['total_sand']:,} | **Melange:** {(current_melange + new_melange):,} | **Rate:** {sand_per_melange}:1",
+        "📊 Current Status": f"**Sand:** {user_stats['total_sand']:,} | **Melange:** {(current_melange + new_melange):,}",
         "⚙️ Production": f"**Ready for Melange:** {user_stats['total_sand'] - remaining_sand:,} | **Remaining:** {remaining_sand:,} | **Next:** {sand_needed:,}"
     }
     

@@ -90,7 +90,7 @@ def build_leaderboard_embed(title: str, leaderboard_data: List[Dict],
     # Build stats fields
     fields = {
         "📊 Guild Statistics": f"**Total Refiners:** {total_stats.get('total_refiners', len(leaderboard_data))}\n**Total Melange:** {total_stats.get('total_melange', 0):,}\n**Total Harvest:** {total_stats.get('total_sand', 0):,}",
-        "⚙️ Refinement Rate": f"{total_stats.get('sand_per_melange', 50)} sand = 1 melange"
+
     }
     
     return build_status_embed(

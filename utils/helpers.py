@@ -15,9 +15,12 @@ def get_database():
         database = Database()
     return database
 
+# Sand to melange conversion rate (implementation detail)
+SAND_PER_MELANGE = 50
+
 def get_sand_per_melange() -> int:
-    """Get the spice sand to melange conversion rate from environment variables"""
-    return int(os.getenv('SAND_PER_MELANGE', '50'))
+    """Get the spice sand to melange conversion rate (hardcoded constant)"""
+    return SAND_PER_MELANGE
 
 async def send_response(interaction, content=None, embed=None, ephemeral=False, use_followup=True):
     """Helper function to send responses using the appropriate method based on use_followup"""

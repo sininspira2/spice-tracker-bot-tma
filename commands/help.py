@@ -11,13 +11,12 @@ COMMAND_METADATA = {
 import os
 from utils.embed_utils import build_status_embed
 from utils.decorators import handle_interaction_expiration
-from utils.helpers import get_sand_per_melange, send_response
+from utils.helpers import send_response
 
 
 @handle_interaction_expiration
 async def help(interaction, use_followup: bool = True):
     """Show all available commands and their descriptions"""
-    sand_per_melange = get_sand_per_melange()
     
     # Use utility function for embed building
     fields = {
@@ -35,7 +34,7 @@ async def help(interaction, use_followup: bool = True):
                                    "**`/guild_withdraw [user] [amount]`**\nWithdraw sand from guild treasury to give to a user.\n\n"
                                    "**`/sync`**\nSync slash commands (Bot Owner Only).\n\n"
                                    "**`/reset confirm:True`**\nReset all refinery statistics (requires confirmation).",
-        "📋 Current Settings": f"**Refinement Rate:** {sand_per_melange} sand = 1 melange (set via SAND_PER_MELANGE env var)",
+
         "💡 Example Usage": "• `/sand 250` - Harvest 250 spice sand\n"
                             "• `/refinery` - Check your refinery status\n"
                             "• `/ledger` - View your harvest ledger\n"

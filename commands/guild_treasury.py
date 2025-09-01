@@ -47,7 +47,7 @@ async def guild_treasury(interaction, use_followup: bool = True):
         
         # Build response embed
         fields = {
-            "💰 Resources": f"**Sand:** {total_sand:,} | **Melange:** {total_melange:,} | **Rate:** {sand_per_melange}:1",
+            "💰 Resources": f"**Sand:** {total_sand:,} | **Melange:** {total_melange:,}",
             "⚗️ Production": f"**Ready:** {sand_ready_for_melange:,} | **Potential:** {melange_potential:,} | **Remaining:** {sand_remaining:,}",
             "📊 Treasury": f"**Created:** {created_str} | **Updated:** {updated_str}"
         }
