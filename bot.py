@@ -44,16 +44,16 @@ async def on_ready():
     try:
         if bot.user:
             logger.bot_event(f"Bot started - {bot.user.name} ({bot.user.id}) in {len(bot.guilds)} guilds")
-            print(f'{bot.user.name}#{bot.user.discriminator} is online!')
+            logger.info(f"Bot online: {bot.user.name}#{bot.user.discriminator}")
         else:
             logger.bot_event("Bot started - Unknown")
-            print('Bot is online!')
+            logger.info("Bot is online")
         
-        print("🔄 Starting bot initialization...")
+        logger.info("Starting bot initialization")
         
         # Test database connectivity
         try:
-            print("🔗 Testing database connection...")
+            logger.info("Testing database connection")
             db_init_start = time.time()
             await get_database().initialize()
             db_init_time = time.time() - db_init_start
@@ -62,28 +62,26 @@ async def on_ready():
         except Exception as error:
             db_init_time = time.time() - db_init_start
             logger.bot_event(f"Database connection failed: {error}", db_init_time=f"{db_init_time:.3f}s")
-            print(f'❌ Database connection failed in {db_init_time:.3f}s: {error}')
-            print(f'❌ Error type: {type(error).__name__}')
-            import traceback
-            print(f'❌ Full traceback: {traceback.format_exc()}')
+            logger.error(f"Database connection failed in {db_init_time:.3f}s", error=str(error), error_type=type(error).__name__)
+            logger.debug("Database connection failure traceback", traceback=traceback.format_exc())
             return
         
         # Register commands BEFORE syncing
-        print("🔧 Registering commands...")
+        logger.info("Registering commands")
         register_start = time.time()
         register_commands()
         register_time = time.time() - register_start
-        print(f"✅ Command registration completed in {register_time:.3f}s")
+        logger.info("Command registration completed", register_time=f"{register_time:.3f}s")
         
         # Auto-sync commands on startup (can be disabled with AUTO_SYNC_COMMANDS=false)
         auto_sync = os.getenv('AUTO_SYNC_COMMANDS', 'true').lower() == 'true'
         if auto_sync:
             try:
-                print("🔄 Auto-syncing commands (global + guild)...")
+                logger.info("Auto-syncing commands (global + guild)")
                 
                 # Global sync first to update all guilds
                 global_synced = await bot.tree.sync()
-                print(f"✅ Global sync: {len(global_synced)} commands")
+                logger.info("Global sync completed", commands_synced=len(global_synced))
                 
                 # Guild-specific sync for immediate effect in current guilds
                 guild_sync_count = 0
@@ -91,18 +89,17 @@ async def on_ready():
                     try:
                         guild_synced = await bot.tree.sync(guild=guild)
                         guild_sync_count += len(guild_synced)
-                        print(f"✅ Guild sync ({guild.name}): {len(guild_synced)} commands")
+                        logger.info("Guild sync completed", guild_name=guild.name, commands_synced=len(guild_synced))
                     except Exception as guild_error:
-                        print(f"⚠️ Guild sync failed for {guild.name}: {guild_error}")
+                        logger.warning("Guild sync failed", guild_name=guild.name, error=str(guild_error))
                 
-                print(f"🎉 Total synced: {len(global_synced)} global + {guild_sync_count} guild-specific")
+                logger.info("Auto-sync completed", global_commands=len(global_synced), guild_commands=guild_sync_count)
                 
             except Exception as sync_error:
-                print(f"⚠️ Auto-sync failed: {sync_error}")
-                import traceback
-                traceback.print_exc()
+                logger.error("Auto-sync failed", error=str(sync_error))
+                logger.debug("Auto-sync failure traceback", traceback=traceback.format_exc())
         
-        print("🎉 Bot is ready! Use /sync command to sync slash commands.")
+        logger.info("Bot is ready! Use /sync command to sync slash commands")
         
         # Log total bot startup time
         total_startup_time = time.time() - bot_start_time
@@ -110,15 +107,12 @@ async def on_ready():
                          total_startup_time=f"{total_startup_time:.3f}s",
                          db_init_time=f"{db_init_time:.3f}s",
                          guild_count=len(bot.guilds))
-        print(f"🚀 Bot startup completed in {total_startup_time:.3f}s")
+        logger.info("Bot startup completed", total_startup_time=f"{total_startup_time:.3f}s")
             
     except Exception as error:
         total_startup_time = time.time() - bot_start_time
-        print(f'❌ CRITICAL ERROR in on_ready: {error}')
-        print(f'❌ Error type: {type(error).__name__}')
-        print(f'❌ Startup time: {total_startup_time:.3f}s')
-        import traceback
-        print(f'❌ Full traceback: {traceback.format_exc()}')
+        logger.error("CRITICAL ERROR in on_ready", error=str(error), error_type=type(error).__name__, startup_time=f"{total_startup_time:.3f}s")
+        logger.debug("on_ready failure traceback", traceback=traceback.format_exc())
         logger.error(f"Critical error in on_ready: {error}", startup_time=f"{total_startup_time:.3f}s")
 
 
@@ -222,7 +216,7 @@ def register_commands():
         except Exception as e:
             await interaction.followup.send(f"❌ Error syncing commands: {e}", ephemeral=True)
     
-    print(f"✅ Registered all commands explicitly")
+    logger.info("Registered all commands explicitly")
 
 
 # Manual sync command (recommended by Discord.py docs)
@@ -271,19 +265,17 @@ bot.add_command(sync)
 @bot.event
 async def on_command_error(ctx, error):
     error_start = time.time()
-    logger.error(f"Command error: {error}", event_type="command_error", 
+    logger.error("Command error", event_type="command_error", 
                  command=ctx.command.name if ctx.command else "unknown",
                  user_id=str(ctx.author.id) if ctx.author else "unknown",
                  username=ctx.author.display_name if ctx.author else "unknown",
                  error=str(error))
-    print(f'Command error: {error}')
 
 @bot.event
 async def on_error(event, *args, **kwargs):
     error_start = time.time()
-    logger.error(f"Discord event error: {event}", event_type="discord_error",
+    logger.error("Discord event error", event_type="discord_error",
                  event=event, args=str(args), kwargs=str(kwargs))
-    print(f'Discord event error: {event}')
 
 
 # Fly.io health check endpoint
@@ -340,11 +332,10 @@ def start_health_server():
         port = int(os.getenv('PORT', 8080))
         with socketserver.TCPServer(("", port), HealthHandler) as httpd:
             logger.bot_event(f"Health server started on port {port}")
-            print(f"Health check server started on port {port}")
+            logger.info("Health check server started", port=port)
             httpd.serve_forever()
     except Exception as e:
-        logger.error(f"Health server failed to start: {e}")
-        print(f"Health server failed to start: {e}")
+        logger.error("Health server failed to start", error=str(e))
 
 
 # Run the bot
@@ -383,13 +374,12 @@ if __name__ == '__main__':
     token = os.getenv('DISCORD_TOKEN')
     if not token:
         logger.error("DISCORD_TOKEN environment variable is not set")
-        print("❌ ERROR: DISCORD_TOKEN environment variable is not set!")
-        print("Please set the DISCORD_TOKEN environment variable in Fly.io or your .env file")
+        logger.error("Please set the DISCORD_TOKEN environment variable in Fly.io or your .env file")
         exit(1)
     
     startup_start = time.time()
     logger.bot_event(f"Bot starting - Token present: {bool(token)}")
-    print("Starting Discord bot...")
+    logger.info("Starting Discord bot")
     
     try:
         bot.run(token)
