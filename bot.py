@@ -75,8 +75,8 @@ async def on_ready():
         register_time = time.time() - register_start
         print(f"✅ Command registration completed in {register_time:.3f}s")
         
-        # Auto-sync commands on first startup (optional)
-        auto_sync = os.getenv('AUTO_SYNC_COMMANDS', 'false').lower() == 'true'
+        # Auto-sync commands on startup (can be disabled with AUTO_SYNC_COMMANDS=false)
+        auto_sync = os.getenv('AUTO_SYNC_COMMANDS', 'true').lower() == 'true'
         if auto_sync:
             try:
                 print("🔄 Auto-syncing commands...")
