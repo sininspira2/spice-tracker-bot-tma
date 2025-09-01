@@ -88,247 +88,25 @@ class Database:
         )
         return execution_time
 
-    async def migrate_existing_data(self):
-        """Migrate existing users with total_sand to the new deposits system"""
-        start_time = time.time()
-        async with self._get_connection() as conn:
-            try:
-                # Check if users table exists
-                table_exists = await conn.fetchval("""
-                    SELECT EXISTS (
-                        SELECT FROM information_schema.tables 
-                        WHERE table_name = 'users'
-                    )
-                """)
-                
-                if not table_exists:
-                    await self._log_operation("migration_check", "users", start_time, success=True, migrated_count=0)
-                    return 0  # Table doesn't exist yet, no migration needed
-                
-                # Check if migration is needed
-                columns = await conn.fetch("""
-                    SELECT column_name 
-                    FROM information_schema.columns 
-                    WHERE table_name = 'users' AND column_name = 'total_sand'
-                """)
-                
-                if not columns:
-                    await self._log_operation("migration_check", "users", start_time, success=True, migrated_count=0)
-                    return 0  # No migration needed
-                
-                # Get users with total_sand > 0
-                users_to_migrate = await conn.fetch('''
-                    SELECT user_id, username, total_sand 
-                    FROM users 
-                    WHERE total_sand > 0
-                ''')
-                
-                migrated_count = 0
-                for user in users_to_migrate:
-                    user_id, username, total_sand = user
-                    
-                    # Create a single deposit record for the existing total_sand
-                    await conn.execute('''
-                        INSERT INTO deposits (user_id, username, sand_amount, type, created_at)
-                        VALUES ($1, $2, $3, 'solo', CURRENT_TIMESTAMP)
-                    ''', user_id, username, total_sand)
-                    migrated_count += 1
-                
-                # Remove total_sand column from users table
-                await conn.execute('''
-                    CREATE TABLE users_new (
-                        user_id TEXT PRIMARY KEY,
-                        username TEXT NOT NULL,
-                        total_melange INTEGER DEFAULT 0,
-                        last_updated TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-                    )
-                ''')
-                
-                await conn.execute('''
-                    INSERT INTO users_new (user_id, username, total_melange, last_updated)
-                    SELECT user_id, username, total_melange, last_updated FROM users
-                ''')
-                
-                await conn.execute('DROP TABLE users')
-                await conn.execute('ALTER TABLE users_new RENAME TO users')
-                
-                await self._log_operation("migration_complete", "users", start_time, success=True, migrated_count=migrated_count)
-                return migrated_count
-                
-            except Exception as e:
-                await self._log_operation("migration_failed", "users", start_time, success=False, error=str(e))
-                print(f'Migration of existing data failed: {e}')
-                return 0  # Return 0 to indicate no migration occurred
 
-    async def migrate_deposits_to_types(self):
-        """Migrate existing deposits to include type field"""
-        start_time = time.time()
-        async with self._get_connection() as conn:
-            try:
-                # Check if deposits table exists
-                table_exists = await conn.fetchval("""
-                    SELECT EXISTS (
-                        SELECT FROM information_schema.tables 
-                        WHERE table_name = 'deposits'
-                    )
-                """)
-                
-                if not table_exists:
-                    await self._log_operation("migration_check", "deposits", start_time, success=True, migrated_count=0)
-                    return 0  # Table doesn't exist yet, no migration needed
-                
-                # Check if type column exists
-                columns = await conn.fetch("""
-                    SELECT column_name 
-                    FROM information_schema.columns 
-                    WHERE table_name = 'deposits' AND column_name = 'type'
-                """)
-                
-                if columns:
-                    await self._log_operation("migration_check", "deposits", start_time, success=True, migrated_count=0)
-                    return 0  # Migration already done
-                
-                # Add type column with default value
-                await conn.execute('''
-                    ALTER TABLE deposits 
-                    ADD COLUMN type TEXT DEFAULT 'solo' CHECK (type IN ('solo', 'expedition'))
-                ''')
-                
-                # Add expedition_id column
-                await conn.execute('''
-                    ALTER TABLE deposits 
-                    ADD COLUMN expedition_id INTEGER
-                ''')
-                
-                # Update all existing deposits to be 'solo' type
-                result = await conn.execute('''
-                    UPDATE deposits 
-                    SET type = 'solo' 
-                    WHERE type IS NULL
-                ''')
-                
-                # Parse the result to get count of updated rows
-                if result:
-                    try:
-                        count_str = result.split()[-1]
-                        migrated_count = int(count_str)
-                    except (ValueError, IndexError):
-                        migrated_count = 0
-                else:
-                    migrated_count = 0
-                
-                await self._log_operation("migration_complete", "deposits", start_time, success=True, migrated_count=migrated_count)
-                return migrated_count
-                
-            except Exception as e:
-                await self._log_operation("migration_failed", "deposits", start_time, success=False, error=str(e))
-                print(f'Migration to types failed: {e}')
-                return 0  # Return 0 to indicate no migration occurred
 
     async def initialize(self):
-        """Initialize database tables"""
+        """Test database connectivity only - migrations handled by Supabase CLI"""
         start_time = time.time()
-        async with self._get_connection() as conn:
-            try:
-                # Create tables
-                await conn.execute('''
-                    CREATE TABLE IF NOT EXISTS users (
-                        user_id TEXT PRIMARY KEY,
-                        username TEXT NOT NULL,
-                        total_melange INTEGER DEFAULT 0,
-                        last_updated TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-                    )
-                ''')
+        try:
+            async with self._get_connection() as conn:
+                # Simple connectivity test
+                await conn.fetchval('SELECT 1')
                 
-                await conn.execute('''
-                    CREATE TABLE IF NOT EXISTS deposits (
-                        id SERIAL PRIMARY KEY,
-                        user_id TEXT NOT NULL,
-                        username TEXT NOT NULL,
-                        sand_amount INTEGER NOT NULL,
-                        type TEXT DEFAULT 'solo' CHECK (type IN ('solo', 'expedition')),
-                        expedition_id INTEGER,
-                        paid BOOLEAN DEFAULT FALSE,
-                        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-                        paid_at TIMESTAMP WITH TIME ZONE,
-                        FOREIGN KEY (user_id) REFERENCES users (user_id)
-                    )
-                ''')
-                
-                await conn.execute('''
-                    CREATE TABLE IF NOT EXISTS expeditions (
-                        id SERIAL PRIMARY KEY,
-                        initiator_id TEXT NOT NULL,
-                        initiator_username TEXT NOT NULL,
-                        total_sand INTEGER NOT NULL,
-                        harvester_percentage FLOAT DEFAULT 0.0,
-                        sand_per_melange INTEGER NOT NULL,
-                        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-                        FOREIGN KEY (initiator_id) REFERENCES users (user_id)
-                    )
-                ''')
-                
-                await conn.execute('''
-                    CREATE TABLE IF NOT EXISTS expedition_participants (
-                        id SERIAL PRIMARY KEY,
-                        expedition_id INTEGER NOT NULL,
-                        user_id TEXT NOT NULL,
-                        username TEXT NOT NULL,
-                        sand_amount INTEGER NOT NULL,
-                        melange_amount INTEGER NOT NULL,
-                        leftover_sand INTEGER NOT NULL,
-                        is_harvester BOOLEAN DEFAULT FALSE,
-                        FOREIGN KEY (expedition_id) REFERENCES expeditions (id),
-                        FOREIGN KEY (user_id) REFERENCES users (user_id)
-                    )
-                ''')
-                
-                await conn.execute('''
-                    CREATE TABLE IF NOT EXISTS settings (
-                        key TEXT PRIMARY KEY,
-                        value TEXT NOT NULL
-                    )
-                ''')
-                
-                # Insert default conversion rate
-                await conn.execute(
-                    'INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO NOTHING',
-                    'sand_per_melange', '50'
-                )
-                
-                # Run migrations if needed
-                try:
-                    migrated_count = await self.migrate_existing_data()
-                    if migrated_count > 0:
-                        print(f'Migrated {migrated_count} users to new deposits system')
-                    
-                    # Migrate deposits to include type field
-                    deposits_migrated = await self.migrate_deposits_to_types()
-                    if deposits_migrated > 0:
-                        print(f'Migrated {deposits_migrated} deposits to include type field')
-                except Exception as e:
-                    print(f'Migration failed: {e}')
-                    # Continue with initialization even if migration fails
-                
-                # Create indexes AFTER migrations to ensure all columns exist
-                try:
-                    await conn.execute('CREATE INDEX IF NOT EXISTS idx_deposits_user_id ON deposits (user_id)')
-                    await conn.execute('CREATE INDEX IF NOT EXISTS idx_deposits_created_at ON deposits (created_at)')
-                    await conn.execute('CREATE INDEX IF NOT EXISTS idx_deposits_paid ON deposits (paid)')
-                    await conn.execute('CREATE INDEX IF NOT EXISTS idx_deposits_type ON deposits (type)')
-                    await conn.execute('CREATE INDEX IF NOT EXISTS idx_deposits_expedition_id ON deposits (expedition_id)')
-                    await conn.execute('CREATE INDEX IF NOT EXISTS idx_expeditions_created_at ON expeditions (created_at)')
-                    await conn.execute('CREATE INDEX IF NOT EXISTS idx_expedition_participants_expedition_id ON expedition_participants (expedition_id)')
-                    await conn.execute('CREATE INDEX IF NOT EXISTS idx_expedition_participants_user_id ON expedition_participants (user_id)')
-                except Exception as e:
-                    print(f'Index creation failed: {e}')
-                    # Continue with initialization even if index creation fails
-                
-                await self._log_operation("initialization_complete", "all_tables", start_time, success=True)
-                
-            except Exception as e:
-                await self._log_operation("initialization_failed", "all_tables", start_time, success=False, error=str(e))
-                raise e
+            init_time = time.time() - start_time
+            await self._log_operation("connectivity_check", "database", start_time, success=True, init_time=f"{init_time:.3f}s")
+            print(f'✅ Database connected in {init_time:.3f}s')
+            
+        except Exception as e:
+            init_time = time.time() - start_time
+            await self._log_operation("connectivity_check", "database", start_time, success=False, init_time=f"{init_time:.3f}s", error=str(e))
+            print(f'❌ Database connection failed in {init_time:.3f}s: {e}')
+            raise e
 
     async def get_user(self, user_id):
         """Get user data by user ID"""
@@ -433,24 +211,128 @@ class Database:
                                         user_id=user_id, include_paid=include_paid, error=str(e))
                 raise e
 
-    async def create_expedition(self, initiator_id, initiator_username, total_sand, harvester_percentage=0.0, sand_per_melange=None):
+    async def create_expedition(self, initiator_id, initiator_username, total_sand, sand_per_melange=None, guild_cut_percentage=10.0):
         """Create a new expedition record"""
         start_time = time.time()
         async with self._get_connection() as conn:
             try:
                 row = await conn.fetchrow('''
-                    INSERT INTO expeditions (initiator_id, initiator_username, total_sand, harvester_percentage, sand_per_melange)
+                    INSERT INTO expeditions (initiator_id, initiator_username, total_sand, sand_per_melange, guild_cut_percentage)
                     VALUES ($1, $2, $3, $4, $5)
                     RETURNING id
-                ''', initiator_id, initiator_username, total_sand, harvester_percentage, sand_per_melange)
+                ''', initiator_id, initiator_username, total_sand, sand_per_melange, guild_cut_percentage)
                 
                 expedition_id = row[0] if row else None
                 await self._log_operation("insert", "expeditions", start_time, success=True, 
-                                        initiator_id=initiator_id, total_sand=total_sand, expedition_id=expedition_id)
+                                        initiator_id=initiator_id, total_sand=total_sand, expedition_id=expedition_id, guild_cut_percentage=guild_cut_percentage)
                 return expedition_id
             except Exception as e:
                 await self._log_operation("insert", "expeditions", start_time, success=False, 
                                         initiator_id=initiator_id, total_sand=total_sand, error=str(e))
+                raise e
+
+    async def get_guild_treasury(self):
+        """Get guild treasury information"""
+        start_time = time.time()
+        async with self._get_connection() as conn:
+            try:
+                row = await conn.fetchrow('''
+                    SELECT total_sand, total_melange, created_at, last_updated
+                    FROM guild_treasury
+                    ORDER BY id DESC
+                    LIMIT 1
+                ''')
+                
+                if row:
+                    treasury = {
+                        'total_sand': row['total_sand'],
+                        'total_melange': row['total_melange'],
+                        'created_at': row['created_at'],
+                        'last_updated': row['last_updated']
+                    }
+                else:
+                    # Create initial treasury record if none exists
+                    await conn.execute('''
+                        INSERT INTO guild_treasury (total_sand, total_melange)
+                        VALUES ($1, $2)
+                    ''', 0, 0)
+                    treasury = {'total_sand': 0, 'total_melange': 0, 'created_at': None, 'last_updated': None}
+                
+                await self._log_operation("select", "guild_treasury", start_time, success=True)
+                return treasury
+            except Exception as e:
+                await self._log_operation("select", "guild_treasury", start_time, success=False, error=str(e))
+                raise e
+
+    async def update_guild_treasury(self, sand_amount, melange_amount=0):
+        """Add sand and melange to guild treasury"""
+        start_time = time.time()
+        async with self._get_connection() as conn:
+            try:
+                # Check if treasury record exists
+                result = await conn.fetchrow('SELECT COUNT(*) as count FROM guild_treasury')
+                if result['count'] == 0:
+                    # Create initial record with amounts
+                    await conn.execute('''
+                        INSERT INTO guild_treasury (total_sand, total_melange)
+                        VALUES ($1, $2)
+                    ''', sand_amount, melange_amount)
+                else:
+                    # Update existing record
+                    await conn.execute('''
+                        UPDATE guild_treasury 
+                        SET total_sand = total_sand + $1,
+                            total_melange = total_melange + $2,
+                            last_updated = CURRENT_TIMESTAMP
+                        WHERE id = (SELECT MAX(id) FROM guild_treasury)
+                    ''', sand_amount, melange_amount)
+                
+                await self._log_operation("update", "guild_treasury", start_time, success=True, 
+                                        sand_amount=sand_amount, melange_amount=melange_amount)
+                return True
+            except Exception as e:
+                await self._log_operation("update", "guild_treasury", start_time, success=False, 
+                                        sand_amount=sand_amount, melange_amount=melange_amount, error=str(e))
+                raise e
+
+    async def guild_withdraw(self, admin_user_id, admin_username, target_user_id, target_username, sand_amount):
+        """Withdraw sand from guild treasury and give to user"""
+        start_time = time.time()
+        async with self._get_connection() as conn:
+            try:
+                # Check if guild has enough sand
+                treasury = await self.get_guild_treasury()
+                if treasury['total_sand'] < sand_amount:
+                    raise ValueError(f"Insufficient guild treasury funds. Available: {treasury['total_sand']}, Requested: {sand_amount}")
+                
+                # Start transaction
+                async with conn.transaction():
+                    # Remove sand from guild treasury
+                    await conn.execute('''
+                        UPDATE guild_treasury 
+                        SET total_sand = total_sand - $1,
+                            last_updated = CURRENT_TIMESTAMP
+                        WHERE id = (SELECT MAX(id) FROM guild_treasury)
+                    ''', sand_amount)
+                    
+                    # Add sand to user as deposit
+                    await conn.execute('''
+                        INSERT INTO deposits (user_id, username, sand_amount, type, paid, created_at, paid_at)
+                        VALUES ($1, $2, $3, 'guild_withdrawal', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    ''', target_user_id, target_username, sand_amount)
+                    
+                    # Record transaction
+                    await conn.execute('''
+                        INSERT INTO guild_transactions (transaction_type, sand_amount, admin_user_id, admin_username, target_user_id, target_username, description)
+                        VALUES ('withdrawal', $1, $2, $3, $4, $5, $6)
+                    ''', sand_amount, admin_user_id, admin_username, target_user_id, target_username, f"Guild withdrawal to {target_username}")
+                
+                await self._log_operation("update", "guild_treasury", start_time, success=True, 
+                                        operation="withdrawal", sand_amount=sand_amount, target_user_id=target_user_id)
+                return True
+            except Exception as e:
+                await self._log_operation("update", "guild_treasury", start_time, success=False, 
+                                        operation="withdrawal", sand_amount=sand_amount, target_user_id=target_user_id, error=str(e))
                 raise e
 
     async def add_expedition_participant(self, expedition_id, user_id, username, sand_amount, melange_amount, leftover_sand, is_harvester=False):
@@ -492,10 +374,22 @@ class Database:
                 raise e
 
     async def get_expedition_participants(self, expedition_id):
-        """Get all participants for a specific expedition"""
+        """Get all participants for a specific expedition with expedition details"""
         start_time = time.time()
         async with self._get_connection() as conn:
             try:
+                # Get expedition details first
+                expedition_row = await conn.fetchrow('''
+                    SELECT initiator_id, initiator_username, total_sand, guild_cut_percentage, 
+                           sand_per_melange, created_at
+                    FROM expeditions 
+                    WHERE id = $1
+                ''', expedition_id)
+                
+                if not expedition_row:
+                    return None
+                
+                # Get participants
                 rows = await conn.fetch('''
                     SELECT * FROM expedition_participants 
                     WHERE expedition_id = $1
@@ -515,9 +409,23 @@ class Database:
                         'is_harvester': bool(row[7])
                     })
                 
+                # Combine expedition details with participants
+                result = {
+                    'expedition': {
+                        'id': expedition_id,
+                        'initiator_id': expedition_row['initiator_id'],
+                        'initiator_username': expedition_row['initiator_username'],
+                        'total_sand': expedition_row['total_sand'],
+                        'guild_cut_percentage': expedition_row['guild_cut_percentage'] or 0,
+                        'sand_per_melange': expedition_row['sand_per_melange'],
+                        'created_at': expedition_row['created_at']
+                    },
+                    'participants': participants
+                }
+                
                 await self._log_operation("select", "expedition_participants", start_time, success=True, 
                                         expedition_id=expedition_id, result_count=len(participants))
-                return participants
+                return result
             except Exception as e:
                 await self._log_operation("select", "expedition_participants", start_time, success=False, 
                                         expedition_id=expedition_id, error=str(e))
@@ -607,50 +515,142 @@ class Database:
                                         user_id=user_id, paid=True, error=str(e))
                 raise e
 
-    async def mark_deposit_paid(self, deposit_id, user_id):
-        """Mark a specific deposit as paid"""
+    async def pay_user_melange(self, user_id, username, melange_amount, admin_user_id=None, admin_username=None):
+        """Pay melange to a user and record the payment"""
         start_time = time.time()
         async with self._get_connection() as conn:
             try:
-                await conn.execute('''
-                    UPDATE deposits 
-                    SET paid = TRUE, paid_at = CURRENT_TIMESTAMP
-                    WHERE id = $1 AND user_id = $2
-                ''', deposit_id, user_id)
+                async with conn.transaction():
+                    # Update user's paid_melange
+                    await conn.execute('''
+                        UPDATE users 
+                        SET paid_melange = paid_melange + $1,
+                            last_updated = CURRENT_TIMESTAMP
+                        WHERE user_id = $2
+                    ''', melange_amount, user_id)
+                    
+                    # Record the payment
+                    await conn.execute('''
+                        INSERT INTO melange_payments (user_id, username, melange_amount, admin_user_id, admin_username, description)
+                        VALUES ($1, $2, $3, $4, $5, $6)
+                    ''', user_id, username, melange_amount, admin_user_id, admin_username, f"Melange payment to {username}")
                 
-                await self._log_operation("update", "deposits", start_time, success=True, 
-                                        deposit_id=deposit_id, user_id=user_id, action="mark_paid")
+                await self._log_operation("update", "melange_payments", start_time, success=True, 
+                                        user_id=user_id, melange_amount=melange_amount, admin_user_id=admin_user_id)
+                return melange_amount
             except Exception as e:
-                await self._log_operation("update", "deposits", start_time, success=False, 
-                                        deposit_id=deposit_id, user_id=user_id, action="mark_paid", error=str(e))
+                await self._log_operation("update", "melange_payments", start_time, success=False, 
+                                        user_id=user_id, melange_amount=melange_amount, admin_user_id=admin_user_id, error=str(e))
                 raise e
 
-    async def mark_all_user_deposits_paid(self, user_id):
-        """Mark all unpaid deposits for a user as paid"""
+    async def pay_all_pending_melange(self, admin_user_id=None, admin_username=None):
+        """Pay all users their pending melange"""
         start_time = time.time()
         async with self._get_connection() as conn:
             try:
-                result = await conn.execute('''
-                    UPDATE deposits 
-                    SET paid = TRUE, paid_at = CURRENT_TIMESTAMP
-                    WHERE user_id = $1 AND paid = FALSE
+                # Get all users with pending melange
+                users_with_pending = await conn.fetch('''
+                    SELECT user_id, username, total_melange, paid_melange,
+                           (total_melange - paid_melange) as pending_melange
+                    FROM users 
+                    WHERE total_melange > paid_melange
+                ''')
+                
+                total_paid = 0
+                users_paid = 0
+                
+                async with conn.transaction():
+                    for user in users_with_pending:
+                        pending = user['pending_melange']
+                        if pending > 0:
+                            # Update user's paid_melange
+                            await conn.execute('''
+                                UPDATE users 
+                                SET paid_melange = total_melange,
+                                    last_updated = CURRENT_TIMESTAMP
+                                WHERE user_id = $1
+                            ''', user['user_id'])
+                            
+                            # Record the payment
+                            await conn.execute('''
+                                INSERT INTO melange_payments (user_id, username, melange_amount, admin_user_id, admin_username, description)
+                                VALUES ($1, $2, $3, $4, $5, $6)
+                            ''', user['user_id'], user['username'], pending, admin_user_id, admin_username, f"Bulk melange payment to {user['username']}")
+                            
+                            total_paid += pending
+                            users_paid += 1
+                
+                await self._log_operation("update", "melange_payments", start_time, success=True, 
+                                        total_paid=total_paid, users_paid=users_paid, admin_user_id=admin_user_id)
+                return {"total_paid": total_paid, "users_paid": users_paid}
+            except Exception as e:
+                await self._log_operation("update", "melange_payments", start_time, success=False, 
+                                        admin_user_id=admin_user_id, error=str(e))
+                raise e
+
+    async def get_user_pending_melange(self, user_id):
+        """Get pending melange amount for a user"""
+        start_time = time.time()
+        async with self._get_connection() as conn:
+            try:
+                row = await conn.fetchrow('''
+                    SELECT total_melange, paid_melange, 
+                           (total_melange - paid_melange) as pending_melange
+                    FROM users 
+                    WHERE user_id = $1
                 ''', user_id)
                 
-                # Parse the result to get count of updated rows
-                if result:
-                    try:
-                        count_str = result.split()[-1]
-                        updated_count = int(count_str)
-                    except (ValueError, IndexError):
-                        updated_count = 0
+                if row:
+                    result = {
+                        'total_melange': row['total_melange'],
+                        'paid_melange': row['paid_melange'],
+                        'pending_melange': row['pending_melange']
+                    }
                 else:
-                    updated_count = 0
+                    result = {'total_melange': 0, 'paid_melange': 0, 'pending_melange': 0}
                 
-                await self._log_operation("update", "deposits", start_time, success=True, 
-                                        user_id=user_id, action="mark_all_paid", updated_count=updated_count)
+                await self._log_operation("select", "users", start_time, success=True, 
+                                        user_id=user_id, pending_melange=result['pending_melange'])
+                return result
             except Exception as e:
-                await self._log_operation("update", "deposits", start_time, success=False, 
-                                        user_id=user_id, action="mark_all_paid", error=str(e))
+                await self._log_operation("select", "users", start_time, success=False, 
+                                        user_id=user_id, error=str(e))
+                raise e
+
+    async def get_all_users_with_pending_melange(self):
+        """Get all users with pending melange payments"""
+        start_time = time.time()
+        async with self._get_connection() as conn:
+            try:
+                rows = await conn.fetch('''
+                    SELECT user_id, username, total_melange, paid_melange,
+                           (total_melange - paid_melange) as pending_melange,
+                           COALESCE(SUM(d.sand_amount), 0) as total_sand,
+                           COUNT(d.id) as total_deposits
+                    FROM users u
+                    LEFT JOIN deposits d ON u.user_id = d.user_id
+                    WHERE u.total_melange > u.paid_melange
+                    GROUP BY u.user_id, u.username, u.total_melange, u.paid_melange
+                    ORDER BY pending_melange DESC, u.username
+                ''')
+                
+                users = []
+                for row in rows:
+                    users.append({
+                        'user_id': row['user_id'],
+                        'username': row['username'],
+                        'total_melange': row['total_melange'],
+                        'paid_melange': row['paid_melange'],
+                        'pending_melange': row['pending_melange'],
+                        'total_sand': row['total_sand'],
+                        'total_deposits': row['total_deposits']
+                    })
+                
+                await self._log_operation("select", "users", start_time, success=True, 
+                                        result_count=len(users))
+                return users
+            except Exception as e:
+                await self._log_operation("select", "users", start_time, success=False, error=str(e))
                 raise e
 
     async def cleanup_old_deposits(self, days=30):
@@ -700,6 +700,26 @@ class Database:
             except Exception as e:
                 await self._log_operation("update", "users", start_time, success=False, 
                                         user_id=user_id, melange_amount=melange_amount, error=str(e))
+                raise e
+
+    async def get_user_total_sand(self, user_id):
+        """Get total sand amount for a user from deposits"""
+        start_time = time.time()
+        async with self._get_connection() as conn:
+            try:
+                result = await conn.fetchval('''
+                    SELECT COALESCE(SUM(sand_amount), 0) 
+                    FROM deposits 
+                    WHERE user_id = $1
+                ''', user_id)
+                
+                total_sand = result or 0
+                await self._log_operation("select_sum", "deposits", start_time, success=True, 
+                                        user_id=user_id, total_sand=total_sand)
+                return total_sand
+            except Exception as e:
+                await self._log_operation("select_sum", "deposits", start_time, success=False, 
+                                        user_id=user_id, error=str(e))
                 raise e
 
     async def get_leaderboard(self, limit=10):

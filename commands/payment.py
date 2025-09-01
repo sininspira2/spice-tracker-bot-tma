@@ -15,6 +15,7 @@ from utils.embed_utils import build_status_embed
 from utils.command_utils import log_command_metrics
 from utils.decorators import handle_interaction_expiration
 from utils.helpers import get_database, send_response
+from utils.permissions import is_admin
 
 
 @handle_interaction_expiration
@@ -23,45 +24,50 @@ async def payment(interaction, user, use_followup: bool = True):
     command_start = time.time()
     
     # Check if user has admin permissions
-    if not interaction.user.guild_permissions.administrator:
-        await send_response(interaction, "❌ You need administrator permissions to use this command.", use_followup=use_followup, ephemeral=True)
+    if not is_admin(interaction):
+        await send_response(interaction, "❌ You need an admin role to use this command. Contact a server administrator.", use_followup=use_followup, ephemeral=True)
         return
     
-    # Get user's unpaid deposits using utility function
-    unpaid_deposits, get_deposits_time = await timed_database_operation(
-        "get_user_deposits",
-        get_database().get_user_deposits,
-        str(user.id), False
+    # Get user's pending melange
+    pending_data, get_pending_time = await timed_database_operation(
+        "get_user_pending_melange",
+        get_database().get_user_pending_melange,
+        str(user.id)
     )
     
-    if not unpaid_deposits:
+    pending_melange = pending_data.get('pending_melange', 0)
+    total_melange = pending_data.get('total_melange', 0)
+    paid_melange = pending_data.get('paid_melange', 0)
+    
+    if pending_melange <= 0:
         embed = build_status_embed(
             title="💰 Payment Status",
-            description=f"🏜️ **{user.display_name}** has no unpaid harvests to process.",
+            description=f"🏜️ **{user.display_name}** has no pending melange to pay.",
             color=0x95A5A6,
+            fields={"📊 Current Status": f"**Total Melange:** {total_melange:,}\n**Already Paid:** {paid_melange:,}\n**Pending:** {pending_melange:,}"},
             footer=f"Requested by {interaction.user.display_name}",
             timestamp=interaction.created_at
         )
         await send_response(interaction, embed=embed.build(), use_followup=use_followup)
         return
     
-    # Mark all deposits as paid using utility function
-    _, update_time = await timed_database_operation(
-        "mark_all_user_deposits_paid",
-        get_database().mark_all_user_deposits_paid,
-        str(user.id)
+    # Pay the user's pending melange
+    paid_amount, pay_melange_time = await timed_database_operation(
+        "pay_user_melange",
+        get_database().pay_user_melange,
+        str(user.id), user.display_name, pending_melange,
+        str(interaction.user.id), interaction.user.display_name
     )
-    
-    total_paid = sum(deposit['sand_amount'] for deposit in unpaid_deposits)
     
     # Use utility function for embed building
     fields = {
-        "📊 Payment Summary": f"**Total Spice Sand Paid:** {total_paid:,}\n**Harvests Processed:** {len(unpaid_deposits)}"
+        "💰 Payment Details": f"**Melange Paid:** {paid_amount:,}\n**Admin:** {interaction.user.display_name}",
+        "📊 Updated Status": f"**Total Melange:** {total_melange:,}\n**Now Paid:** {paid_melange + paid_amount:,}\n**Remaining Pending:** 0"
     }
     
     embed = build_status_embed(
         title="💰 Payment Processed",
-        description=f"**{user.display_name}** has been paid for all harvests!",
+        description=f"**{user.display_name}** has been paid {paid_amount:,} melange!",
         color=0x27AE60,
         fields=fields,
         footer=f"Payment processed by {interaction.user.display_name}",
@@ -76,7 +82,7 @@ async def payment(interaction, user, use_followup: bool = True):
     # Log performance metrics using utility function
     total_time = time.time() - command_start
     log_command_metrics(
-        "Payment",
+        "Melange Payment",
         str(interaction.user.id),
         interaction.user.display_name,
         total_time,
@@ -84,11 +90,11 @@ async def payment(interaction, user, use_followup: bool = True):
         admin_username=interaction.user.display_name,
         target_user_id=str(user.id),
         target_username=user.display_name,
-        get_deposits_time=f"{get_deposits_time:.3f}s",
-        update_time=f"{update_time:.3f}s",
+        get_pending_time=f"{get_pending_time:.3f}s",
+        pay_melange_time=f"{pay_melange_time:.3f}s",
         response_time=f"{response_time:.3f}s",
-        total_paid=total_paid,
-        harvests_processed=len(unpaid_deposits)
+        melange_paid=paid_amount,
+        total_melange=total_melange
     )
     
-    print(f'Harvester {user.display_name} ({user.id}) paid {total_paid:,} spice sand by {interaction.user.display_name} ({interaction.user.id})')
+    print(f'User {user.display_name} ({user.id}) paid {paid_amount:,} melange by {interaction.user.display_name} ({interaction.user.id})')
