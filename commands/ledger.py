@@ -40,7 +40,6 @@ async def ledger(interaction, use_followup: bool = True):
             title="📋 Spice Deposit Ledger",
             description="🏜️ You haven't made any spice deposits yet! Use `/sand` to start tracking your harvests.",
             color=0x95A5A6,
-            footer=f"/ledger • {interaction.user.display_name}",
             timestamp=interaction.created_at
         )
         await send_response(interaction, embed=embed.build(), use_followup=use_followup, ephemeral=True)
@@ -78,7 +77,6 @@ async def ledger(interaction, use_followup: bool = True):
         description=ledger_text,
         color=0x3498DB,
         fields=fields,
-        footer=f"/ledger • {interaction.user.display_name}",
         thumbnail=interaction.user.display_avatar.url,
         timestamp=interaction.created_at
     )

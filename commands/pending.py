@@ -40,7 +40,6 @@ async def pending(interaction, use_followup: bool = True):
                 title="📋 Pending Melange Payments",
                 description="✅ **No pending payments!**\n\nAll harvesters have been paid up to date.",
                 color=0x00FF00,
-                footer=f"/pending • {interaction.user.display_name}",
                 timestamp=interaction.created_at
             )
             await send_response(interaction, embed=embed.build(), use_followup=use_followup)
@@ -94,7 +93,6 @@ async def pending(interaction, use_followup: bool = True):
             description=f"💰 **{total_melange_owed:,} melange** owed across **{total_users} user{'s' if total_users != 1 else ''}**",
             color=color,
             fields=fields,
-            footer=f"/pending • {total_users} users • {interaction.user.display_name}",
             timestamp=interaction.created_at
         )
         

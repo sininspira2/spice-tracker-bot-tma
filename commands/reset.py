@@ -58,7 +58,6 @@ async def reset(interaction, confirm: bool, use_followup: bool = True):
             description="**All refinery statistics have been permanently deleted!**",
             color=0xF39C12,
             fields=fields,
-            footer=f"/reset confirm:True • {interaction.user.display_name}",
             timestamp=interaction.created_at
         )
         

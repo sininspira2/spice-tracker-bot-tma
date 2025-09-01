@@ -67,7 +67,6 @@ async def treasury(interaction, use_followup: bool = True):
             description=f"💰 **Total Value:** {total_sand:,} sand + {total_melange:,} melange",
             color=color,
             fields=fields,
-            footer=f"/treasury • {interaction.user.display_name}",
             timestamp=interaction.created_at
         )
         

@@ -29,7 +29,6 @@ async def refinery(interaction, use_followup: bool = True):
             title="🏭 Spice Refinery Status",
             info_message="🏜️ You haven't harvested any spice sand yet! Use `/sand` to start tracking your harvests.",
             color=0x95A5A6,
-            footer=f"Requested by {interaction.user.display_name}",
             timestamp=interaction.created_at
         )
         await send_response(interaction, embed=embed.build(), use_followup=use_followup, ephemeral=True)
@@ -57,7 +56,6 @@ async def refinery(interaction, use_followup: bool = True):
         current=remaining_sand,
         total=sand_per_melange,
         progress_fields=progress_fields,
-        footer=f"/refinery • {interaction.user.display_name}",
         thumbnail=interaction.user.display_avatar.url,
         timestamp=interaction.created_at
     )

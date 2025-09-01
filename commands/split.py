@@ -197,7 +197,6 @@ async def split(interaction, total_sand: int, users: str, guild: int = 10, use_f
             description=f"**Expedition #{expedition_id}** - {len(unique_distributions)} participants",
             color=0x00FF00,
             fields=fields,
-            footer=f"/split total_sand:{total_sand} users:\"{users}\" guild:{guild} • {interaction.user.display_name}",
             timestamp=interaction.created_at
         )
         

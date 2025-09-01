@@ -76,7 +76,6 @@ async def sand(interaction, amount: int, use_followup: bool = True):
         description=description,
         color=0xE67E22,
         fields=fields,
-        footer=f"/sand amount:{amount} • {interaction.user.display_name}",
         timestamp=interaction.created_at
     )
     

@@ -43,7 +43,6 @@ async def payroll(interaction, use_followup: bool = True):
             title="💰 Payroll Status",
             description="🏜️ There are no users with pending melange to pay.",
             color=0x95A5A6,
-            footer=f"Requested by {interaction.user.display_name}",
             timestamp=interaction.created_at
         )
         await send_response(interaction, embed=embed.build(), use_followup=use_followup)
@@ -59,7 +58,6 @@ async def payroll(interaction, use_followup: bool = True):
         description="**All users with pending melange have been paid!**",
         color=0x27AE60,
         fields=fields,
-        footer=f"/payroll • {users_paid} users • {interaction.user.display_name}",
         timestamp=interaction.created_at
     )
     
