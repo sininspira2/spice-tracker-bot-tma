@@ -167,8 +167,8 @@ class TestCommandMetadata:
     
     def test_command_functions_import(self):
         """Test that command functions can be imported."""
-        from commands import harvest, refinery, leaderboard
+        from commands import sand, refinery, leaderboard
         
-        assert callable(harvest)
+        assert callable(sand)
         assert callable(refinery)
         assert callable(leaderboard)

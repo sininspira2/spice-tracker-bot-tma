@@ -14,7 +14,7 @@ class TestCommandResponsiveness:
         """Test that all commands can execute and respond without crashing."""
         # Map of module names to actual function names and parameters
         test_cases = [
-            ('harvest', 'harvest', [100, True], {}),
+            ('sand', 'sand', [100, True], {}),
             ('refinery', 'refinery', [True], {}),
             ('leaderboard', 'leaderboard', [10, True], {}),
             ('conversion', 'conversion', [True], {}),
@@ -65,8 +65,8 @@ class TestCommandResponsiveness:
         """Test that commands handle invalid inputs gracefully."""
         # Test edge cases for commands that take parameters
         edge_cases = [
-            ('harvest', 'harvest', [0, True], {}),  # Too low
-            ('harvest', 'harvest', [15000, True], {}),  # Too high
+            ('sand', 'sand', [0, True], {}),  # Too low
+            ('sand', 'sand', [15000, True], {}),  # Too high
             ('split', 'split', [0, '@user1', True], {}),  # Invalid sand amount
             ('split', 'split', [1000, '@user1', True], {}),  # Valid split
             ('reset', 'reset', [False, True], {}),  # Not confirmed

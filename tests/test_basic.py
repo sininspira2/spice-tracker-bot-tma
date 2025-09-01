@@ -50,8 +50,8 @@ class TestCommandDiscovery:
         from commands import COMMAND_METADATA
         
         expected_commands = {
-            'harvest', 'refinery', 'leaderboard', 'conversion', 
-            'split', 'help', 'reset', 'ledger', 'expedition', 
+            'sand', 'refinery', 'leaderboard', 'conversion',
+            'split', 'help', 'reset', 'ledger', 'expedition',
             'payment', 'payroll', 'guild_treasury', 'guild_withdraw', 'pending'
         }
         
