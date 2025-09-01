@@ -211,7 +211,7 @@ def register_commands():
 # Manual sync command (recommended by Discord.py docs)
 @commands.command()
 @commands.guild_only()
-@commands.is_owner()
+# @commands.is_owner()
 async def sync(
     ctx: commands.Context,
     guilds: commands.Greedy[discord.Object],
