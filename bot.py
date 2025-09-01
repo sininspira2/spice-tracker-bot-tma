@@ -27,8 +27,8 @@ load_dotenv()
 
 # Bot configuration
 intents = discord.Intents.default()
-# Enable message_content for sync command to work
-intents.message_content = True
+# For slash commands, we don't need message_content intent
+intents.message_content = False
 intents.reactions = True
 intents.guilds = True
 intents.guild_messages = True
@@ -75,8 +75,17 @@ async def on_ready():
         register_time = time.time() - register_start
         print(f"✅ Command registration completed in {register_time:.3f}s")
         
-        # Commands registered, ready for manual sync
-        print("🎉 Bot is ready! Use the !sync command to sync slash commands.")
+        # Auto-sync commands on first startup (optional)
+        auto_sync = os.getenv('AUTO_SYNC_COMMANDS', 'false').lower() == 'true'
+        if auto_sync:
+            try:
+                print("🔄 Auto-syncing commands...")
+                synced = await bot.tree.sync()
+                print(f"✅ Auto-synced {len(synced)} commands!")
+            except Exception as sync_error:
+                print(f"⚠️ Auto-sync failed: {sync_error}")
+        
+        print("🎉 Bot is ready! Use /sync command to sync slash commands.")
         
         # Log total bot startup time
         total_startup_time = time.time() - bot_start_time
@@ -184,6 +193,20 @@ def register_commands():
     @bot.tree.command(name="pending", description="View all users with pending melange payments (Admin only)")
     async def pending_cmd(interaction: discord.Interaction):  # noqa: F841
         await pending(interaction, True)
+    
+    # Sync command (slash command version)
+    @bot.tree.command(name="sync", description="Sync slash commands (Bot Owner Only)")
+    async def sync_cmd(interaction: discord.Interaction):  # noqa: F841
+        if interaction.user.id != int(os.getenv('BOT_OWNER_ID', '0')):
+            await interaction.response.send_message("❌ Only the bot owner can use this command.", ephemeral=True)
+            return
+        
+        try:
+            await interaction.response.defer(ephemeral=True)
+            synced = await bot.tree.sync()
+            await interaction.followup.send(f"✅ Synced {len(synced)} commands successfully!", ephemeral=True)
+        except Exception as e:
+            await interaction.followup.send(f"❌ Error syncing commands: {e}", ephemeral=True)
     
     print(f"✅ Registered all commands explicitly")
 
