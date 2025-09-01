@@ -79,11 +79,28 @@ async def on_ready():
         auto_sync = os.getenv('AUTO_SYNC_COMMANDS', 'true').lower() == 'true'
         if auto_sync:
             try:
-                print("🔄 Auto-syncing commands...")
-                synced = await bot.tree.sync()
-                print(f"✅ Auto-synced {len(synced)} commands!")
+                print("🔄 Auto-syncing commands (global + guild)...")
+                
+                # Global sync first to update all guilds
+                global_synced = await bot.tree.sync()
+                print(f"✅ Global sync: {len(global_synced)} commands")
+                
+                # Guild-specific sync for immediate effect in current guilds
+                guild_sync_count = 0
+                for guild in bot.guilds:
+                    try:
+                        guild_synced = await bot.tree.sync(guild=guild)
+                        guild_sync_count += len(guild_synced)
+                        print(f"✅ Guild sync ({guild.name}): {len(guild_synced)} commands")
+                    except Exception as guild_error:
+                        print(f"⚠️ Guild sync failed for {guild.name}: {guild_error}")
+                
+                print(f"🎉 Total synced: {len(global_synced)} global + {guild_sync_count} guild-specific")
+                
             except Exception as sync_error:
                 print(f"⚠️ Auto-sync failed: {sync_error}")
+                import traceback
+                traceback.print_exc()
         
         print("🎉 Bot is ready! Use /sync command to sync slash commands.")
         
