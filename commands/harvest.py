@@ -18,7 +18,7 @@ from utils.helpers import get_database, get_sand_per_melange, send_response
 
 
 @handle_interaction_expiration
-async def harvest(interaction, amount: int, use_followup: bool):
+async def harvest(interaction, amount: int, use_followup: bool = True):
     """Log spice sand harvests and calculate melange conversion"""
     command_start = time.time()
     

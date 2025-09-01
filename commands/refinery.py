@@ -17,7 +17,7 @@ COMMAND_METADATA = {
 
 
 @handle_interaction_expiration
-async def refinery(interaction, use_followup: bool):
+async def refinery(interaction, use_followup: bool = True):
     """Show your total sand and melange statistics"""
     command_start = time.time()
 

@@ -269,23 +269,21 @@ class Database:
         start_time = time.time()
         async with self._get_connection() as conn:
             try:
-                # Check if treasury record exists
-                result = await conn.fetchrow('SELECT COUNT(*) as count FROM guild_treasury')
-                if result['count'] == 0:
-                    # Create initial record with amounts
-                    await conn.execute('''
-                        INSERT INTO guild_treasury (total_sand, total_melange)
-                        VALUES ($1, $2)
-                    ''', sand_amount, melange_amount)
-                else:
-                    # Update existing record
-                    await conn.execute('''
+                async with conn.transaction():
+                    # First try to update existing record
+                    result = await conn.execute('''
                         UPDATE guild_treasury 
                         SET total_sand = total_sand + $1,
                             total_melange = total_melange + $2,
                             last_updated = CURRENT_TIMESTAMP
-                        WHERE id = (SELECT MAX(id) FROM guild_treasury)
                     ''', sand_amount, melange_amount)
+                    
+                    # If no rows were updated, insert initial record
+                    if result == 'UPDATE 0':
+                        await conn.execute('''
+                            INSERT INTO guild_treasury (total_sand, total_melange)
+                            VALUES ($1, $2)
+                        ''', sand_amount, melange_amount)
                 
                 await self._log_operation("update", "guild_treasury", start_time, success=True, 
                                         sand_amount=sand_amount, melange_amount=melange_amount)
