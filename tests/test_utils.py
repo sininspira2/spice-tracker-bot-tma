@@ -122,8 +122,7 @@ class TestDatabaseUtils:
         
         # Verify the database methods were called
         mock_database.get_user.assert_called_once_with("123")
-        mock_database.get_user_total_sand.assert_called_once_with("123")
-        mock_database.get_user_pending_melange.assert_called_once_with("123")
+        # get_user_total_sand and get_user_pending_melange removed - all data now in users table
 
 class TestDecorators:
     """Test decorator functions."""

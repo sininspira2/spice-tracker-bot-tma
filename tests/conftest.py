@@ -72,8 +72,14 @@ def mock_database():
     db.get_all_unpaid_users = AsyncMock(return_value=[])
     
     # Add methods that database_utils expects
-    db.get_user = AsyncMock(return_value={"user_id": "123", "username": "TestUser"})
-    db.get_user_total_sand = AsyncMock(return_value=1000)
+    db.get_user = AsyncMock(return_value={
+        "user_id": "123", 
+        "username": "TestUser",
+        "total_sand": 1000,
+        "total_melange": 20,
+        "paid_melange": 10
+    })
+    # get_user_total_sand removed - total_sand now in users table
     db.get_user_paid_sand = AsyncMock(return_value=500)
     db.get_user_pending_melange = AsyncMock(return_value={
         'total_melange': 20,
