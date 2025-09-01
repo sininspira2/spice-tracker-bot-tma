@@ -83,13 +83,11 @@ def build_leaderboard_embed(title: str, leaderboard_data: List[Dict],
     for index, user in enumerate(leaderboard_data):
         position = index + 1
         medal = medals[index] if index < 3 else f"**{position}.**"
-        leaderboard_text += f"{medal} **{user['username']}**\n"
-        leaderboard_text += f"├ Melange: {user['total_melange']:,}\n"
-        leaderboard_text += f"└ Sand: {user['total_sand']:,}\n\n"
+        leaderboard_text += f"{medal} **{user['username']}** - {user['total_melange']:,} melange\n\n"
     
     # Build stats fields
     fields = {
-        "📊 Guild Statistics": f"**Total Refiners:** {total_stats.get('total_refiners', len(leaderboard_data))}\n**Total Melange:** {total_stats.get('total_melange', 0):,}\n**Total Harvest:** {total_stats.get('total_sand', 0):,}",
+        "📊 Guild Statistics": f"**Total Refiners:** {total_stats.get('total_refiners', len(leaderboard_data))}\n**Total Melange:** {total_stats.get('total_melange', 0):,}",
 
     }
     

@@ -46,9 +46,9 @@ async def refinery(interaction, use_followup: bool = True):
     )
 
     progress_fields = {
-        "📊 Resources": f"**Sand:** {user_stats['total_sand']:,} | **Melange:** {user_stats['total_melange']:,} | **Pending:** {user_stats['pending_melange']:,}",
-        "⚙️ Production": f"**Ready:** {user_stats['total_sand'] - remaining_sand:,} | **Progress:** {remaining_sand:,}/{sand_per_melange}",
-        "💰 Payments": f"**Owed:** {user_stats['pending_melange']:,} | **Paid:** {user_stats['paid_melange']:,} | **Last:** <t:{int(last_activity_timestamp)}:R>"
+        "💎 Melange": f"**Total:** {user_stats['total_melange']:,} | **Pending:** {user_stats['pending_melange']:,} | **Paid:** {user_stats['paid_melange']:,}",
+        "⚙️ Production": f"**Progress:** {remaining_sand:,}/{sand_per_melange} sand → next melange",
+        "💰 Last Activity": f"<t:{int(last_activity_timestamp)}:R>"
     }
 
     # Use utility function for progress embed

@@ -13,7 +13,7 @@ from utils.database_utils import timed_database_operation
 from utils.embed_utils import build_status_embed
 from utils.command_utils import log_command_metrics
 from utils.decorators import handle_interaction_expiration
-from utils.helpers import get_database, send_response
+from utils.helpers import get_database, get_sand_per_melange, send_response
 
 
 @handle_interaction_expiration
@@ -39,13 +39,15 @@ async def ledger(interaction, use_followup: bool = True):
         await send_response(interaction, embed=embed.build(), use_followup=use_followup, ephemeral=True)
         return
     
-    # Build harvest ledger
+    # Build melange ledger - convert sand to melange equivalents
     ledger_text = ""
-    total_unpaid = 0
-    total_paid = 0
+    total_unpaid_melange = 0
+    total_paid_melange = 0
+    sand_per_melange = get_sand_per_melange()
     
     for deposit in deposits_data:
         status = "✅ Paid" if deposit['paid'] else "⏳ Unpaid"
+        melange_amount = deposit['sand_amount'] // sand_per_melange
         
         # Handle null created_at timestamps
         if deposit['created_at'] and hasattr(deposit['created_at'], 'timestamp'):
@@ -53,16 +55,16 @@ async def ledger(interaction, use_followup: bool = True):
         else:
             date_str = "Unknown date"
             
-        ledger_text += f"**{deposit['sand_amount']:,} spice sand** - {status} - {date_str}\n"
+        ledger_text += f"**{melange_amount:,} melange** - {status} - {date_str}\n"
         
         if deposit['paid']:
-            total_paid += deposit['sand_amount']
+            total_paid_melange += melange_amount
         else:
-            total_unpaid += deposit['sand_amount']
+            total_unpaid_melange += melange_amount
     
     # Use utility function for embed building
     fields = {
-        "💰 Summary": f"**Unpaid:** {total_unpaid:,} sand | **Paid:** {total_paid:,} sand | **Harvests:** {len(deposits_data)}"
+        "💎 Melange Summary": f"**Pending:** {total_unpaid_melange:,} | **Paid:** {total_paid_melange:,} | **Deposits:** {len(deposits_data)}"
     }
     
     embed = build_status_embed(
@@ -90,6 +92,6 @@ async def ledger(interaction, use_followup: bool = True):
         get_deposits_time=f"{get_deposits_time:.3f}s",
         response_time=f"{response_time:.3f}s",
         result_count=len(deposits_data),
-        total_unpaid=total_unpaid,
-        total_paid=total_paid
+        total_unpaid_melange=total_unpaid_melange,
+        total_paid_melange=total_paid_melange
     )
