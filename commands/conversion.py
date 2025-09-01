@@ -24,8 +24,8 @@ async def conversion(interaction, use_followup: bool = True):
         
         # Use utility function for embed building
         fields = {
-            "📊 Current Rate": f"**{current_rate} sand = 1 melange**",
-            "⚠️ Important Note": "The conversion rate is set via environment variables and cannot be changed through commands. Contact an administrator to modify the SAND_PER_MELANGE environment variable."
+            "📊 Rate": f"**{current_rate}:1** (sand to melange)",
+            "⚙️ Config": "Rate set via SAND_PER_MELANGE env var | Contact admin to modify"
         }
         
         embed = build_status_embed(
@@ -33,7 +33,7 @@ async def conversion(interaction, use_followup: bool = True):
             description="Current spice sand to melange conversion rate",
             color=0x3498DB,
             fields=fields,
-            footer=f"Requested by {interaction.user.display_name}",
+            footer=f"/conversion • {interaction.user.display_name}",
             timestamp=interaction.created_at
         )
         

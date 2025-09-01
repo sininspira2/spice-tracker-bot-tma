@@ -46,18 +46,9 @@ async def refinery(interaction, use_followup: bool = True):
     )
 
     progress_fields = {
-        "🏜️ Harvest Summary": f"**Total Sand Collected:** {user_stats['total_sand']:,}",
-        "💰 Melange Status": (
-            f"**Total Melange Earned:** {user_stats['total_melange']:,}\n"
-            f"**Pending Payment:** {user_stats['pending_melange']:,}\n"
-            f"**Already Paid:** {user_stats['paid_melange']:,}"
-        ),
-        "✨ Production Progress": (
-            f"**Sand Ready for Melange:** {user_stats['total_sand'] - remaining_sand:,}\n"
-            f"**Remaining Sand:** {remaining_sand:,}"
-        ),
-        "⚙️ Refinement Rate": f"{sand_per_melange} sand = 1 melange",
-        "📅 Last Activity": f"<t:{int(last_activity_timestamp)}:F>"
+        "📊 Resources": f"**Sand:** {user_stats['total_sand']:,} | **Melange:** {user_stats['total_melange']:,} | **Pending:** {user_stats['pending_melange']:,}",
+        "⚙️ Production": f"**Ready:** {user_stats['total_sand'] - remaining_sand:,} | **Progress:** {remaining_sand:,}/{sand_per_melange} | **Rate:** {sand_per_melange}:1",
+        "💰 Payments": f"**Owed:** {user_stats['pending_melange']:,} | **Paid:** {user_stats['paid_melange']:,} | **Last:** <t:{int(last_activity_timestamp)}:R>"
     }
 
     # Use utility function for progress embed
@@ -66,7 +57,7 @@ async def refinery(interaction, use_followup: bool = True):
         current=remaining_sand,
         total=sand_per_melange,
         progress_fields=progress_fields,
-        footer=f"Spice Refinery • {interaction.user.display_name}",
+        footer=f"/refinery • {interaction.user.display_name}",
         thumbnail=interaction.user.display_avatar.url,
         timestamp=interaction.created_at
     )

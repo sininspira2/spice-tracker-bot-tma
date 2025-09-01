@@ -61,7 +61,7 @@ async def help(interaction, use_followup: bool = True):
         description="Track your spice sand harvests and melange production in the Dune: Awakening universe!",
         color=0xF39C12,
         fields=fields,
-        footer="Spice Refinery Bot - Dune: Awakening Guild Resource Tracker",
+        footer=f"/help • {interaction.user.display_name}",
         timestamp=interaction.created_at
     )
     

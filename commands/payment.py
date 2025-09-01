@@ -41,11 +41,11 @@ async def payment(interaction, user, use_followup: bool = True):
     
     if pending_melange <= 0:
         embed = build_status_embed(
-            title="💰 Payment Status",
-            description=f"🏜️ **{user.display_name}** has no pending melange to pay.",
+            title="💰 No Payment Due",
+            description=f"**{user.display_name}** has no pending melange.",
             color=0x95A5A6,
-            fields={"📊 Current Status": f"**Total Melange:** {total_melange:,}\n**Already Paid:** {paid_melange:,}\n**Pending:** {pending_melange:,}"},
-            footer=f"Requested by {interaction.user.display_name}",
+            fields={"📊 Status": f"**Total:** {total_melange:,} | **Paid:** {paid_melange:,} | **Pending:** {pending_melange:,}"},
+            footer=f"/payment @{user.display_name} • {interaction.user.display_name}",
             timestamp=interaction.created_at
         )
         await send_response(interaction, embed=embed.build(), use_followup=use_followup)
@@ -59,10 +59,10 @@ async def payment(interaction, user, use_followup: bool = True):
         str(interaction.user.id), interaction.user.display_name
     )
     
-    # Use utility function for embed building
+    # Build information-dense response
     fields = {
-        "💰 Payment Details": f"**Melange Paid:** {paid_amount:,}\n**Admin:** {interaction.user.display_name}",
-        "📊 Updated Status": f"**Total Melange:** {total_melange:,}\n**Now Paid:** {paid_melange + paid_amount:,}\n**Remaining Pending:** 0"
+        "💰 Payment Processed": f"**Amount:** {paid_amount:,} melange | **Admin:** {interaction.user.display_name}",
+        "📊 User Status": f"**Total:** {total_melange:,} | **Paid:** {paid_melange + paid_amount:,} | **Pending:** 0"
     }
     
     embed = build_status_embed(
@@ -70,7 +70,7 @@ async def payment(interaction, user, use_followup: bool = True):
         description=f"**{user.display_name}** has been paid {paid_amount:,} melange!",
         color=0x27AE60,
         fields=fields,
-        footer=f"Payment processed by {interaction.user.display_name}",
+        footer=f"/payment @{user.display_name} • {interaction.user.display_name}",
         timestamp=interaction.created_at
     )
     

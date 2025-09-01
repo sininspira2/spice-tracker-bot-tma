@@ -40,7 +40,7 @@ async def pending(interaction, use_followup: bool = True):
                 title="📋 Pending Melange Payments",
                 description="✅ **No pending payments!**\n\nAll harvesters have been paid up to date.",
                 color=0x00FF00,
-                footer=f"Requested by {interaction.user.display_name}",
+                footer=f"/pending • {interaction.user.display_name}",
                 timestamp=interaction.created_at
             )
             await send_response(interaction, embed=embed.build(), use_followup=use_followup)
@@ -59,9 +59,8 @@ async def pending(interaction, use_followup: bool = True):
             total_sand_user = user_data['total_sand']
             deposit_count = user_data['total_deposits']
             
-            # Format user entry
-            deposits_text = f"{deposit_count} deposit{'s' if deposit_count != 1 else ''}"
-            user_list.append(f"• **{username}**: {total_sand_user:,} sand → **{pending_melange:,} melange** ({deposits_text})")
+            # Format user entry (information dense)
+            user_list.append(f"• **{username}**: **{pending_melange:,}** melange | {total_sand_user:,} sand | {deposit_count} deposits")
         
         # Limit display to prevent embed overflow
         max_users_shown = 20
@@ -95,7 +94,7 @@ async def pending(interaction, use_followup: bool = True):
             description=f"💰 **{total_melange_owed:,} melange** owed across **{total_users} user{'s' if total_users != 1 else ''}**",
             color=color,
             fields=fields,
-            footer=f"Admin Report • Requested by {interaction.user.display_name}",
+            footer=f"/pending • {total_users} users • {interaction.user.display_name}",
             timestamp=interaction.created_at
         )
         

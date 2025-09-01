@@ -47,9 +47,9 @@ async def guild_treasury(interaction, use_followup: bool = True):
         
         # Build response embed
         fields = {
-            "🏛️ Treasury Balance": f"**Total Sand:** {total_sand:,}\n**Total Melange:** {total_melange:,}",
-            "⚗️ Conversion Potential": f"**Sand Ready for Melange:** {sand_ready_for_melange:,}\n**Potential Melange:** {melange_potential:,}\n**Remaining Sand:** {sand_remaining:,}",
-            "📊 Treasury Info": f"**Created:** {created_str}\n**Last Updated:** {updated_str}\n**Conversion Rate:** {sand_per_melange} sand = 1 melange"
+            "💰 Resources": f"**Sand:** {total_sand:,} | **Melange:** {total_melange:,} | **Rate:** {sand_per_melange}:1",
+            "⚗️ Production": f"**Ready:** {sand_ready_for_melange:,} | **Potential:** {melange_potential:,} | **Remaining:** {sand_remaining:,}",
+            "📊 Treasury": f"**Created:** {created_str} | **Updated:** {updated_str}"
         }
         
         # Determine color based on treasury size
@@ -67,7 +67,7 @@ async def guild_treasury(interaction, use_followup: bool = True):
             description=f"💰 **Total Value:** {total_sand:,} sand + {total_melange:,} melange",
             color=color,
             fields=fields,
-            footer=f"Requested by {interaction.user.display_name}",
+            footer=f"/guild_treasury • {interaction.user.display_name}",
             timestamp=interaction.created_at
         )
         

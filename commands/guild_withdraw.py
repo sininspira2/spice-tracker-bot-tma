@@ -71,8 +71,8 @@ async def guild_withdraw(interaction, user: discord.Member, amount: int, use_fol
         
         # Build response embed
         fields = {
-            "💸 Withdrawal Details": f"**Recipient:** {user.display_name}\n**Amount:** {amount:,} sand\n**Authorized by:** {interaction.user.display_name}",
-            "🏛️ Updated Treasury": f"**Previous Balance:** {current_sand:,} sand\n**New Balance:** {updated_treasury.get('total_sand', 0):,} sand\n**Remaining:** {updated_treasury.get('total_sand', 0):,} sand available"
+            "💸 Transaction": f"**Recipient:** {user.display_name} | **Amount:** {amount:,} sand | **Admin:** {interaction.user.display_name}",
+            "🏛️ Treasury": f"**Previous:** {current_sand:,} | **New:** {updated_treasury.get('total_sand', 0):,} | **Available:** {updated_treasury.get('total_sand', 0):,}"
         }
         
         embed = build_status_embed(
@@ -80,7 +80,7 @@ async def guild_withdraw(interaction, user: discord.Member, amount: int, use_fol
             description=f"💰 **{amount:,} sand** transferred from guild treasury to **{user.display_name}**",
             color=0x00FF00,
             fields=fields,
-            footer=f"Authorized by {interaction.user.display_name}",
+            footer=f"/guild_withdraw @{user.display_name} {amount} • {interaction.user.display_name}",
             timestamp=interaction.created_at
         )
         

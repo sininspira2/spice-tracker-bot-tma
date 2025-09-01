@@ -50,7 +50,7 @@ async def payroll(interaction, use_followup: bool = True):
     
     # Use utility function for embed building
     fields = {
-        "💰 Payroll Summary": f"**Total Melange Paid:** {total_paid:,}\n**Users Paid:** {users_paid}"
+        "💰 Payroll Summary": f"**Melange Paid:** {total_paid:,} | **Users Paid:** {users_paid} | **Admin:** {interaction.user.display_name}"
     }
     
     embed = build_status_embed(
@@ -58,7 +58,7 @@ async def payroll(interaction, use_followup: bool = True):
         description="**All users with pending melange have been paid!**",
         color=0x27AE60,
         fields=fields,
-        footer=f"Guild payroll processed by {interaction.user.display_name}",
+        footer=f"/payroll • {users_paid} users • {interaction.user.display_name}",
         timestamp=interaction.created_at
     )
     

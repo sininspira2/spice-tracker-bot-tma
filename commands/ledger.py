@@ -56,7 +56,7 @@ async def ledger(interaction, use_followup: bool = True):
     
     # Use utility function for embed building
     fields = {
-        "💰 Payment Summary": f"**Unpaid Harvest:** {total_unpaid:,} sand\n**Paid Harvest:** {total_paid:,} sand\n**Total Harvests:** {len(deposits_data)}"
+        "💰 Summary": f"**Unpaid:** {total_unpaid:,} sand | **Paid:** {total_paid:,} sand | **Harvests:** {len(deposits_data)}"
     }
     
     embed = build_status_embed(
@@ -64,7 +64,7 @@ async def ledger(interaction, use_followup: bool = True):
         description=ledger_text,
         color=0x3498DB,
         fields=fields,
-        footer=f"Spice Refinery • {interaction.user.display_name}",
+        footer=f"/ledger • {interaction.user.display_name}",
         thumbnail=interaction.user.display_avatar.url,
         timestamp=interaction.created_at
     )

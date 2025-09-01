@@ -63,23 +63,22 @@ async def harvest(interaction, amount: int, use_followup: bool = True):
     remaining_sand = user_stats['total_sand'] % sand_per_melange
     sand_needed = max(0, sand_per_melange - remaining_sand)  # Ensure sand_needed is never negative
     
-    # Use utility function for embed building
+    # Build information-dense response
+    description = f"🎉 **+{new_melange:,} melange produced!**" if new_melange > 0 else f"📦 **{amount:,} sand added to reserves**"
+    
     fields = {
-        "📊 Harvest Summary": f"**Spice Sand Harvested:** {amount:,}\n**Total Sand Collected:** {user_stats['total_sand']:,}",
-        "✨ Melange Production": f"**Total Melange Earned:** {(current_melange + new_melange):,}\n**Conversion Rate:** {sand_per_melange} sand = 1 melange",
-        "🎯 Next Refinement": f"**Sand Until Next Melange:** {sand_needed:,}"
+        "📊 Current Status": f"**Sand:** {user_stats['total_sand']:,} | **Melange:** {(current_melange + new_melange):,} | **Rate:** {sand_per_melange}:1",
+        "⚙️ Production": f"**Ready for Melange:** {user_stats['total_sand'] - remaining_sand:,} | **Remaining:** {remaining_sand:,} | **Next:** {sand_needed:,}"
     }
     
     embed = build_status_embed(
-        title="🏜️ Spice Harvest Logged",
+        title="🏜️ Harvest Complete",
+        description=description,
         color=0xE67E22,
         fields=fields,
-        footer=f"Harvested by {interaction.user.display_name}",
+        footer=f"/harvest {amount} • {interaction.user.display_name}",
         timestamp=interaction.created_at
     )
-    
-    if new_melange and new_melange > 0:
-        embed.set_description(f"🎉 **You produced {new_melange:,} melange from this harvest!**")
     
     # Send response using helper function
     response_start = time.time()

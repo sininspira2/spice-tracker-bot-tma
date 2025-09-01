@@ -183,12 +183,9 @@ async def split(interaction, total_sand: int, users: str, guild: int = 10, use_f
         from utils.embed_utils import build_status_embed
         
         fields = {
-            "🏛️ Guild Treasury": f"**Guild Cut:** {guild}% ({guild_sand:,} sand)\n**Guild Melange:** {guild_sand // sand_per_melange:,}",
-            "👥 Expedition Participants": "\n".join(participant_details),
-            "📊 Split Summary": f"**Total Sand:** {total_sand:,}\n"
-                               f"**Guild Cut:** {guild_sand:,} sand ({guild}%)\n"
-                               f"**User Sand:** {remaining_sand:,} sand\n"
-                               f"**Total User Melange:** {total_user_melange:,}",
+            "🏛️ Guild Cut": f"**{guild}%** = {guild_sand:,} sand → **{guild_sand // sand_per_melange:,} melange**",
+            "👥 Participants": "\n".join(participant_details),
+            "📊 Summary": f"**Total:** {total_sand:,} | **Users:** {remaining_sand:,} sand → **{total_user_melange:,} melange**"
         }
         
         embed = build_status_embed(
@@ -196,7 +193,7 @@ async def split(interaction, total_sand: int, users: str, guild: int = 10, use_f
             description=f"**Expedition #{expedition_id}** - {len(unique_distributions)} participants",
             color=0x00FF00,
             fields=fields,
-            footer=f"Initiated by {interaction.user.display_name}",
+            footer=f"/split {total_sand} [users] {guild} • {interaction.user.display_name}",
             timestamp=interaction.created_at
         )
         
