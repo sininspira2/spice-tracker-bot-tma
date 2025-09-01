@@ -75,7 +75,6 @@ def mock_database():
     db.get_user = AsyncMock(return_value={
         "user_id": "123", 
         "username": "TestUser",
-        "total_sand": 1000,
         "total_melange": 20,
         "paid_melange": 10
     })

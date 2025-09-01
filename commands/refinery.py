@@ -3,7 +3,7 @@ Refinery command for viewing spice refinery statistics and progress.
 """
 
 import time
-from utils.database_utils import get_user_stats
+from utils.database_utils import get_user_stats, timed_database_operation
 from utils.embed_utils import build_info_embed, build_progress_embed
 from utils.command_utils import log_command_metrics
 from utils.decorators import handle_interaction_expiration
@@ -24,7 +24,7 @@ async def refinery(interaction, use_followup: bool = True):
     # Use utility function for database operations
     user_stats = await get_user_stats(get_database(), str(interaction.user.id))
 
-    if not user_stats['user'] and user_stats['total_sand'] == 0:
+    if not user_stats['user'] and user_stats['total_melange'] == 0:
         embed = build_info_embed(
             title="🏭 Spice Refinery Status",
             info_message="🏜️ You haven't harvested any spice sand yet! Use `/sand` to start tracking your harvests.",
@@ -34,9 +34,17 @@ async def refinery(interaction, use_followup: bool = True):
         await send_response(interaction, embed=embed.build(), use_followup=use_followup, ephemeral=True)
         return
 
+    # Calculate total sand from deposits and progress 
+    deposits_data, _ = await timed_database_operation(
+        "get_user_deposits",
+        get_database().get_user_deposits,
+        str(interaction.user.id)
+    )
+    total_sand = sum(deposit['sand_amount'] for deposit in deposits_data)
+    
     # Calculate progress and melange status
     sand_per_melange = get_sand_per_melange()
-    remaining_sand = user_stats['total_sand'] % sand_per_melange
+    remaining_sand = total_sand % sand_per_melange
 
     # Build progress fields
     last_activity_timestamp = (
@@ -74,9 +82,9 @@ async def refinery(interaction, use_followup: bool = True):
         total_time,
         **user_stats['timing'],
         response_time=f"{response_time:.3f}s",
-        total_sand=user_stats['total_sand'],
+        total_sand=total_sand,
         total_melange=user_stats['total_melange'],
         pending_melange=user_stats['pending_melange'],
         paid_melange=user_stats['paid_melange'],
-        sand_ready=user_stats['total_sand'] - remaining_sand
+        sand_ready=total_sand - remaining_sand
     )

@@ -105,7 +105,6 @@ class TestDatabaseUtils:
         result = await get_user_stats(mock_database, "123")
         
         # Check that the function returns the expected structure
-        assert "total_sand" in result
         assert "total_melange" in result
         assert "paid_melange" in result
         assert "pending_melange" in result
@@ -114,7 +113,6 @@ class TestDatabaseUtils:
         assert "total_time" in result
         
         # Check the actual values
-        assert result["total_sand"] == 1000
         assert result["total_melange"] == 20
         assert result["paid_melange"] == 10
         assert result["pending_melange"] == 10

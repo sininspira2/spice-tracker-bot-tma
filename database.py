@@ -159,27 +159,18 @@ class Database:
                 raise e
 
     async def add_deposit(self, user_id, username, sand_amount, deposit_type='solo', expedition_id=None):
-        """Add a new sand deposit for a user and update their total sand"""
+        """Add a new sand deposit for a user (deposits are for record keeping only)"""
         start_time = time.time()
         async with self._get_connection() as conn:
             try:
-                async with conn.transaction():
-                    # Ensure user exists
-                    await self.upsert_user(user_id, username)
-                    
-                    # Add deposit record
-                    await conn.execute('''
-                        INSERT INTO deposits (user_id, username, sand_amount, type, expedition_id, created_at)
-                        VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
-                    ''', user_id, username, sand_amount, deposit_type, expedition_id)
-                    
-                    # Update user's total sand
-                    await conn.execute('''
-                        UPDATE users 
-                        SET total_sand = total_sand + $1,
-                            last_updated = CURRENT_TIMESTAMP
-                        WHERE user_id = $2
-                    ''', sand_amount, user_id)
+                # Ensure user exists
+                await self.upsert_user(user_id, username)
+                
+                # Add deposit record (for history/audit purposes only)
+                await conn.execute('''
+                    INSERT INTO deposits (user_id, username, sand_amount, type, expedition_id, created_at)
+                    VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
+                ''', user_id, username, sand_amount, deposit_type, expedition_id)
                 
                 await self._log_operation("insert", "deposits", start_time, success=True, 
                                         user_id=user_id, sand_amount=sand_amount, deposit_type=deposit_type, expedition_id=expedition_id)
@@ -701,9 +692,9 @@ class Database:
         async with self._get_connection() as conn:
             try:
                 rows = await conn.fetch('''
-                    SELECT username, total_sand, total_melange
+                    SELECT username, total_melange
                     FROM users 
-                    ORDER BY total_melange DESC, total_sand DESC
+                    ORDER BY total_melange DESC, username ASC
                     LIMIT $1
                 ''', limit)
                 

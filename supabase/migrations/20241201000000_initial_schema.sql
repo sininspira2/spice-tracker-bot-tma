@@ -8,7 +8,6 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE TABLE users (
     user_id TEXT PRIMARY KEY,
     username TEXT NOT NULL,
-    total_sand INTEGER DEFAULT 0,
     total_melange INTEGER DEFAULT 0,
     paid_melange INTEGER DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,

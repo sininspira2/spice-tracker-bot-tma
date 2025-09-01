@@ -55,7 +55,6 @@ async def get_user_stats(database, user_id: str):
     if not user:
         return {
             'user': None,
-            'total_sand': 0,
             'total_melange': 0,
             'paid_melange': 0,
             'pending_melange': 0,
@@ -69,7 +68,6 @@ async def get_user_stats(database, user_id: str):
     
     return {
         'user': user,
-        'total_sand': user.get('total_sand', 0),
         'total_melange': user.get('total_melange', 0),
         'paid_melange': user.get('paid_melange', 0),
         'pending_melange': pending_melange,
