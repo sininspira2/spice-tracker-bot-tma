@@ -67,7 +67,7 @@ async def expedition(interaction, expedition_id: int, use_followup: bool = True)
             description=f"⚗️ **Sand per Melange:** {expedition['sand_per_melange']} | 🗓️ **Created:** {expedition['created_at'].strftime('%Y-%m-%d %H:%M UTC')}",
             color=0xF39C12,
             fields=fields,
-            footer=f"/expedition {expedition_id} • {interaction.user.display_name}",
+            footer=f"/expedition expedition_id:{expedition_id} • {interaction.user.display_name}",
             timestamp=interaction.created_at
         )
         

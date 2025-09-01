@@ -46,7 +46,7 @@ async def payment(interaction, user, use_followup: bool = True):
             description=f"**{user.display_name}** has no pending melange.",
             color=0x95A5A6,
             fields={"📊 Status": f"**Total:** {total_melange:,} | **Paid:** {paid_melange:,} | **Pending:** {pending_melange:,}"},
-            footer=f"/payment @{user.display_name} • {interaction.user.display_name}",
+            footer=f"/payment user:<@{user.id}> • {interaction.user.display_name}",
             timestamp=interaction.created_at
         )
         await send_response(interaction, embed=embed.build(), use_followup=use_followup)
@@ -71,7 +71,7 @@ async def payment(interaction, user, use_followup: bool = True):
         description=f"**{user.display_name}** has been paid {paid_amount:,} melange!",
         color=0x27AE60,
         fields=fields,
-        footer=f"/payment @{user.display_name} • {interaction.user.display_name}",
+        footer=f"/payment user:<@{user.id}> • {interaction.user.display_name}",
         timestamp=interaction.created_at
     )
     

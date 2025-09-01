@@ -80,7 +80,7 @@ async def guild_withdraw(interaction, user: discord.Member, amount: int, use_fol
             description=f"💰 **{amount:,} sand** transferred from guild treasury to **{user.display_name}**",
             color=0x00FF00,
             fields=fields,
-            footer=f"/guild_withdraw @{user.display_name} {amount} • {interaction.user.display_name}",
+            footer=f"/guild_withdraw user:<@{user.id}> amount:{amount} • {interaction.user.display_name}",
             timestamp=interaction.created_at
         )
         

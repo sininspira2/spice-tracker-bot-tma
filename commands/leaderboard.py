@@ -57,7 +57,7 @@ async def leaderboard(interaction, limit: int = 10, use_followup: bool = True):
         title="🏆 Spice Refinery Rankings",
         leaderboard_data=leaderboard_data,
         total_stats=total_stats,
-        footer=f"/leaderboard {limit} • {len(leaderboard_data)} refiners • {interaction.user.display_name}",
+        footer=f"/leaderboard limit:{limit} • {len(leaderboard_data)} refiners • {interaction.user.display_name}",
         timestamp=interaction.created_at
     )
     
