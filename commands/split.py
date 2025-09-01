@@ -171,6 +171,10 @@ async def split(interaction, total_sand: int, users: str, guild: int = 10, use_f
                 # Add deposit record
                 await get_database().add_deposit(user_id, display_name, user_sand, expedition_id=expedition_id)
                 
+                # Update user's melange total if they earned melange
+                if participant_melange > 0:
+                    await get_database().update_user_melange(user_id, participant_melange)
+                
                 # Format for display
                 percentage_text = f" ({user_percentage:.1f}%)" if user_percentage > 0 else ""
                 participant_details.append(f"**{display_name}**: {user_sand:,} sand ({participant_melange:,} melange){percentage_text}")
