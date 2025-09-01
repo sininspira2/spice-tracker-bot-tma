@@ -70,7 +70,7 @@ A Discord bot for **Dune: Awakening** guilds to track spice sand collection, man
 - **`/pending`** - View all users with pending melange payments and amounts owed
 - **`/payment <user>`** - Process payment for a specific harvester's deposits
 - **`/payroll`** - Process payments for all unpaid harvesters at once
-- **`/guild_treasury`** - View guild treasury balance and melange reserves
+- **`/treasury`** - View guild treasury balance and melange reserves
 - **`/guild_withdraw <user> <amount>`** - Withdraw sand from guild treasury to give to a user
 - **`/reset confirm:True`** - Reset all refinery statistics (requires confirmation)
 

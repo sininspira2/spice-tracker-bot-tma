@@ -119,7 +119,7 @@ async def on_ready():
 # Register commands with the bot's command tree
 def register_commands():
     """Register all commands explicitly with their exact signatures"""
-    from commands import sand, refinery, leaderboard, split, help, reset, ledger, expedition, payment, payroll, guild_treasury, guild_withdraw, pending
+    from commands import sand, refinery, leaderboard, split, help, reset, ledger, expedition, payment, payroll, treasury, guild_withdraw, pending
     
     # Sand command (formerly harvest)
     @bot.tree.command(name="sand", description="Log spice sand harvests and calculate melange conversion")
@@ -183,10 +183,10 @@ def register_commands():
     async def payroll_cmd(interaction: discord.Interaction):  # noqa: F841
         await payroll(interaction, True)
     
-    # Guild Treasury command
-    @bot.tree.command(name="guild_treasury", description="View guild treasury balance and statistics")
-    async def guild_treasury_cmd(interaction: discord.Interaction):  # noqa: F841
-        await guild_treasury(interaction, True)
+    # Treasury command
+    @bot.tree.command(name="treasury", description="View guild treasury balance and statistics")
+    async def treasury_cmd(interaction: discord.Interaction):  # noqa: F841
+        await treasury(interaction, True)
     
     # Guild Withdraw command
     @bot.tree.command(name="guild_withdraw", description="Withdraw sand from guild treasury to give to a user (Admin only)")

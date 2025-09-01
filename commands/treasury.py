@@ -1,10 +1,10 @@
 """
-Guild Treasury command for viewing guild's accumulated resources.
+Treasury command for viewing guild's accumulated resources.
 """
 
 # Command metadata
 COMMAND_METADATA = {
-    'aliases': [],  # ['treasury', 'guild'] - removed for simplicity
+    'aliases': [],  # ['guild_treasury'] - renamed for simplicity
     'description': "View guild treasury balance and statistics",
     'params': {}
 }
@@ -18,7 +18,7 @@ from utils.helpers import get_database, get_sand_per_melange, send_response
 
 
 @handle_interaction_expiration
-async def guild_treasury(interaction, use_followup: bool = True):
+async def treasury(interaction, use_followup: bool = True):
     """View guild treasury balance and statistics"""
     command_start = time.time()
     
@@ -67,7 +67,7 @@ async def guild_treasury(interaction, use_followup: bool = True):
             description=f"💰 **Total Value:** {total_sand:,} sand + {total_melange:,} melange",
             color=color,
             fields=fields,
-            footer=f"/guild_treasury • {interaction.user.display_name}",
+            footer=f"/treasury • {interaction.user.display_name}",
             timestamp=interaction.created_at
         )
         
@@ -93,7 +93,7 @@ async def guild_treasury(interaction, use_followup: bool = True):
     except Exception as error:
         total_time = time.time() - command_start
         from utils.logger import logger
-        logger.error(f"Error in guild_treasury command: {error}", 
+        logger.error(f"Error in treasury command: {error}", 
                     user_id=str(interaction.user.id),
                     username=interaction.user.display_name,
                     total_time=f"{total_time:.3f}s")

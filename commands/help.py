@@ -30,7 +30,7 @@ async def help(interaction, use_followup: bool = True):
         "⚙️ Guild Admin Commands": "**`/pending`**\nView all users with pending melange payments and amounts owed.\n\n"
                                    "**`/payment [user]`**\nProcess payment for a harvester's deposits.\n\n"
                                    "**`/payroll`**\nProcess payments for all unpaid harvesters.\n\n"
-                                   "**`/guild_treasury`**\nView guild treasury balance and melange reserves.\n\n"
+                                   "**`/treasury`**\nView guild treasury balance and melange reserves.\n\n"
                                    "**`/guild_withdraw [user] [amount]`**\nWithdraw sand from guild treasury to give to a user.\n\n"
                                    "**`/sync`**\nSync slash commands (Bot Owner Only).\n\n"
                                    "**`/reset confirm:True`**\nReset all refinery statistics (requires confirmation).",
