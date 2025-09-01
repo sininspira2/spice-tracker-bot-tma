@@ -27,8 +27,8 @@ load_dotenv()
 
 # Bot configuration
 intents = discord.Intents.default()
-# For slash commands, we don't need message_content intent
-intents.message_content = False
+# Enable message_content for sync command to work
+intents.message_content = True
 intents.reactions = True
 intents.guilds = True
 intents.guild_messages = True
