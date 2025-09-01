@@ -14,16 +14,16 @@ class Database:
         
         # Connection pool settings for better reliability
         self.max_retries = 3
-        self.retry_delay = 1.0  # seconds
+        self.retry_delay = 1.0  # Base delay in seconds
 
     @asynccontextmanager
     async def _get_connection(self):
         """Context manager for database connections with retry logic"""
         conn = None
         last_error = None
-        start_time = time.time()
         
         for attempt in range(self.max_retries):
+            start_time = time.time()
             try:
                 # Configure connection for Supabase compatibility
                 conn = await asyncpg.connect(
@@ -45,8 +45,18 @@ class Database:
                     connection_time=f"{connection_time:.3f}s"
                 )
                 
-                yield conn
-                break  # Success, exit retry loop
+                # Successfully connected, yield and then clean up
+                try:
+                    yield conn
+                    return  # Success, exit retry loop
+                finally:
+                    # Always close connection in finally block
+                    if conn and not conn.is_closed():
+                        try:
+                            await asyncio.wait_for(conn.close(), timeout=5.0)
+                        except (asyncio.TimeoutError, Exception) as close_error:
+                            logger.warning(f"Connection close timeout/failure: {close_error}")
+                            
             except Exception as e:
                 last_error = e
                 connection_time = time.time() - start_time
@@ -59,22 +69,20 @@ class Database:
                     error=str(e)
                 )
                 
+                # Close failed connection if it exists
+                if conn and not conn.is_closed():
+                    try:
+                        await asyncio.wait_for(conn.close(), timeout=2.0)
+                    except Exception:
+                        pass  # Ignore close errors on failed connections
+                    conn = None
+                
                 if attempt < self.max_retries - 1:
                     # Wait before retrying
                     await asyncio.sleep(self.retry_delay * (attempt + 1))
-                    continue
                 else:
                     # Final attempt failed, re-raise the error
                     raise last_error
-            finally:
-                if conn:
-                    try:
-                        # Add timeout to connection close to prevent hanging
-                        await asyncio.wait_for(conn.close(), timeout=5.0)
-                    except (asyncio.TimeoutError, Exception) as e:
-                        # If close times out or fails, just log it and continue
-                        logger.warning(f"Connection close timeout/failure: {e}")
-                        pass  # Connection will be cleaned up by the garbage collector
 
     async def _log_operation(self, operation: str, table: str, start_time: float, success: bool = True, **kwargs):
         """Log database operation performance metrics"""
