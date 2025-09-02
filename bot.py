@@ -9,6 +9,7 @@ from discord import app_commands
 from typing import Literal, Optional
 import os
 import time
+import traceback
 import http.server
 import socketserver
 import threading
