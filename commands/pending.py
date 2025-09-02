@@ -66,10 +66,9 @@ async def pending(interaction, use_followup: bool = True):
             shown_users.append(f"... and {remaining_count} more user{'s' if remaining_count != 1 else ''}")
             user_list = shown_users
         
-        # Build response embed - focus only on melange payments
         fields = {
-            "👥 Users Awaiting Payment": "\n".join(user_list) if user_list else "No users pending payment",
-            "💰 Payment Summary": f"**Users:** {total_users:,} | **Total Owed:** {total_melange_owed:,} melange"
+            "👥 Pending Users": "\n".join(user_list) if user_list else "No pending payments",
+            "💰 Summary": f"**{total_users:,}** users | **{total_melange_owed:,}** melange owed"
         }
         
         # Color based on amount owed
@@ -83,8 +82,8 @@ async def pending(interaction, use_followup: bool = True):
             color = 0x00FF00  # Green - very low amount
         
         embed = build_status_embed(
-            title="📋 Guild Pending Melange Payments",
-            description=f"💰 **{total_melange_owed:,} melange** owed across **{total_users} user{'s' if total_users != 1 else ''}**",
+            title="📋 Pending Payments",
+            description=f"💰 **{total_melange_owed:,} melange** owed to **{total_users}** users",
             color=color,
             fields=fields,
             timestamp=interaction.created_at

@@ -45,16 +45,14 @@ async def refinery(interaction, use_followup: bool = True):
     paid_melange = user.get('paid_melange', 0)
     pending_melange = total_melange - paid_melange
 
-    # Focus purely on melange - the primary currency
     fields = {
-        "💎 Melange Status": f"**Total:** {total_melange:,} | **Pending:** {pending_melange:,} | **Paid:** {paid_melange:,}",
-        "💰 Last Activity": f"<t:{int(last_activity_timestamp)}:R>"
+        "💎 Melange": f"**{total_melange:,}** total | **{pending_melange:,}** pending | **{paid_melange:,}** paid",
+        "💰 Activity": f"<t:{int(last_activity_timestamp)}:R>"
     }
 
-    # Use utility function for status embed (no progress bar needed)
     embed = build_status_embed(
-        title="🏭 Spice Refinery Status",
-        description=f"💎 **{total_melange:,} total melange** in your refinery",
+        title="🏭 Refinery Status",
+        description=f"💎 **{total_melange:,} melange** produced",
         color=0xF39C12,
         fields=fields,
         thumbnail=interaction.user.display_avatar.url,

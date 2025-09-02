@@ -60,14 +60,13 @@ async def ledger(interaction, use_followup: bool = True):
     paid_melange = user.get('paid_melange', 0) if user else 0
     pending_melange = total_melange - paid_melange
 
-    # Use utility function for embed building - focus on melange
     fields = {
-        "💎 Melange Status": f"**Total:** {total_melange:,} | **Paid:** {paid_melange:,} | **Pending:** {pending_melange:,}",
-        "📊 Activity Summary": f"**Total Deposits:** {len(deposits_data)} recorded"
+        "💎 Melange": f"**{total_melange:,}** total | **{paid_melange:,}** paid | **{pending_melange:,}** pending",
+        "📊 Activity": f"{len(deposits_data)} conversions"
     }
-    
+
     embed = build_status_embed(
-        title="📋 Spice Deposit Ledger",
+        title="📋 Conversion History",
         description=ledger_text,
         color=0x3498DB,
         fields=fields,

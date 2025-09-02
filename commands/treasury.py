@@ -45,11 +45,10 @@ async def treasury(interaction, use_followup: bool = True):
         created_str = created_at.strftime('%Y-%m-%d %H:%M UTC') if created_at else 'Unknown'
         updated_str = last_updated.strftime('%Y-%m-%d %H:%M UTC') if last_updated else 'Never'
         
-        # Build response embed
         fields = {
-            "💰 Resources": f"**Sand:** {total_sand:,} | **Melange:** {total_melange:,}",
-            "⚗️ Production": f"**Ready:** {sand_ready_for_melange:,} | **Potential:** {melange_potential:,} | **Remaining:** {sand_remaining:,}",
-            "📊 Treasury": f"**Created:** {created_str} | **Updated:** {updated_str}"
+            "💰 Resources": f"**{total_sand:,}** sand | **{total_melange:,}** melange",
+            "⚗️ Production": f"**{sand_ready_for_melange:,}** ready | **{melange_potential:,}** potential",
+            "📊 Updated": updated_str
         }
         
         # Determine color based on treasury size
@@ -63,8 +62,8 @@ async def treasury(interaction, use_followup: bool = True):
             color = 0xFF4500  # Red - low funds
         
         embed = build_status_embed(
-            title="🏛️ Guild Treasury",
-            description=f"💰 **Total Value:** {total_sand:,} sand + {total_melange:,} melange",
+            title="🏛️ Treasury",
+            description=f"💰 **{total_sand:,}** sand + **{total_melange:,}** melange",
             color=color,
             fields=fields,
             timestamp=interaction.created_at

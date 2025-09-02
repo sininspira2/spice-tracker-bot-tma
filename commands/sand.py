@@ -55,18 +55,17 @@ async def sand(interaction, amount: int, use_followup: bool = True):
             str(interaction.user.id), new_melange
         )
     
-    # Build information-dense response focused on melange
+    # Build concise response
     leftover_sand = amount % sand_per_melange
-    description = f"🎉 **+{new_melange:,} melange produced!**" if new_melange > 0 else f"📦 **{amount:,} sand processed**"
+    description = f"🎉 **+{new_melange:,} melange**" if new_melange > 0 else f"📦 **{amount:,} sand processed**"
     
-    # Show only melange information - sand is just temporary input
     fields = {
-        "💎 Melange Status": f"**Total:** {(current_melange + new_melange):,} | **New:** +{new_melange:,}",
-        "⚙️ Conversion": f"**Processed:** {amount:,} sand → {new_melange:,} melange" + (f" ({leftover_sand} sand unused)" if leftover_sand > 0 else "")
+        "💎 Total": f"{(current_melange + new_melange):,} melange",
+        "⚙️ Converted": f"{amount:,} sand → {new_melange:,} melange" + (f" ({leftover_sand} unused)" if leftover_sand > 0 else "")
     }
     
     embed = build_status_embed(
-        title="🏜️ Harvest Complete",
+        title="🏜️ Conversion Complete",
         description=description,
         color=0xE67E22,
         fields=fields,
