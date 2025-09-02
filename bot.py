@@ -172,11 +172,14 @@ def register_commands():
     async def expedition_cmd(interaction: discord.Interaction, expedition_id: int):  # noqa: F841
         await expedition(interaction, expedition_id, True)
     
-    # Payment command
-    @bot.tree.command(name="payment", description="Process payment for a harvester's deposits (Admin only)")
-    @app_commands.describe(user="Harvester to pay")
-    async def payment_cmd(interaction: discord.Interaction, user: discord.Member):  # noqa: F841
-        await payment(interaction, user, True)
+    # Pay command (formerly payment)
+    @bot.tree.command(name="pay", description="Process melange payment for a user (Admin only)")
+    @app_commands.describe(
+        user="User to pay",
+        amount="Amount of melange to pay (optional, defaults to full pending amount)"
+    )
+    async def pay_cmd(interaction: discord.Interaction, user: discord.Member, amount: int = None):  # noqa: F841
+        await payment.pay(interaction, user, amount, True)
     
     # Payroll command
     @bot.tree.command(name="payroll", description="Process payments for all unpaid harvesters (Admin only)")

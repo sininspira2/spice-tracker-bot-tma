@@ -1,12 +1,15 @@
 """
-Payment command for processing payment for a harvester's deposits (Admin only).
+Pay command for processing melange payments (Admin only).
 """
 
 # Command metadata
 COMMAND_METADATA = {
-    'aliases': [],  # ['pay'] - removed for simplicity
-    'description': "Process payment for a harvester's deposits (Admin only)",
-    'params': {'user': "Harvester to pay"}
+    'aliases': [],  # formerly 'payment'
+    'description': "Process melange payment for a user (Admin only)",
+    'params': {
+        'user': "User to pay",
+        'amount': "Amount of melange to pay (optional, defaults to full pending amount)"
+    }
 }
 
 import time
@@ -20,8 +23,8 @@ from utils.logger import logger
 
 
 @handle_interaction_expiration
-async def payment(interaction, user, use_followup: bool = True):
-    """Process payment for a harvester's deposits (Admin only)"""
+async def pay(interaction, user, amount: int = None, use_followup: bool = True):
+    """Process melange payment for a user (Admin only)"""
     command_start = time.time()
     
     # Check if user has admin permissions
@@ -51,23 +54,41 @@ async def payment(interaction, user, use_followup: bool = True):
         await send_response(interaction, embed=embed.build(), use_followup=use_followup)
         return
     
-    # Pay the user's pending melange
+    # Determine payment amount
+    if amount is None:
+        # Pay in full
+        payment_amount = pending_melange
+    else:
+        # Validate partial payment amount
+        if amount <= 0:
+            await send_response(interaction, "❌ Payment amount must be greater than 0.", use_followup=use_followup, ephemeral=True)
+            return
+        if amount > pending_melange:
+            await send_response(interaction, f"❌ Payment amount ({amount:,}) exceeds pending melange ({pending_melange:,}).", use_followup=use_followup, ephemeral=True)
+            return
+        payment_amount = amount
+    
+    # Process the payment
     paid_amount, pay_melange_time = await timed_database_operation(
         "pay_user_melange",
         get_database().pay_user_melange,
-        str(user.id), user.display_name, pending_melange,
+        str(user.id), user.display_name, payment_amount,
         str(interaction.user.id), interaction.user.display_name
     )
     
-    # Build information-dense response
+    # Calculate remaining pending after payment
+    remaining_pending = pending_melange - paid_amount
+    
+    # Build concise response
     fields = {
-        "💰 Payment Processed": f"**Amount:** {paid_amount:,} melange | **Admin:** {interaction.user.display_name}",
-        "📊 User Status": f"**Total:** {total_melange:,} | **Paid:** {paid_melange + paid_amount:,} | **Pending:** 0"
+        "💰 Payment": f"**{paid_amount:,}** melange | **Admin:** {interaction.user.display_name}",
+        "📊 Status": f"**Total:** {total_melange:,} | **Paid:** {paid_melange + paid_amount:,} | **Pending:** {remaining_pending:,}"
     }
     
+    payment_type = "Full payment" if amount is None else "Partial payment"
     embed = build_status_embed(
-        title="💰 Payment Processed",
-        description=f"**{user.display_name}** has been paid {paid_amount:,} melange!",
+        title=f"💰 {payment_type} Processed",
+        description=f"**{user.display_name}** paid **{paid_amount:,}** melange",
         color=0x27AE60,
         fields=fields,
         timestamp=interaction.created_at

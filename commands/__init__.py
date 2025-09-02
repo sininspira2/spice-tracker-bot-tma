@@ -37,6 +37,8 @@ def discover_commands():
                     command_func = getattr(module, f'{module_name}_details')
                 elif hasattr(module, 'help_command') and module_name == 'help':  # Special case for help
                     command_func = getattr(module, 'help_command')
+                elif hasattr(module, 'pay') and module_name == 'payment':  # Special case for payment -> pay
+                    command_func = getattr(module, 'pay')
                 
                 if command_func:
                     commands[module_name] = command_func

@@ -23,7 +23,7 @@ class TestCommandResponsiveness:
             ('reset', 'reset', [True, True], {}),
             ('ledger', 'ledger', [True], {}),
             ('expedition', 'expedition', [1, True], {}),
-            ('payment', 'payment', [Mock(id=123, display_name="TestUser"), True], {}),
+            ('payment', 'pay', [Mock(id=123, display_name="TestUser"), None, True], {}),
             ('payroll', 'payroll', [True], {}),
         ]
         
@@ -131,7 +131,7 @@ class TestCommandResponsiveness:
             'reset': 'reset',
             'ledger': 'ledger',
             'expedition': 'expedition',
-            'payment': 'payment',
+            'payment': 'pay',
             'payroll': 'payroll',
         }
         

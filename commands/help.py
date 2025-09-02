@@ -28,7 +28,7 @@ async def help(interaction, use_followup: bool = True):
                                  "**`/split [sand] [@users]`** Split sand→melange with guild cut\n"
                                  "**`/help`** Show all commands",
         "⚙️ Admin Commands": "**`/pending`** View pending melange payments\n"
-                                   "**`/payment [user]`** Process user payment\n"
+                                   "**`/pay [user] [amount]`** Process user payment (full or partial)\n"
                                    "**`/payroll`** Pay all users\n"
                                    "**`/treasury`** View guild treasury\n"
                                    "**`/guild_withdraw [user] [amount]`** Treasury withdrawal\n"
@@ -37,7 +37,7 @@ async def help(interaction, use_followup: bool = True):
 
         "💡 Examples": "• `/sand 250` → 5 melange\n"
                             "• `/split 1000 @user1 @user2` → 500 each\n"
-                            "• `/payment @user` → pay pending melange\n"
+                            "• `/pay @user` → pay pending melange\n"
                             "• `/payroll` → pay all users"
     }
     
