@@ -10,7 +10,7 @@ COMMAND_METADATA = {
 }
 
 import time
-from utils.database_utils import timed_database_operation, validate_user_exists, get_user_stats
+from utils.database_utils import timed_database_operation, validate_user_exists
 from utils.embed_utils import build_status_embed
 from utils.command_utils import log_command_metrics
 from utils.decorators import handle_interaction_expiration
@@ -39,15 +39,12 @@ async def sand(interaction, amount: int, use_followup: bool = True):
         str(interaction.user.id), interaction.user.display_name, amount
     )
     
-    # Get user data and calculate totals
-    user_stats = await get_user_stats(get_database(), str(interaction.user.id))
-    
-    # Ensure user exists and has valid data
+    # Ensure user exists and get their data
     user = await validate_user_exists(get_database(), str(interaction.user.id), interaction.user.display_name)
     
     # Convert sand directly to melange
     new_melange = amount // sand_per_melange
-    current_melange = user_stats['total_melange']
+    current_melange = user.get('total_melange', 0)
     
     # Only update melange if we have new melange to add
     update_melange_time = 0
@@ -91,7 +88,6 @@ async def sand(interaction, amount: int, use_followup: bool = True):
         amount=amount,
         add_deposit_time=f"{add_deposit_time:.3f}s",
         update_melange_time=f"{update_melange_time:.3f}s",
-        **user_stats['timing'],
         response_time=f"{response_time:.3f}s",
         new_melange=new_melange
     )

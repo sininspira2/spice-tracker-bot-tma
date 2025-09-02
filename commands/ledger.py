@@ -9,7 +9,7 @@ COMMAND_METADATA = {
 }
 
 import time
-from utils.database_utils import timed_database_operation, get_user_stats
+from utils.database_utils import timed_database_operation, validate_user_exists
 from utils.embed_utils import build_status_embed
 from utils.command_utils import log_command_metrics
 from utils.decorators import handle_interaction_expiration
@@ -21,12 +21,8 @@ async def ledger(interaction, use_followup: bool = True):
     """View your spice deposit history and melange status"""
     command_start = time.time()
     
-    # Get user stats for melange information
-    user_stats, get_stats_time = await timed_database_operation(
-        "get_user_stats",
-        get_user_stats,
-        get_database(), str(interaction.user.id)
-    )
+    # Get user data for melange information
+    user = await validate_user_exists(get_database(), str(interaction.user.id), interaction.user.display_name, create_if_missing=False)
     
     # Get deposit history
     deposits_data, get_deposits_time = await timed_database_operation(
@@ -59,9 +55,14 @@ async def ledger(interaction, use_followup: bool = True):
         deposit_type = "🚀 Expedition" if deposit['type'] == 'expedition' else "🏜️ Solo"
         ledger_text += f"**{deposit['sand_amount']:,} sand** {deposit_type} - {date_str}\n"
     
+    # Calculate melange values
+    total_melange = user.get('total_melange', 0) if user else 0
+    paid_melange = user.get('paid_melange', 0) if user else 0
+    pending_melange = total_melange - paid_melange
+
     # Use utility function for embed building - focus on melange
     fields = {
-        "💎 Melange Status": f"**Total:** {user_stats['total_melange']:,} | **Paid:** {user_stats['paid_melange']:,} | **Pending:** {user_stats['pending_melange']:,}",
+        "💎 Melange Status": f"**Total:** {total_melange:,} | **Paid:** {paid_melange:,} | **Pending:** {pending_melange:,}",
         "📊 Activity Summary": f"**Total Deposits:** {len(deposits_data)} recorded"
     }
     
@@ -87,8 +88,7 @@ async def ledger(interaction, use_followup: bool = True):
         interaction.user.display_name,
         total_time,
         get_deposits_time=f"{get_deposits_time:.3f}s",
-        get_stats_time=f"{get_stats_time:.3f}s",
         response_time=f"{response_time:.3f}s",
         result_count=len(deposits_data),
-        total_melange=user_stats['total_melange']
+        total_melange=total_melange
     )

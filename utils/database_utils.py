@@ -43,36 +43,4 @@ async def validate_user_exists(database, user_id: str, username: str,
     return user
 
 
-async def get_user_stats(database, user_id: str):
-    """Get comprehensive user statistics from users table"""
-    start_time = time.time()
-    
-    # Get user data (now includes all stats)
-    user = await database.get_user(user_id)
-    
-    execution_time = time.time() - start_time
-    
-    if not user:
-        return {
-            'user': None,
-            'total_melange': 0,
-            'paid_melange': 0,
-            'pending_melange': 0,
-            'timing': {
-                'get_user_time': f"{execution_time:.3f}s"
-            },
-            'total_time': execution_time
-        }
-    
-    pending_melange = user.get('total_melange', 0) - user.get('paid_melange', 0)
-    
-    return {
-        'user': user,
-        'total_melange': user.get('total_melange', 0),
-        'paid_melange': user.get('paid_melange', 0),
-        'pending_melange': pending_melange,
-        'timing': {
-            'get_user_time': f"{execution_time:.3f}s"
-        },
-        'total_time': execution_time
-    }
+

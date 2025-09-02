@@ -5,7 +5,7 @@ import pytest
 from unittest.mock import Mock, AsyncMock, patch
 from utils.embed_builder import EmbedBuilder
 from utils.helpers import get_database, get_sand_per_melange, send_response
-from utils.database_utils import timed_database_operation, validate_user_exists, get_user_stats
+from utils.database_utils import timed_database_operation, validate_user_exists
 from utils.decorators import handle_interaction_expiration, monitor_performance
 
 class TestEmbedBuilder:
@@ -99,28 +99,7 @@ class TestDatabaseUtils:
         mock_database.upsert_user.assert_called_once_with("123", "TestUser")
         assert mock_database.get_user.call_count == 2  # Called twice: once to check, once after creation
     
-    @pytest.mark.asyncio
-    async def test_get_user_stats(self, mock_database):
-        """Test getting user statistics."""
-        result = await get_user_stats(mock_database, "123")
-        
-        # Check that the function returns the expected structure
-        assert "total_melange" in result
-        assert "paid_melange" in result
-        assert "pending_melange" in result
-        assert "user" in result
-        assert "timing" in result
-        assert "total_time" in result
-        
-        # Check the actual values
-        assert result["total_melange"] == 20
-        assert result["paid_melange"] == 10
-        assert result["pending_melange"] == 10
-        assert result["user"]["user_id"] == "123"
-        
-        # Verify the database methods were called
-        mock_database.get_user.assert_called_once_with("123")
-        # get_user_total_sand and get_user_pending_melange removed - all data now in users table
+
 
 class TestDecorators:
     """Test decorator functions."""

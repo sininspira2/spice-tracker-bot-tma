@@ -124,20 +124,7 @@ VALUES (0, 0);
 
 -- Useful views for common queries
 
--- User statistics view
-CREATE VIEW user_stats AS
-SELECT 
-    u.user_id,
-    u.username,
-    u.total_melange,
-    u.paid_melange,
-    (u.total_melange - u.paid_melange) as pending_melange,
-    u.last_updated,
-    COALESCE(SUM(d.sand_amount), 0) as total_sand,
-    COUNT(d.id) as total_deposits
-FROM users u
-LEFT JOIN deposits d ON u.user_id = d.user_id
-GROUP BY u.user_id, u.username, u.total_melange, u.paid_melange, u.last_updated;
+
 
 -- Leaderboard view
 CREATE VIEW leaderboard AS
@@ -195,6 +182,6 @@ COMMENT ON TABLE settings IS 'Bot configuration settings';
 COMMENT ON TABLE guild_treasury IS 'This guild''s resource accumulation (per-guild database)';
 COMMENT ON TABLE guild_transactions IS 'Audit trail for guild treasury operations';
 COMMENT ON TABLE melange_payments IS 'Records of melange payments made to users';
-COMMENT ON VIEW user_stats IS 'Comprehensive user statistics with pending melange';
+
 COMMENT ON VIEW leaderboard IS 'User rankings by melange production and pending amounts';
 COMMENT ON VIEW expedition_summary IS 'Summary statistics for expeditions';
