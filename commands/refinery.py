@@ -12,13 +12,13 @@ from utils.helpers import get_database, send_response
 # Command metadata
 COMMAND_METADATA = {
     'aliases': [],  # ['status'] - removed for simplicity
-    'description': "View your spice refinery statistics and progress"
+    'description': "View your melange production and payment status"
 }
 
 
 @handle_interaction_expiration
 async def refinery(interaction, use_followup: bool = True):
-    """Show your total sand and melange statistics"""
+    """Show your melange production statistics"""
     command_start = time.time()
 
     # Get user data directly from database
@@ -27,14 +27,14 @@ async def refinery(interaction, use_followup: bool = True):
     if not user or user.get('total_melange', 0) == 0:
         embed = build_info_embed(
             title="🏭 Spice Refinery Status",
-            info_message="🏜️ You haven't harvested any spice sand yet! Use `/sand` to start tracking your harvests.",
+            info_message="💎 You haven't produced any melange yet! Use `/sand` to convert spice sand into melange.",
             color=0x95A5A6,
             timestamp=interaction.created_at
         )
         await send_response(interaction, embed=embed.build(), use_followup=use_followup, ephemeral=True)
         return
 
-    # Build melange status fields - no sand information needed
+    # Build melange status fields
     last_activity_timestamp = (
         user['last_updated'].timestamp()
         if user and user.get('last_updated') else interaction.created_at.timestamp()

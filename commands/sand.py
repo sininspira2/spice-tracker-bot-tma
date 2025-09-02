@@ -5,8 +5,8 @@ Sand command for logging spice sand harvests and calculating melange conversion.
 # Command metadata
 COMMAND_METADATA = {
     'aliases': [],  # formerly named 'harvest'
-    'description': "Log spice sand harvests and calculate melange conversion",
-    'params': {'amount': "Amount of spice sand harvested"}
+    'description': "Convert spice sand into melange (primary currency)",
+    'params': {'amount': "Amount of spice sand to convert"}
 }
 
 import time
@@ -19,7 +19,7 @@ from utils.helpers import get_database, get_sand_per_melange, send_response
 
 @handle_interaction_expiration
 async def sand(interaction, amount: int, use_followup: bool = True):
-    """Log spice sand harvests and calculate melange conversion"""
+    """Convert spice sand into melange (primary currency)"""
     command_start = time.time()
     
     # Validate amount

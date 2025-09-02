@@ -5,7 +5,7 @@ Ledger command for viewing spice deposit history and melange status.
 # Command metadata
 COMMAND_METADATA = {
     'aliases': [],  # ['deposits'] - removed for simplicity
-    'description': "View your spice deposit history and melange status"
+    'description': "View your conversion history and melange status"
 }
 
 import time
@@ -13,12 +13,12 @@ from utils.database_utils import timed_database_operation, validate_user_exists
 from utils.embed_utils import build_status_embed
 from utils.command_utils import log_command_metrics
 from utils.decorators import handle_interaction_expiration
-from utils.helpers import get_database, get_sand_per_melange, send_response
+from utils.helpers import get_database, send_response
 
 
 @handle_interaction_expiration
 async def ledger(interaction, use_followup: bool = True):
-    """View your spice deposit history and melange status"""
+    """View your sand conversion history and melange status"""
     command_start = time.time()
     
     # Get user data for melange information
@@ -34,7 +34,7 @@ async def ledger(interaction, use_followup: bool = True):
     if not deposits_data:
         embed = build_status_embed(
             title="📋 Spice Deposit Ledger",
-            description="🏜️ You haven't made any spice deposits yet! Use `/sand` to start tracking your harvests.",
+            description="💎 You haven't made any melange yet! Use `/sand` to convert spice sand into melange.",
             color=0x95A5A6,
             timestamp=interaction.created_at
         )

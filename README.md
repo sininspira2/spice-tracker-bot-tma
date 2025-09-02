@@ -4,8 +4,8 @@ A Discord bot for **Dune: Awakening** guilds to track spice sand collection, man
 
 ## ✨ Features
 
-- **🏜️ Sand Harvesting** - Track personal spice sand deposits with automatic melange conversion (50:1 ratio)
-- **⚗️ Refinery System** - View production progress, pending payments, and melange statistics
+- **🏜️ Sand Conversion** - Convert spice sand into melange (primary currency) at 50:1 ratio
+- **⚗️ Refinery System** - View melange production, pending payments, and payment statistics
 - **🚀 Team Expeditions** - Split spice among team members with customizable guild cuts
 - **🏛️ Guild Treasury** - Automatic guild cuts from expeditions with withdrawal controls
 - **📊 Leaderboards** - Guild rankings by melange production
@@ -52,9 +52,9 @@ A Discord bot for **Dune: Awakening** guilds to track spice sand collection, man
 ## 🤖 Commands
 
 ### 🏜️ Harvester Commands
-- **`/sand <amount>`** - Log spice sand harvests (1-10,000). Automatically converts to melange at 50:1 ratio
-- **`/refinery`** - View your refinery statistics and melange production progress (private)
-- **`/ledger`** - View your complete spice harvest ledger with payment status (private)
+- **`/sand <amount>`** - Convert spice sand to melange (1-10,000). Primary currency conversion at 50:1 ratio
+- **`/refinery`** - View your melange production and payment status (private)
+- **`/ledger`** - View your sand conversion history and melange status (private)
 - **`/leaderboard [limit]`** - Display top spice refiners by melange production (5-25 users)
 - **`/expedition <id>`** - View details of a specific expedition
 - **`/help`** - Display all available commands (private)

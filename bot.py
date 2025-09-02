@@ -122,13 +122,13 @@ def register_commands():
     from commands import sand, refinery, leaderboard, split, help, reset, ledger, expedition, payment, payroll, treasury, guild_withdraw, pending
     
     # Sand command (formerly harvest)
-    @bot.tree.command(name="sand", description="Log spice sand harvests and calculate melange conversion")
-    @app_commands.describe(amount="Amount of spice sand harvested (1-10,000)")
+    @bot.tree.command(name="sand", description="Convert spice sand into melange (50:1 ratio)")
+    @app_commands.describe(amount="Amount of spice sand to convert (1-10,000)")
     async def sand_cmd(interaction: discord.Interaction, amount: int):  # noqa: F841
         await sand(interaction, amount, True)
     
     # Refinery command
-    @bot.tree.command(name="refinery", description="View your spice refinery statistics and progress")
+    @bot.tree.command(name="refinery", description="View your melange production and payment status")
     async def refinery_cmd(interaction: discord.Interaction):  # noqa: F841
         await refinery(interaction, True)
     
@@ -141,9 +141,9 @@ def register_commands():
 
     
     # Split command
-    @bot.tree.command(name="split", description="Split harvested spice sand among expedition members with guild cut")
+    @bot.tree.command(name="split", description="Split spice sand among expedition members and convert to melange")
     @app_commands.describe(
-        total_sand="Total spice sand to split",
+        total_sand="Total spice sand to split and convert",
         users="Users and percentages: '@user1 50 @user2 @user3' (users without % split equally)",
         guild="Guild cut percentage (default: 10)"
     )
