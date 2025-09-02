@@ -7,7 +7,7 @@ from utils.database_utils import validate_user_exists
 from utils.embed_utils import build_info_embed, build_status_embed
 from utils.command_utils import log_command_metrics
 from utils.decorators import handle_interaction_expiration
-from utils.helpers import send_response
+from utils.helpers import get_database, send_response
 
 # Command metadata
 COMMAND_METADATA = {
