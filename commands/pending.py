@@ -13,7 +13,7 @@ from utils.database_utils import timed_database_operation
 from utils.embed_utils import build_status_embed
 from utils.command_utils import log_command_metrics
 from utils.decorators import handle_interaction_expiration
-from utils.helpers import get_database, get_sand_per_melange, send_response
+from utils.helpers import get_database, send_response
 from utils.permissions import is_admin
 from utils.logger import logger
 
@@ -45,21 +45,18 @@ async def pending(interaction, use_followup: bool = True):
             await send_response(interaction, embed=embed.build(), use_followup=use_followup)
             return
         
-        # Calculate totals
+        # Calculate totals - focus only on melange
         total_melange_owed = sum(user['pending_melange'] for user in users_with_pending)
-        total_sand = sum(user['total_sand'] for user in users_with_pending)
         total_users = len(users_with_pending)
         
-        # Build user list with melange information
+        # Build user list with melange information only
         user_list = []
         for user_data in users_with_pending:
             username = user_data['username']
             pending_melange = user_data['pending_melange']
-            total_sand_user = user_data['total_sand']
-            deposit_count = user_data['total_deposits']
             
-            # Format user entry (information dense)
-            user_list.append(f"• **{username}**: **{pending_melange:,}** melange | {total_sand_user:,} sand | {deposit_count} deposits")
+            # Format user entry - only show pending melange
+            user_list.append(f"• **{username}**: **{pending_melange:,}** melange")
         
         # Limit display to prevent embed overflow
         max_users_shown = 20
@@ -69,13 +66,10 @@ async def pending(interaction, use_followup: bool = True):
             shown_users.append(f"... and {remaining_count} more user{'s' if remaining_count != 1 else ''}")
             user_list = shown_users
         
-        # Build response embed
+        # Build response embed - focus only on melange payments
         fields = {
             "👥 Users Awaiting Payment": "\n".join(user_list) if user_list else "No users pending payment",
-            "💰 Payment Summary": f"**Users with Pending Melange:** {total_users:,}\n"
-                                 f"**Total Sand Collected:** {total_sand:,}\n"
-                                 f"**Total Melange Owed:** {total_melange_owed:,}",
-            "📊 Additional Info": f"**Total Deposits:** {sum(user['total_deposits'] for user in users_with_pending):,}"
+            "💰 Payment Summary": f"**Users:** {total_users:,} | **Total Owed:** {total_melange_owed:,} melange"
         }
         
         # Color based on amount owed
@@ -113,7 +107,6 @@ async def pending(interaction, use_followup: bool = True):
             get_pending_time=f"{get_pending_time:.3f}s",
             response_time=f"{response_time:.3f}s",
             users_with_pending=total_users,
-            total_sand=total_sand,
             total_melange_owed=total_melange_owed
         )
         

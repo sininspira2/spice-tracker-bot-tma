@@ -606,13 +606,9 @@ class Database:
             try:
                 rows = await conn.fetch('''
                     SELECT u.user_id, u.username, u.total_melange, u.paid_melange,
-                           (u.total_melange - u.paid_melange) as pending_melange,
-                           COALESCE(SUM(d.sand_amount), 0) as total_sand,
-                           COUNT(d.id) as total_deposits
+                           (u.total_melange - u.paid_melange) as pending_melange
                     FROM users u
-                    LEFT JOIN deposits d ON u.user_id = d.user_id
                     WHERE u.total_melange > u.paid_melange
-                    GROUP BY u.user_id, u.username, u.total_melange, u.paid_melange
                     ORDER BY pending_melange DESC, u.username
                 ''')
                 
@@ -623,9 +619,7 @@ class Database:
                         'username': row['username'],
                         'total_melange': row['total_melange'],
                         'paid_melange': row['paid_melange'],
-                        'pending_melange': row['pending_melange'],
-                        'total_sand': row['total_sand'],
-                        'total_deposits': row['total_deposits']
+                        'pending_melange': row['pending_melange']
                     })
                 
                 await self._log_operation("select", "users", start_time, success=True, 
