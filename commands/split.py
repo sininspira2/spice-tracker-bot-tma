@@ -5,7 +5,7 @@ Split command for dividing harvested spice sand among expedition members with gu
 # Command metadata
 COMMAND_METADATA = {
     'aliases': [],
-    'description': "Split harvested spice sand among expedition members with guild cut and individual percentages",
+    'description': "Split spice sand among expedition members and convert to melange with guild cut",
     'params': {
         'total_sand': "Total spice sand collected to split",
         'users': "Users and percentages: '@user1 50 @user2 @user3' (users without % split equally)",
@@ -23,7 +23,7 @@ from utils.logger import logger
 
 @handle_interaction_expiration
 async def split(interaction, total_sand: int, users: str, guild: int = 10, use_followup: bool = True):
-    """Split harvested spice sand among expedition members with guild cut and individual percentages"""
+    """Split spice sand among expedition members and convert to melange with guild cut"""
     
     try:
         # Validate inputs

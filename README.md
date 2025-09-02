@@ -1,6 +1,6 @@
 # 🏜️ Spice Tracker Bot
 
-A Discord bot for **Dune: Awakening** guilds to track spice sand collection, manage expeditions, and handle guild treasury operations with automated melange production tracking.
+A Discord bot for **Dune: Awakening** guilds to convert spice sand to melange, manage expeditions, and handle guild treasury operations with automated melange production tracking.
 
 ## ✨ Features
 
@@ -60,7 +60,7 @@ A Discord bot for **Dune: Awakening** guilds to track spice sand collection, man
 - **`/help`** - Display all available commands (private)
 
 ### 🚀 Team Commands
-- **`/split <total_sand> <users> [guild]`** - Split harvested spice among expedition members
+- **`/split <total_sand> <users> [guild]`** - Split spice sand among expedition members and convert to melange
   - **Example:** `/split 10000 "@harvester 30 @scout @pilot" 15`
   - **Guild Cut:** Percentage taken off the top (default: 10%)
   - **User Percentages:** Users with percentages get exact amounts, others split equally
@@ -71,7 +71,7 @@ A Discord bot for **Dune: Awakening** guilds to track spice sand collection, man
 - **`/payment <user>`** - Process payment for a specific harvester's deposits
 - **`/payroll`** - Process payments for all unpaid harvesters at once
 - **`/treasury`** - View guild treasury balance and melange reserves
-- **`/guild_withdraw <user> <amount>`** - Withdraw sand from guild treasury to give to a user
+- **`/guild_withdraw <user> <amount>`** - Withdraw resources from guild treasury to give to a user
 - **`/reset confirm:True`** - Reset all refinery statistics (requires confirmation)
 
 ### 🔧 Bot Owner Commands

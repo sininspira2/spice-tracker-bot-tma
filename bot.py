@@ -1,6 +1,6 @@
 """
 Spice Tracker Bot - Main bot file
-A Discord bot for tracking spice sand harvests and melange production in Dune: Awakening.
+A Discord bot for converting spice sand to melange and tracking production in Dune: Awakening.
 """
 
 import discord
