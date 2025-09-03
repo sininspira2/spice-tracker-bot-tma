@@ -46,24 +46,23 @@ async def treasury(interaction, use_followup: bool = True):
         updated_str = last_updated.strftime('%Y-%m-%d %H:%M UTC') if last_updated else 'Never'
         
         fields = {
-            "💰 Resources": f"**{total_sand:,}** sand | **{total_melange:,}** melange",
-            "⚗️ Production": f"**{sand_ready_for_melange:,}** ready | **{melange_potential:,}** potential",
+            "💎 Melange": f"**{total_melange:,}** total | **{melange_potential:,}** potential",
             "📊 Updated": updated_str
         }
         
-        # Determine color based on treasury size
-        if total_sand >= 10000:
+        # Determine color based on melange (primary currency)
+        if total_melange >= 200:
             color = 0xFFD700  # Gold - very wealthy
-        elif total_sand >= 5000:
+        elif total_melange >= 100:
             color = 0x00FF00  # Green - healthy
-        elif total_sand >= 1000:
+        elif total_melange >= 50:
             color = 0xFFA500  # Orange - moderate
         else:
             color = 0xFF4500  # Red - low funds
         
         embed = build_status_embed(
             title="🏛️ Treasury",
-            description=f"💰 **{total_sand:,}** sand + **{total_melange:,}** melange",
+            description=f"💎 **{total_melange:,} melange** in treasury",
             color=color,
             fields=fields,
             timestamp=interaction.created_at
@@ -83,7 +82,6 @@ async def treasury(interaction, use_followup: bool = True):
             total_time,
             get_treasury_time=f"{get_treasury_time:.3f}s",
             response_time=f"{response_time:.3f}s",
-            total_sand=total_sand,
             total_melange=total_melange,
             melange_potential=melange_potential
         )
