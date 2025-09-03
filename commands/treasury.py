@@ -29,14 +29,8 @@ async def treasury(interaction, use_followup: bool = True):
             get_database().get_guild_treasury
         )
         
-        sand_per_melange = get_sand_per_melange()
-        
-        # Calculate additional stats
-        total_sand = treasury_data.get('total_sand', 0)
+        # Get treasury melange (primary currency)
         total_melange = treasury_data.get('total_melange', 0)
-        melange_potential = total_sand // sand_per_melange
-        sand_ready_for_melange = total_sand - (total_sand % sand_per_melange)
-        sand_remaining = total_sand % sand_per_melange
         
         # Format timestamps
         created_at = treasury_data.get('created_at')
@@ -46,7 +40,7 @@ async def treasury(interaction, use_followup: bool = True):
         updated_str = last_updated.strftime('%Y-%m-%d %H:%M UTC') if last_updated else 'Never'
         
         fields = {
-            "💎 Melange": f"**{total_melange:,}** total | **{melange_potential:,}** potential",
+            "💎 Melange": f"**{total_melange:,}** available",
             "📊 Updated": updated_str
         }
         
@@ -82,8 +76,7 @@ async def treasury(interaction, use_followup: bool = True):
             total_time,
             get_treasury_time=f"{get_treasury_time:.3f}s",
             response_time=f"{response_time:.3f}s",
-            total_melange=total_melange,
-            melange_potential=melange_potential
+            total_melange=total_melange
         )
         
     except Exception as error:
