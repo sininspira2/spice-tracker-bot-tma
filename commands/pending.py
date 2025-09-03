@@ -67,8 +67,7 @@ async def pending(interaction, use_followup: bool = True):
             user_list = shown_users
         
         fields = {
-            "👥 Pending Users": "\n".join(user_list) if user_list else "No pending payments",
-            "💰 Summary": f"**{total_users:,}** users | **{total_melange_owed:,}** melange owed"
+            "👥 Pending Users": "\n".join(user_list) if user_list else "No pending payments"
         }
         
         # Color based on amount owed
