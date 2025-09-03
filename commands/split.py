@@ -187,8 +187,8 @@ async def split(interaction, total_sand: int, users: str, guild: int = 10, use_f
         from utils.embed_utils import build_status_embed
         
         fields = {
-            "🏛️ Guild Cut": f"**{guild}%** = {guild_sand:,} sand → **{guild_sand // sand_per_melange:,} melange**",
             "👥 Participants": "\n".join(participant_details),
+            "🏛️ Guild Cut": f"**{guild}%** = {guild_sand:,} sand → **{guild_sand // sand_per_melange:,} melange**",
             "📊 Summary": f"**Total:** {total_sand:,} | **Users:** {remaining_sand:,} sand → **{total_user_melange:,} melange**"
         }
         
