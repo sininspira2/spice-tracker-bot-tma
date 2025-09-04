@@ -6,8 +6,9 @@ Sand command for logging spice sand harvests and calculating melange conversion.
 COMMAND_METADATA = {
     'aliases': [],  # formerly named 'harvest'
     'description': "Convert spice sand into melange (primary currency)",
-    'params': {'amount': "Amount of spice sand to convert",
-    'landsraad_bonus': "Whether or not to apply the 25% Landsraad crafting reduction (default: false)."}
+    'params': {
+        'amount': "Amount of spice sand to convert",
+        'landsraad_bonus': "Whether or not to apply the 25% Landsraad crafting reduction (default: false)." }
 }
 
 import time
@@ -91,4 +92,5 @@ async def sand(interaction, amount: int, landsraad_bonus: bool = False, use_foll
         response_time=f"{response_time:.3f}s",
         new_melange=new_melange
     )
+
 
