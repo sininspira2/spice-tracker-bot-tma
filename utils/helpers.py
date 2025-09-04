@@ -24,9 +24,10 @@ def get_sand_per_melange(landsraad_bonus: bool = False) -> int:
     - Default rate: 50 sand per melange
     - Landsraad bonus rate: 37 sand per melange
     """
+    LANDSRAAD_BONUS_RATE = 37
     if landsraad_bonus:
-        return 37
-    return 50
+        return LANDSRAAD_BONUS_RATE
+    return SAND_PER_MELANGE
 
 async def send_response(interaction, content=None, embed=None, ephemeral=False, use_followup=True):
     """Helper function to send responses using the appropriate method based on use_followup"""
