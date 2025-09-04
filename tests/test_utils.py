@@ -48,7 +48,7 @@ class TestHelpers:
 
         # Test Landsraad bonus rate
         rate = get_sand_per_melange(landsraad_bonus=True)
-        assert rate == 37
+        assert rate == 37.5
     
     @pytest.mark.asyncio
     async def test_send_response_interaction(self, mock_interaction):

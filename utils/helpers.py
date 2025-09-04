@@ -22,7 +22,7 @@ def get_sand_per_melange(landsraad_bonus: bool = False) -> float:
     """
     Get the spice sand to melange conversion rate.
     - Default rate: 50 sand per melange
-    - Landsraad bonus rate: 37 sand per melange
+    - Landsraad bonus rate: 37.5 sand per melange
     """
     LANDSRAAD_BONUS_RATE = 37.5
     if landsraad_bonus:
