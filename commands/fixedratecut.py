@@ -93,11 +93,11 @@ async def fixedratecut(interaction, total_sand: int, users: str, rate: int = 5, 
                 try:
                     user = await interaction.guild.fetch_member(int(user_id))
                     display_name = user.display_name
-                except:
+                except (discord.NotFound, discord.HTTPException):
                     try:
                         user = await interaction.client.fetch_user(int(user_id))
                         display_name = user.display_name
-                    except:
+                    except (discord.NotFound, discord.HTTPException):
                         display_name = f"User_{user_id}"
 
                 # Ensure user exists in database
