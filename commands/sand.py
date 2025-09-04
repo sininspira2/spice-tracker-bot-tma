@@ -18,7 +18,7 @@ from utils.helpers import get_database, get_sand_per_melange, send_response
 
 
 @handle_interaction_expiration
-async def sand(interaction, amount: int, use_followup: bool = True):
+async def sand(interaction, amount: int, landsraad_bonus: bool = False, use_followup: bool = True):
     """Convert spice sand into melange (primary currency)"""
     command_start = time.time()
     
@@ -28,7 +28,7 @@ async def sand(interaction, amount: int, use_followup: bool = True):
         return
     
     # Get conversion rate and add deposit
-    sand_per_melange = get_sand_per_melange()
+    sand_per_melange = get_sand_per_melange(landsraad_bonus=landsraad_bonus)
     
     # Database operations with timing using utility functions
     
