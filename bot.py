@@ -124,9 +124,12 @@ def register_commands():
 
     # Sand command (formerly harvest)
     @bot.tree.command(name="sand", description="Convert spice sand into melange (50:1 ratio)")
-    @app_commands.describe(amount="Amount of spice sand to convert (1-10,000)")
-    async def sand_cmd(interaction: discord.Interaction, amount: int):  # noqa: F841
-        await sand(interaction, amount, True)
+    @app_commands.describe(
+        amount="Amount of spice sand to convert (1-10,000)",
+        landsraad_bonus="Whether or not Landsraad crafting bonus is in effect (default:false)"        
+    )
+    async def sand_cmd(interaction: discord.Interaction, amount: int, landsraad_bonus: bool = False):  # noqa: F841
+        await sand(interaction, amount, landsraad_bonus, True)
 
     # Refinery command
     @bot.tree.command(name="refinery", description="View your melange production and payment status")
@@ -146,20 +149,22 @@ def register_commands():
     @app_commands.describe(
         total_sand="Total spice sand to split and convert",
         users="Users and percentages: '@user1 50 @user2 @user3' (users without % split equally)",
-        guild="Guild cut percentage (default: 10)"
+        guild="Guild cut percentage (default: 10)",
+        landsraad_bonus="Whether or not Landsraad crafting bonus is in effect (default:false)"        
     )
-    async def split_cmd(interaction: discord.Interaction, total_sand: int, users: str, guild: int = 10):  # noqa: F841
-        await split(interaction, total_sand, users, guild, True)
+    async def split_cmd(interaction: discord.Interaction, total_sand: int, users: str, guild: int = 10, landsraad_bonus: bool = False):  # noqa: F841
+        await split(interaction, total_sand, users, guild, landsraad_bonus, True)
 
     # Fixed Rate Cut command
     @bot.tree.command(name="fixedratecut", description="Awards a fixed percentage of spice sand to tagged users")
     @app_commands.describe(
         total_sand="Total spice sand to distribute",
         users="Users to award a cut to",
-        rate="The percentage rate for each user (default: 5)"
+        rate="The percentage rate for each user (default: 5)",
+        landsraad_bonus="Whether or not Landsraad crafting bonus is in effect (default:false)"    
     )
-    async def fixedratecut_cmd(interaction: discord.Interaction, total_sand: int, users: str, rate: int = 5):  # noqa: F841
-        await fixedratecut(interaction, total_sand, users, rate, True)
+    async def fixedratecut_cmd(interaction: discord.Interaction, total_sand: int, users: str, rate: int = 5, landsraad_bonus: bool = False:)  # noqa: F841
+        await fixedratecut(interaction, total_sand, users, rate, landsraad_bonus, True)
 
     # Help command
     @bot.tree.command(name="help", description="Show all available spice tracking commands")
