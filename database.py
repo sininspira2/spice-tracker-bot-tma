@@ -335,15 +335,15 @@ class Database:
                                         operation="withdrawal", sand_amount=sand_amount, target_user_id=target_user_id, error=str(e))
                 raise e
 
-    async def add_expedition_participant(self, expedition_id, user_id, username, sand_amount, melange_amount, leftover_sand, is_harvester=False):
+    async def add_expedition_participant(self, expedition_id, user_id, username, sand_amount, melange_amount, is_harvester=False):
         """Add a participant to an expedition"""
         start_time = time.time()
         async with self._get_connection() as conn:
             try:
                 await conn.execute('''
-                    INSERT INTO expedition_participants (expedition_id, user_id, username, sand_amount, melange_amount, leftover_sand, is_harvester)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7)
-                ''', expedition_id, user_id, username, sand_amount, melange_amount, leftover_sand, is_harvester)
+                    INSERT INTO expedition_participants (expedition_id, user_id, username, sand_amount, melange_amount, is_harvester)
+                    VALUES ($1, $2, $3, $4, $5, $6)
+                ''', expedition_id, user_id, username, sand_amount, melange_amount, is_harvester)
                 
                 await self._log_operation("insert", "expedition_participants", start_time, success=True, 
                                         expedition_id=expedition_id, user_id=user_id, sand_amount=sand_amount, is_harvester=is_harvester)
@@ -405,8 +405,7 @@ class Database:
                         'username': row[3],
                         'sand_amount': row[4],
                         'melange_amount': row[5],
-                        'leftover_sand': row[6],
-                        'is_harvester': bool(row[7])
+                        'is_harvester': bool(row[6])
                     })
                 
                 # Combine expedition details with participants
@@ -816,4 +815,5 @@ class Database:
             except Exception as e:
                 await self._log_operation("select_join", "deposits_users", start_time, success=False, 
                                         error=str(e))
+
                 raise e
