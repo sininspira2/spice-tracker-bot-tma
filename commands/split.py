@@ -135,7 +135,7 @@ async def split(interaction, total_sand: int, users: str, guild: int = 10, lands
 
         # Add guild cut to treasury if > 0
         if guild_sand > 0:
-            guild_melange = math.ceil(guild_sand / sand_per_melange)
+            guild_melange = math.ceil(guild_sand / sand_per_melange) if sand_per_melange > 0 else 0
             await get_database().update_guild_treasury(guild_sand, guild_melange)
 
         # Process all participants
