@@ -111,6 +111,39 @@ class TestCommandResponsiveness:
             except Exception as e:
                 pytest.fail(f"Command {function_name} failed with error on invalid input: {e}")
 
+    @pytest.mark.asyncio
+    async def test_landsraad_bonus_sand_command(self, mock_interaction, mock_database):
+        """Test the sand command with the landsraad_bonus flag."""
+        from commands.sand import sand
+        with patch('commands.sand.get_sand_per_melange') as mock_get_sand_per_melange, \
+             patch('commands.sand.get_database', return_value=mock_database):
+
+            mock_get_sand_per_melange.return_value = 37
+            await sand(mock_interaction, 100, landsraad_bonus=True)
+            mock_get_sand_per_melange.assert_called_with(landsraad_bonus=True)
+
+    @pytest.mark.asyncio
+    async def test_landsraad_bonus_split_command(self, mock_interaction, mock_database):
+        """Test the split command with the landsraad_bonus flag."""
+        from commands.split import split
+        with patch('commands.split.get_sand_per_melange') as mock_get_sand_per_melange, \
+             patch('commands.split.get_database', return_value=mock_database):
+
+            mock_get_sand_per_melange.return_value = 37
+            await split(mock_interaction, 1000, '<@12345>', 10, landsraad_bonus=True)
+            mock_get_sand_per_melange.assert_called_with(landsraad_bonus=True)
+
+    @pytest.mark.asyncio
+    async def test_landsraad_bonus_fixedratecut_command(self, mock_interaction, mock_database):
+        """Test the fixedratecut command with the landsraad_bonus flag."""
+        from commands.fixedratecut import fixedratecut
+        with patch('commands.fixedratecut.get_sand_per_melange') as mock_get_sand_per_melange, \
+             patch('commands.fixedratecut.get_database', return_value=mock_database):
+
+            mock_get_sand_per_melange.return_value = 37
+            await fixedratecut(mock_interaction, 10000, '<@12345>', 5, landsraad_bonus=True)
+            mock_get_sand_per_melange.assert_called_with(landsraad_bonus=True)
+
     def test_command_metadata_structure(self):
         """Test that all commands have proper metadata structure."""
         for command_name, metadata in COMMAND_METADATA.items():

@@ -22,7 +22,7 @@ from utils.logger import logger
 
 
 @handle_interaction_expiration
-async def split(interaction, total_sand: int, users: str, guild: int = 10, use_followup: bool = True):
+async def split(interaction, total_sand: int, users: str, guild: int = 10, landsraad_bonus: bool = False, use_followup: bool = True):
     """Split spice sand among expedition members and convert to melange with guild cut"""
     
     try:
@@ -113,7 +113,7 @@ async def split(interaction, total_sand: int, users: str, guild: int = 10, use_f
             return
         
         # Get conversion rate
-        sand_per_melange = get_sand_per_melange()
+        sand_per_melange = get_sand_per_melange(landsraad_bonus=landsraad_bonus)
         
         # Ensure the initiator exists in the users table
         from utils.database_utils import validate_user_exists
