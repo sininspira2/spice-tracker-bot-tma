@@ -328,9 +328,9 @@ class Database:
 
                     # Record transaction in guild_transactions
                     await conn.execute('''
-                        INSERT INTO guild_transactions (transaction_type, melange_amount, admin_user_id, admin_username, target_user_id, target_username, description)
-                        VALUES ('withdrawal', $1, $2, $3, $4, $5, $6)
-                    ''', melange_amount, admin_user_id, admin_username, target_user_id, target_username, f"Guild withdrawal of {melange_amount} melange to {target_username}")
+                        INSERT INTO guild_transactions (transaction_type, sand_amount, melange_amount, admin_user_id, admin_username, target_user_id, target_username, description)
+                        VALUES ('withdrawal', $1, $2, $3, $4, $5, $6, $7)
+                    ''', 0, melange_amount, admin_user_id, admin_username, target_user_id, target_username, f"Guild withdrawal of {melange_amount} melange to {target_username}")
 
                 await self._log_operation("withdrawal", "guild_treasury", start_time, success=True,
                                         melange_amount=melange_amount, target_user_id=target_user_id)
