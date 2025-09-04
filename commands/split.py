@@ -159,7 +159,7 @@ async def split(interaction, total_sand: int, users: str, guild: int = 10, lands
                 await validate_user_exists(get_database(), user_id, display_name)
 
                 # Calculate melange
-                participant_melange = math.ceil(user_sand / sand_per_melange)
+                participant_melange = math.ceil(user_sand / sand_per_melange) if sand_per_melange > 0 else 0
                 total_user_melange += participant_melange
 
                 # Add expedition participant
