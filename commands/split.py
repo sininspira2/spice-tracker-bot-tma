@@ -9,8 +9,8 @@ COMMAND_METADATA = {
     'params': {
         'total_sand': "Total spice sand collected to split",
         'users': "Users and percentages: '@user1 50 @user2 @user3' (users without % split equally)",
-        'guild': "Guild cut percentage (default: 10)"
-    }
+        'guild': "Guild cut percentage (default: 10)",
+        'landsraad_bonus': "Whether or not to apply the 25% Landsraad crafting reduction (default: false)."    }
 }
 
 import re
@@ -22,7 +22,7 @@ from utils.logger import logger
 
 
 @handle_interaction_expiration
-async def split(interaction, total_sand: int, users: str, guild: int = 10, use_followup: bool = True):
+async def split(interaction, total_sand: int, users: str, guild: int = 10, landsraad_bonus: bool = False, use_followup: bool = True):
     """Split spice sand among expedition members and convert to melange with guild cut"""
     
     try:
@@ -113,7 +113,7 @@ async def split(interaction, total_sand: int, users: str, guild: int = 10, use_f
             return
         
         # Get conversion rate
-        sand_per_melange = get_sand_per_melange()
+        sand_per_melange = get_sand_per_melange(landsraad_bonus=landsraad_bonus)
         
         # Ensure the initiator exists in the users table
         from utils.database_utils import validate_user_exists
@@ -214,4 +214,5 @@ async def split(interaction, total_sand: int, users: str, guild: int = 10, use_f
         try:
             await send_response(interaction, "❌ An error occurred while processing the split. Please try again.", use_followup=use_followup, ephemeral=True)
         except Exception as response_error:
+
             logger.error(f"Failed to send error response: {response_error}")
