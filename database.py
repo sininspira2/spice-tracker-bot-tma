@@ -332,12 +332,12 @@ class Database:
                         VALUES ('withdrawal', $1, $2, $3, $4, $5, $6)
                     ''', melange_amount, admin_user_id, admin_username, target_user_id, target_username, f"Guild withdrawal of {melange_amount} melange to {target_username}")
 
-                await self._log_operation("update", "guild_treasury", start_time, success=True,
-                                        operation="withdrawal", melange_amount=melange_amount, target_user_id=target_user_id)
+                await self._log_operation("withdrawal", "guild_treasury", start_time, success=True,
+                                        melange_amount=melange_amount, target_user_id=target_user_id)
                 return True
             except Exception as e:
-                await self._log_operation("update", "guild_treasury", start_time, success=False,
-                                        operation="withdrawal", melange_amount=melange_amount, target_user_id=target_user_id, error=str(e))
+                await self._log_operation("withdrawal", "guild_treasury", start_time, success=False,
+                                        melange_amount=melange_amount, target_user_id=target_user_id, error=str(e))
                 raise e
 
     async def add_expedition_participant(self, expedition_id, user_id, username, sand_amount, melange_amount, is_harvester=False):
