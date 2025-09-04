@@ -46,7 +46,7 @@ async def sand(interaction, amount: int, landsraad_bonus: bool = False, use_foll
     user = await validate_user_exists(get_database(), str(interaction.user.id), interaction.user.display_name)
 
     # Convert sand directly to melange
-    new_melange = math.ceil(amount / sand_per_melange)
+    new_melange = math.ceil(amount / sand_per_melange) if sand_per_melange > 0 else 0
     current_melange = user.get('total_melange', 0)
 
     # Only update melange if we have new melange to add
