@@ -163,7 +163,7 @@ def register_commands():
         rate="The percentage rate for each user (default: 5)",
         landsraad_bonus="Whether or not Landsraad crafting bonus is in effect (default:false)"    
     )
-    async def fixedratecut_cmd(interaction: discord.Interaction, total_sand: int, users: str, rate: int = 5, landsraad_bonus: bool = False)  # noqa: F841
+    async def fixedratecut_cmd(interaction: discord.Interaction, total_sand: int, users: str, rate: int = 5, landsraad_bonus: bool = False):  # noqa: F841
         await fixedratecut(interaction, total_sand, users, rate, landsraad_bonus, True)
 
     # Help command
