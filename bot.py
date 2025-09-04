@@ -180,7 +180,7 @@ def register_commands():
         amount="Amount of melange to pay (optional, defaults to full pending amount)"
     )
     async def pay_cmd(interaction: discord.Interaction, user: discord.Member, amount: int = None):  # noqa: F841
-        await payment.pay(interaction, user, amount, True)
+        await payment(interaction, user, amount, True)
     
     # Payroll command
     @bot.tree.command(name="payroll", description="Process payments for all unpaid harvesters (Admin only)")
