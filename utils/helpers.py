@@ -18,9 +18,15 @@ def get_database():
 # Sand to melange conversion rate (implementation detail)
 SAND_PER_MELANGE = 50
 
-def get_sand_per_melange() -> int:
-    """Get the spice sand to melange conversion rate (hardcoded constant)"""
-    return SAND_PER_MELANGE
+def get_sand_per_melange(landsraad_bonus: bool = False) -> int:
+    """
+    Get the spice sand to melange conversion rate.
+    - Default rate: 50 sand per melange
+    - Landsraad bonus rate: 37 sand per melange
+    """
+    if landsraad_bonus:
+        return 37
+    return 50
 
 async def send_response(interaction, content=None, embed=None, ephemeral=False, use_followup=True):
     """Helper function to send responses using the appropriate method based on use_followup"""

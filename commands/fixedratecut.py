@@ -21,7 +21,7 @@ from utils.helpers import get_database, get_sand_per_melange, send_response
 from utils.logger import logger
 
 @handle_interaction_expiration
-async def fixedratecut(interaction, total_sand: int, users: str, rate: int = 5, use_followup: bool = True):
+async def fixedratecut(interaction, total_sand: int, users: str, rate: int = 5, landsraad_bonus: bool = False, use_followup: bool = True):
     """Awards a fixed percentage of spice sand to tagged users, with the remainder going to the guild."""
     try:
         # Validate inputs
@@ -59,7 +59,7 @@ async def fixedratecut(interaction, total_sand: int, users: str, rate: int = 5, 
         guild_sand = total_sand - total_user_sand
 
         # Get conversion rate
-        sand_per_melange = get_sand_per_melange()
+        sand_per_melange = get_sand_per_melange(landsraad_bonus=landsraad_bonus)
 
         # Ensure the initiator exists in the users table
         from utils.database_utils import validate_user_exists
