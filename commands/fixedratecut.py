@@ -9,7 +9,8 @@ COMMAND_METADATA = {
     'params': {
         'total_sand': "Total spice sand collected to be distributed.",
         'users': "A list of users to award a cut to.",
-        'rate': "The percentage rate of the cut for each user (default: 5)."
+        'rate': "The percentage rate of the cut for each user (default: 5).",
+        'landsraad_bonus': "Whether or not to apply the 25% Landsraad crafting reduction (default: false)."
     }
 }
 
