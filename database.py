@@ -379,7 +379,7 @@ class Database:
         async with self._get_connection() as conn:
             try:
                 # Get expedition details first
-                ition_row = await conn.fetchrow('''
+                expedition_row = await conn.fetchrow('''
                     SELECT initiator_id, initiator_username, total_sand, guild_cut_percentage, 
                            sand_per_melange, created_at
                     FROM expeditions 
