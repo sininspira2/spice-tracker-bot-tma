@@ -405,8 +405,7 @@ class Database:
                         'username': row[3],
                         'sand_amount': row[4],
                         'melange_amount': row[5],
-                        'leftover_sand': row[6],
-                        'is_harvester': bool(row[7])
+                        'is_harvester': bool(row[6])
                     })
                 
                 # Combine expedition details with participants
@@ -817,3 +816,5 @@ class Database:
                 await self._log_operation("select_join", "deposits_users", start_time, success=False, 
                                         error=str(e))
                 raise e
+
+# test comment

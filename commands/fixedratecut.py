@@ -17,6 +17,7 @@ COMMAND_METADATA = {
 import re
 import traceback
 import discord
+import math
 from utils.decorators import handle_interaction_expiration
 from utils.helpers import get_database, get_sand_per_melange, send_response
 from utils.logger import logger
@@ -81,7 +82,7 @@ async def fixedratecut(interaction, total_sand: int, users: str, rate: int = 5, 
 
         # Add guild cut to treasury if > 0
         if guild_sand > 0:
-            guild_melange = guild_sand // sand_per_melange
+            guild_melange = math.ceil(guild_sand / sand_per_melange)
             await get_database().update_guild_treasury(guild_sand, guild_melange)
 
         # Process all participants
@@ -104,15 +105,14 @@ async def fixedratecut(interaction, total_sand: int, users: str, rate: int = 5, 
                 # Ensure user exists in database
                 await validate_user_exists(get_database(), user_id, display_name)
 
-                # Calculate melange and leftover sand
-                participant_melange = user_sand // sand_per_melange
-                participant_leftover = user_sand % sand_per_melange
+                # Calculate melange
+                participant_melange = math.ceil(user_sand / sand_per_melange)
                 total_user_melange += participant_melange
 
                 # Add expedition participant
                 await get_database().add_expedition_participant(
                     expedition_id, user_id, display_name, user_sand,
-                    participant_melange, participant_leftover, is_harvester=False
+                    participant_melange, is_harvester=False
                 )
 
                 # Add deposit record
@@ -133,10 +133,11 @@ async def fixedratecut(interaction, total_sand: int, users: str, rate: int = 5, 
         from utils.embed_utils import build_status_embed
 
         guild_cut_percentage = (guild_sand / total_sand * 100) if total_sand > 0 else 0
+        guild_melange_total = math.ceil(guild_sand / sand_per_melange) if sand_per_melange > 0 else 0
 
         fields = {
             "👥 Participants": "\n".join(participant_details),
-            "🏛️ Guild Cut": f"**{guild_cut_percentage:.1f}%** = {guild_sand:,} sand → **{guild_sand // sand_per_melange:,} melange**",
+            "🏛️ Guild Cut": f"**{guild_cut_percentage:.1f}%** = {guild_sand:,} sand → **{guild_melange_total:,} melange**",
             "📊 Summary": f"**Total:** {total_sand:,} | **Users:** {total_user_sand:,} sand → **{total_user_melange:,} melange**"
         }
 
