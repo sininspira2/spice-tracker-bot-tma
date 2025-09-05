@@ -303,21 +303,20 @@ class Database:
                 # Ensure target user exists, creating them if necessary
                 await self.upsert_user(target_user_id, target_username)
 
-                # Check if guild has enough melange
-                treasury = await self.get_guild_treasury()
-                if treasury['total_melange'] < melange_amount:
-                    raise ValueError(f"Insufficient guild treasury funds. Available: {treasury['total_melange']:,}, Requested: {melange_amount:,}")
-
                 # Start transaction
                 async with conn.transaction():
-                    # Remove melange from guild treasury
-                    await conn.execute('''
+                    # Atomically update guild treasury. This fails if funds are insufficient.
+                    result = await conn.execute('''
                         UPDATE guild_treasury
                         SET total_melange = total_melange - $1,
                             last_updated = CURRENT_TIMESTAMP
-                        WHERE id = (SELECT MAX(id) FROM guild_treasury)
+                        WHERE id = (SELECT MAX(id) FROM guild_treasury) AND total_melange >= $1
                     ''', melange_amount)
 
+                    # If no rows were updated, it means there were insufficient funds.
+                    if result == 'UPDATE 0':
+                        raise ValueError(f"Insufficient guild treasury funds to withdraw {melange_amount:,} melange.")
+                    
                     # Add melange to user's total_melange
                     await conn.execute('''
                         UPDATE users
