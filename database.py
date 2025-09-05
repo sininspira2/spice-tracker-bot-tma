@@ -315,7 +315,8 @@ class Database:
 
                     # If no rows were updated, it means there were insufficient funds.
                     if result == 'UPDATE 0':
-                        raise ValueError(f"Insufficient guild treasury funds to withdraw {melange_amount:,} melange.")
+                        current_melange = await conn.fetchval('SELECT total_melange FROM guild_treasury ORDER BY id DESC LIMIT 1') or 0
+                        raise ValueError(f"Insufficient guild treasury funds. Available: {current_melange:,}, Requested: {melange_amount:,}")
                     
                     # Add melange to user's total_melange
                     await conn.execute('''
