@@ -1,6 +1,9 @@
 version: 2
 updates:
-  - package-ecosystem: "pip" # See documentation for possible values[span_0](end_span)
-    directory: "/" # Location of package manifests[span_1](end_span)
+  - package-ecosystem: "pip"
+    directory: "/"
     schedule:
       interval: "daily"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
