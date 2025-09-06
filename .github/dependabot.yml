@@ -4,6 +4,3 @@ updates:
     directory: "/" # Location of package manifests[span_1](end_span)
     schedule:
       interval: "daily"
-    # 'ignore' is now an array (list) with one item
-    ignore:
-      - update-types: [ "version-update:semver-major" ]
