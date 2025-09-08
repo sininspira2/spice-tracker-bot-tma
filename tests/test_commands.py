@@ -215,7 +215,10 @@ class TestCalculateSandCommand:
             assert mock_interaction.followup.send.called or mock_interaction.response.send_message.called
 
             # Check the content of the embed
-            sent_embed = mock_interaction.followup.send.call_args.kwargs['embed']
+            if mock_interaction.followup.send.called:
+                sent_embed = mock_interaction.followup.send.call_args.kwargs['embed']
+            else:
+                sent_embed = mock_interaction.response.send_message.call_args.kwargs['embed']
             assert "Sand Conversion Calculation" in sent_embed.title
             assert "125 sand" in sent_embed.description
             assert "2.50 melange" in sent_embed.description # 125 / 50 = 2.5
