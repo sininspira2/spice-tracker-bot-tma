@@ -17,33 +17,32 @@ from utils.helpers import send_response
 @handle_interaction_expiration
 async def help(interaction, use_followup: bool = True):
     """Show all available commands and their descriptions"""
-    
+
     # Use utility function for embed building
     fields = {
-        "📊 Harvester Commands": "**`/deposit_sand [amount]`** Convert sand→melange (1-10k, 50:1 ratio)\n"
-                                 "**`/calculate_sand [amount]`** Calculate melange conversion without depositing\n"
+        "📊 Harvester Commands": "**`/calculate_sand [amount]`** Calculate melange conversion without depositing\n"
                                  "**`/refinery`** View melange status & payments\n"
                                  "**`/ledger`** View conversion history & status\n"
+                                 "**`/help`** Show all commands",
+        "🛡️ Officer Commands": "**`/deposit_sand [amount] [landsraad_bonus]`** Convert sand→melange (1-10k, 50:1 ratio)\n"
                                  "**`/expedition [id]`** View expedition details\n"
                                  "**`/leaderboard [limit]`** Top refiners (5-25 users)\n"
-                                 "**`/split [sand] [@users]`** Split sand→melange with guild cut\n"
-                                 "**`/fixedratecut [sand] [@users] [optional: fixed rate percent Default - 5]`** Split a fixed percentage of sand→melange between users with leftover going to guild\n"
-                                 "**`/help`** Show all commands",
+                                 "**`/split [total_sand] [users] [guild] [landsraad_bonus]`** Split sand→melange with guild cut\n"
+                                 "**`/fixedratecut [total_sand] [users] [rate] [landsraad_bonus]`** Split a fixed percentage of sand to users, rest to guild\n"
+                                 "**`/treasury`** View guild treasury",
         "⚙️ Admin Commands": "**`/pending`** View pending melange payments\n"
                                    "**`/pay [user] [amount]`** Process user payment (full or partial)\n"
                                    "**`/payroll`** Pay all users\n"
-                                   "**`/treasury`** View guild treasury\n"
                                    "**`/guild_withdraw [user] [amount]`** Treasury withdrawal\n"
-                                   "**`/sync`** Sync commands (Owner)\n"
                                    "**`/reset confirm:True`** Reset all data",
-
-        "💡 Examples": "• `/deposit_sand 250` → 5 melange\n"
+        "👑 Owner Commands": "**`/sync`** Sync commands (Owner)",
+        "💡 Examples": "• `/calculate_sand 250` → 5 melange\n"
                             "• `/split 1000 @user1 @user2` → 500 each\n"
                             "• `/fixedratecut 75000 @user1 @user2 10` → 7500 sand/150 melange each\n"
                             "• `/pay @user` → pay pending melange\n"
                             "• `/payroll` → pay all users"
     }
-    
+
     embed = build_status_embed(
         title="🏜️ Spice Refinery Commands",
         description="Sand→melange conversion & production tracking",
@@ -51,6 +50,5 @@ async def help(interaction, use_followup: bool = True):
         fields=fields,
         timestamp=interaction.created_at
     )
-    
-    await send_response(interaction, embed=embed.build(), use_followup=use_followup, ephemeral=True)
 
+    await send_response(interaction, embed=embed.build(), use_followup=use_followup, ephemeral=True)
