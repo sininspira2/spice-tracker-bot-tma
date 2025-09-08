@@ -4,7 +4,7 @@
 
 # Command metadata
 COMMAND_METADATA = {
-    'aliases': ['sand'],
+    'aliases': [],  # The old command name was 'sand'. Slash commands don't support aliases.
     'description': "Deposits spice sand and converts it into melange (primary currency)",
     'params': {
         'amount': "Amount of spice sand to convert",
