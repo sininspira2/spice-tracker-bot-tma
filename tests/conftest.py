@@ -6,6 +6,7 @@ import asyncio
 import os
 from unittest.mock import Mock, AsyncMock
 from dotenv import load_dotenv
+from datetime import datetime
 
 # Load environment variables for testing
 load_dotenv()
@@ -24,7 +25,7 @@ def mock_interaction():
     interaction.user.id = 123456789
     interaction.user.display_name = "TestUser"
     interaction.user.name = "testuser"
-    interaction.created_at = Mock()
+    interaction.created_at = datetime.now()
     interaction.response = AsyncMock()
     interaction.followup = AsyncMock()
     interaction.guild = Mock()
