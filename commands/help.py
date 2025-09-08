@@ -24,11 +24,11 @@ async def help(interaction, use_followup: bool = True):
                                  "**`/refinery`** View melange status & payments\n"
                                  "**`/ledger`** View conversion history & status\n"
                                  "**`/help`** Show all commands",
-        "🛡️ Officer Commands": "**`/deposit_sand [amount]`** Convert sand→melange (1-10k, 50:1 ratio)\n"
+        "🛡️ Officer Commands": "**`/deposit_sand [amount] [landsraad_bonus]`** Convert sand→melange (1-10k, 50:1 ratio)\n"
                                  "**`/expedition [id]`** View expedition details\n"
                                  "**`/leaderboard [limit]`** Top refiners (5-25 users)\n"
-                                 "**`/split [sand] [@users]`** Split sand→melange with guild cut\n"
-                                 "**`/fixedratecut [sand] [@users] [optional: fixed rate percent Default - 5]`** Split a fixed percentage of sand→melange between users with leftover going to guild\n"
+                                 "**`/split [total_sand] [users] [guild] [landsraad_bonus]`** Split sand→melange with guild cut\n"
+                                 "**`/fixedratecut [total_sand] [users] [rate] [landsraad_bonus]`** Split a fixed percentage of sand to users, rest to guild\n"
                                  "**`/treasury`** View guild treasury",
         "⚙️ Admin Commands": "**`/pending`** View pending melange payments\n"
                                    "**`/pay [user] [amount]`** Process user payment (full or partial)\n"
