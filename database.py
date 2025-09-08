@@ -530,36 +530,41 @@ class Database:
                 raise e
 
     async def pay_all_pending_melange(self, admin_user_id=None, admin_username=None):
-        """Pay all users their pending melange"""
+        """Pay all users their pending melange atomically."""
         start_time = time.time()
         async with self._get_connection() as conn:
             try:
                 async with conn.transaction():
-                    # Atomically update users and get the list of those who were paid
-                    paid_users = await conn.fetch('''
-                        WITH updated_users AS (
-                            UPDATE users
-                            SET paid_melange = total_melange,
-                                last_updated = CURRENT_TIMESTAMP
-                            WHERE total_melange > paid_melange
-                            RETURNING user_id, username, total_melange, paid_melange as old_paid_melange
-                        )
+                    # Step 1: Select users with pending melange and lock their rows to prevent race conditions.
+                    # This query calculates the amount to be paid for each user.
+                    users_to_pay = await conn.fetch('''
                         SELECT
                             user_id,
                             username,
-                            (total_melange - old_paid_melange) as amount_paid
-                        FROM updated_users;
+                            (total_melange - paid_melange) as amount_paid
+                        FROM users
+                        WHERE total_melange > paid_melange
+                        FOR UPDATE
                     ''')
 
-                    if not paid_users:
+                    if not users_to_pay:
                         await self._log_operation("update_bulk", "melange_payments", start_time, success=True,
                                                 total_paid=0, users_paid=0, admin_user_id=admin_user_id)
                         return {"total_paid": 0, "users_paid": 0}
 
-                    # Prepare payment records for bulk insert
+                    # Step 2: Update the paid_melange for the identified users.
+                    user_ids_to_update = [user['user_id'] for user in users_to_pay]
+                    await conn.execute('''
+                        UPDATE users
+                        SET paid_melange = total_melange,
+                            last_updated = CURRENT_TIMESTAMP
+                        WHERE user_id = ANY($1::text[])
+                    ''', user_ids_to_update)
+
+                    # Step 3: Prepare and bulk insert payment records.
                     payment_records = []
                     total_paid = 0
-                    for user in paid_users:
+                    for user in users_to_pay:
                         amount_paid = user['amount_paid']
                         if amount_paid > 0:
                             payment_records.append(
@@ -567,14 +572,13 @@ class Database:
                             )
                             total_paid += amount_paid
 
-                    # Bulk insert payment records
                     if payment_records:
                         await conn.executemany('''
                             INSERT INTO melange_payments (user_id, username, melange_amount, admin_user_id, admin_username, description)
                             VALUES ($1, $2, $3, $4, $5, $6)
                         ''', payment_records)
 
-                users_paid = len(paid_users)
+                users_paid = len(users_to_pay)
                 await self._log_operation("update_bulk", "melange_payments", start_time, success=True,
                                         total_paid=total_paid, users_paid=users_paid, admin_user_id=admin_user_id)
                 return {"total_paid": total_paid, "users_paid": users_paid}
