@@ -253,3 +253,58 @@ class TestCalculateSandCommand:
             else:
                 response_text = mock_interaction.response.send_message.call_args.args[0]
             assert "Amount must be 1 or larger" in response_text
+
+class TestRefineryCommand:
+    """Test the /refinery command."""
+
+    @pytest.mark.asyncio
+    async def test_refinery_command_with_real_user_data(self, mock_interaction, mock_database):
+        """Test the refinery command with more realistic user data."""
+        from commands.refinery import refinery
+        from datetime import datetime
+
+        user_id = "test_user_id_2"
+        username = "test_user_2"
+
+        with patch('commands.refinery.validate_user_exists') as mock_validate_user:
+            mock_validate_user.return_value = {
+                "user_id": user_id,
+                "username": username,
+                "total_melange": 150,
+                "paid_melange": 50,
+                "last_updated": datetime.now()
+            }
+            await refinery(mock_interaction)
+
+        assert mock_interaction.followup.send.called or mock_interaction.response.send_message.called
+
+
+class TestLedgerCommand:
+    """Test the /ledger command."""
+
+    @pytest.mark.asyncio
+    async def test_ledger_command_shows_paid_melange(self, mock_interaction, mock_database):
+        """Test that the ledger command correctly displays paid melange."""
+        from commands.ledger import ledger
+        from datetime import datetime
+
+        user_id = "test_user_id_3"
+        username = "test_user_3"
+
+        with patch('commands.ledger.validate_user_exists') as mock_validate_user:
+            mock_validate_user.return_value = {
+                "user_id": user_id,
+                "username": username,
+                "total_melange": 200,
+                "paid_melange": 100,
+                "last_updated": datetime.now()
+            }
+            # Mock get_user_deposits to return some data to avoid early exit
+            mock_database.get_user_deposits.return_value = [{'sand_amount': 1000, 'type': 'solo', 'created_at': datetime.now()}]
+            with patch('commands.ledger.get_database', return_value=mock_database):
+                await ledger(mock_interaction)
+
+        assert mock_interaction.followup.send.called
+        sent_embed = mock_interaction.followup.send.call_args.kwargs['embed']
+        assert "100" in sent_embed.fields[0].value
+        assert "paid" in sent_embed.fields[0].value

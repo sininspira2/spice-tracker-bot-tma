@@ -122,15 +122,16 @@ class Database:
         async with self._get_connection() as conn:
             try:
                 row = await conn.fetchrow(
-                    'SELECT * FROM users WHERE user_id = $1',
+                    'SELECT user_id, username, total_melange, paid_melange, last_updated FROM users WHERE user_id = $1',
                     user_id
                 )
                 if row:
                     result = {
-                        'user_id': row[0],
-                        'username': row[1],
-                        'total_melange': row[2],
-                        'last_updated': row[3] if row[3] else datetime.now()
+                        'user_id': row['user_id'],
+                        'username': row['username'],
+                        'total_melange': row['total_melange'],
+                        'paid_melange': row['paid_melange'],
+                        'last_updated': row['last_updated'] if row['last_updated'] else datetime.now()
                     }
                     await self._log_operation("select", "users", start_time, success=True, user_id=user_id, found=True)
                     return result
