@@ -74,19 +74,18 @@ def is_officer(interaction: discord.Interaction) -> bool:
     Check if user has officer permissions.
     Returns True if user has an officer role OR is an admin.
     """
-    # Admins are always considered officers
-    if is_admin(interaction):
-        return True
-
+    admin_role_ids = get_admin_role_ids()
     officer_role_ids = get_officer_role_ids()
 
-    # If no officer roles configured, deny access
-    if not officer_role_ids:
+    # Combine admin and officer roles for a single check
+    privileged_role_ids = set(admin_role_ids) | set(officer_role_ids)
+
+    if not privileged_role_ids:
         return False
 
-    # Check if user has any of the specified officer roles
+    # Check if user has any of the privileged roles
     if hasattr(interaction.user, 'roles'):
-        user_role_ids = [role.id for role in interaction.user.roles]
-        return any(role_id in user_role_ids for role_id in officer_role_ids)
+        user_role_ids = {role.id for role in interaction.user.roles}
+        return not user_role_ids.isdisjoint(privileged_role_ids)
 
     return False
