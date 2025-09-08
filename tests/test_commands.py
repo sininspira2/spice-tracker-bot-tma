@@ -206,22 +206,19 @@ class TestCalculateSandCommand:
 
     @pytest.mark.asyncio
     async def test_calculate_sand_command(self, mock_interaction):
-        """Test the calculate_sand command with valid input."""
+        """Test the calculate_sand command with a decimal result."""
         from commands.calculate_sand import calculate_sand
         with patch('commands.calculate_sand.is_allowed_user', return_value=True):
-            await calculate_sand(mock_interaction, 1000, landsraad_bonus=False)
+            await calculate_sand(mock_interaction, 125, landsraad_bonus=False)
 
             # Verify that an embed was sent
             assert mock_interaction.followup.send.called or mock_interaction.response.send_message.called
 
             # Check the content of the embed
-            if mock_interaction.followup.send.called:
-                sent_embed = mock_interaction.followup.send.call_args.kwargs['embed']
-            else:
-                sent_embed = mock_interaction.response.send_message.call_args.kwargs['embed']
+            sent_embed = mock_interaction.followup.send.call_args.kwargs['embed']
             assert "Sand Conversion Calculation" in sent_embed.title
-            assert "1,000 sand" in sent_embed.description
-            assert "20 melange" in sent_embed.description # 1000 / 50 = 20
+            assert "125 sand" in sent_embed.description
+            assert "2.50 melange" in sent_embed.description # 125 / 50 = 2.5
 
     @pytest.mark.asyncio
     async def test_calculate_sand_command_not_allowed(self, mock_interaction):
@@ -236,3 +233,17 @@ class TestCalculateSandCommand:
             # Check the content of the response
             response_text = mock_interaction.followup.send.call_args.args[0]
             assert "not authorized" in response_text
+
+    @pytest.mark.asyncio
+    async def test_calculate_sand_command_invalid_amount(self, mock_interaction):
+        """Test the calculate_sand command with an invalid amount."""
+        from commands.calculate_sand import calculate_sand
+        with patch('commands.calculate_sand.is_allowed_user', return_value=True):
+            await calculate_sand(mock_interaction, 0)
+
+            # Verify that an error message was sent
+            assert mock_interaction.followup.send.called or mock_interaction.response.send_message.called
+
+            # Check the content of the response
+            response_text = mock_interaction.followup.send.call_args.args[0]
+            assert "Amount must be 1 or larger" in response_text
