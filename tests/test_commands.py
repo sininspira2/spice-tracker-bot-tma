@@ -35,11 +35,7 @@ class TestCommandResponsiveness:
                 command_func = getattr(__import__(f'commands.{module_name}', fromlist=[module_name]), function_name)
 
                 # Mock the database for this command - try different import paths
-                if module_name in ['treasury', 'expedition', 'leaderboard']:
-                    with patch(f'commands.{module_name}.is_officer', return_value=True), \
-                         patch(f'commands.{module_name}.get_database', return_value=mock_database):
-                        await command_func(mock_interaction, *args, **kwargs)
-                else:
+                with patch(f'commands.{module_name}.is_officer', return_value=True, create=True):
                     try:
                         with patch(f'commands.{module_name}.get_database', return_value=mock_database):
                             await command_func(mock_interaction, *args, **kwargs)
