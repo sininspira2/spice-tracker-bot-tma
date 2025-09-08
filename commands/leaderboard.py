@@ -15,25 +15,31 @@ from utils.embed_utils import build_info_embed, build_leaderboard_embed
 from utils.command_utils import log_command_metrics
 from utils.decorators import handle_interaction_expiration
 from utils.helpers import get_database, send_response
+from utils.permissions import is_officer
 
 
 @handle_interaction_expiration
 async def leaderboard(interaction, limit: int = 10, use_followup: bool = True):
     """Display top refiners by melange earned"""
     command_start = time.time()
-    
+
+    # Check if user has officer permissions
+    if not is_officer(interaction):
+        await send_response(interaction, "❌ You need to be an officer to use this command.", use_followup=use_followup, ephemeral=True)
+        return
+
     # Validate limit
     if not 5 <= limit <= 25:
         await send_response(interaction, "❌ Limit must be between 5 and 25.", use_followup=use_followup, ephemeral=True)
         return
-    
+
     # Database operation with timing using utility function
     leaderboard_data, get_leaderboard_time = await timed_database_operation(
-        "get_leaderboard", 
-        get_database().get_leaderboard, 
+        "get_leaderboard",
+        get_database().get_leaderboard,
         limit
     )
-    
+
     if not leaderboard_data:
         embed = build_info_embed(
             title="🏆 Spice Refinery Rankings",
@@ -43,28 +49,28 @@ async def leaderboard(interaction, limit: int = 10, use_followup: bool = True):
         )
         await send_response(interaction, embed=embed.build(), use_followup=use_followup)
         return
-    
+
     # Calculate totals - focus on melange as primary currency
     total_melange = sum(user['total_melange'] for user in leaderboard_data)
-    
+
     # Use utility function for leaderboard embed
     total_stats = {
         'total_refiners': len(leaderboard_data),
         'total_melange': total_melange
     }
-    
+
     embed = build_leaderboard_embed(
         title="🏆 Spice Refinery Rankings",
         leaderboard_data=leaderboard_data,
         total_stats=total_stats,
         timestamp=interaction.created_at
     )
-    
+
     # Send response using helper function
     response_start = time.time()
     await send_response(interaction, embed=embed.build(), use_followup=use_followup)
     response_time = time.time() - response_start
-    
+
     # Log performance metrics using utility function
     total_time = time.time() - command_start
     log_command_metrics(
