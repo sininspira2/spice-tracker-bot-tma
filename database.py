@@ -534,43 +534,52 @@ class Database:
         start_time = time.time()
         async with self._get_connection() as conn:
             try:
-                # Get all users with pending melange
-                users_with_pending = await conn.fetch('''
-                    SELECT user_id, username, total_melange, paid_melange,
-                           (total_melange - paid_melange) as pending_melange
-                    FROM users
-                    WHERE total_melange > paid_melange
-                ''')
-
-                total_paid = 0
-                users_paid = 0
-
                 async with conn.transaction():
-                    for user in users_with_pending:
-                        pending = user['pending_melange']
-                        if pending > 0:
-                            # Update user's paid_melange
-                            await conn.execute('''
-                                UPDATE users
-                                SET paid_melange = total_melange,
-                                    last_updated = CURRENT_TIMESTAMP
-                                WHERE user_id = $1
-                            ''', user['user_id'])
+                    # Atomically update users and get the list of those who were paid
+                    paid_users = await conn.fetch('''
+                        WITH updated_users AS (
+                            UPDATE users
+                            SET paid_melange = total_melange,
+                                last_updated = CURRENT_TIMESTAMP
+                            WHERE total_melange > paid_melange
+                            RETURNING user_id, username, total_melange, paid_melange as old_paid_melange
+                        )
+                        SELECT
+                            user_id,
+                            username,
+                            (total_melange - old_paid_melange) as amount_paid
+                        FROM updated_users;
+                    ''')
 
-                            # Record the payment
-                            await conn.execute('''
-                                INSERT INTO melange_payments (user_id, username, melange_amount, admin_user_id, admin_username,.description)
-                                VALUES ($1, $2, $3, $4, $5, $6)
-                            ''', user['user_id'], user['username'], pending, admin_user_id, admin_username, f"Bulk melange payment to {user['username']}")
+                    if not paid_users:
+                        await self._log_operation("update", "melange_payments", start_time, success=True,
+                                                total_paid=0, users_paid=0, admin_user_id=admin_user_id)
+                        return {"total_paid": 0, "users_paid": 0}
 
-                            total_paid += pending
-                            users_paid += 1
+                    # Prepare payment records for bulk insert
+                    payment_records = []
+                    total_paid = 0
+                    for user in paid_users:
+                        amount_paid = user['amount_paid']
+                        if amount_paid > 0:
+                            payment_records.append(
+                                (user['user_id'], user['username'], amount_paid, admin_user_id, admin_username, f"Bulk melange payment to {user['username']}")
+                            )
+                            total_paid += amount_paid
 
-                await self._log_operation("update", "melange_payments", start_time, success=True,
+                    # Bulk insert payment records
+                    if payment_records:
+                        await conn.executemany('''
+                            INSERT INTO melange_payments (user_id, username, melange_amount, admin_user_id, admin_username, description)
+                            VALUES ($1, $2, $3, $4, $5, $6)
+                        ''', payment_records)
+
+                users_paid = len(paid_users)
+                await self._log_operation("update_bulk", "melange_payments", start_time, success=True,
                                         total_paid=total_paid, users_paid=users_paid, admin_user_id=admin_user_id)
                 return {"total_paid": total_paid, "users_paid": users_paid}
             except Exception as e:
-                await self._log_operation("update", "melange_payments", start_time, success=False,
+                await self._log_operation("update_bulk", "melange_payments", start_time, success=False,
                                         admin_user_id=admin_user_id, error=str(e))
                 raise e
 
