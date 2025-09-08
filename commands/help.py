@@ -20,12 +20,14 @@ async def help(interaction, use_followup: bool = True):
     
     # Use utility function for embed building
     fields = {
-        "📊 Harvester Commands": "**`/sand [amount]`** Convert sand→melange (1-10k, 50:1 ratio)\n"
+        "📊 Harvester Commands": "**`/deposit_sand [amount]`** Convert sand→melange (1-10k, 50:1 ratio)\n"
+                                 "**`/calculate_sand [amount]`** Calculate melange conversion without depositing\n"
                                  "**`/refinery`** View melange status & payments\n"
                                  "**`/ledger`** View conversion history & status\n"
                                  "**`/expedition [id]`** View expedition details\n"
                                  "**`/leaderboard [limit]`** Top refiners (5-25 users)\n"
                                  "**`/split [sand] [@users]`** Split sand→melange with guild cut\n"
+                                 "**`/fixedratecut [sand] [@users] [optional: fixed rate percent Default - 5]`** Split a fixed percentage of sand→melange between users with leftover going to guild\n"
                                  "**`/help`** Show all commands",
         "⚙️ Admin Commands": "**`/pending`** View pending melange payments\n"
                                    "**`/pay [user] [amount]`** Process user payment (full or partial)\n"
@@ -35,8 +37,9 @@ async def help(interaction, use_followup: bool = True):
                                    "**`/sync`** Sync commands (Owner)\n"
                                    "**`/reset confirm:True`** Reset all data",
 
-        "💡 Examples": "• `/sand 250` → 5 melange\n"
+        "💡 Examples": "• `/deposit_sand 250` → 5 melange\n"
                             "• `/split 1000 @user1 @user2` → 500 each\n"
+                            "• `/fixedratecut 75000 @user1 @user2 10` → 7500 sand/150 melange each\n"
                             "• `/pay @user` → pay pending melange\n"
                             "• `/payroll` → pay all users"
     }
@@ -50,3 +53,4 @@ async def help(interaction, use_followup: bool = True):
     )
     
     await send_response(interaction, embed=embed.build(), use_followup=use_followup, ephemeral=True)
+

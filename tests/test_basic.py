@@ -50,9 +50,10 @@ class TestCommandDiscovery:
         from commands import COMMAND_METADATA
         
         expected_commands = {
-            'sand', 'refinery', 'leaderboard',
+            'deposit_sand', 'refinery', 'leaderboard',
             'split', 'help', 'reset', 'ledger', 'expedition',
-            'payment', 'payroll', 'treasury', 'guild_withdraw', 'pending'
+            'payment', 'payroll', 'treasury', 'guild_withdraw', 'pending', 'fixedratecut',
+            'calculate_sand'
         }
         
         discovered_commands = set(COMMAND_METADATA.keys())
