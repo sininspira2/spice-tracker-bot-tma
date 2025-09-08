@@ -1,14 +1,15 @@
 """
-Sand command for logging spice sand harvests and calculating melange conversion.
+/deposit_sand command for logging spice sand harvests and calculating melange conversion.
 """
 
 # Command metadata
 COMMAND_METADATA = {
-    'aliases': [],  # formerly named 'harvest'
-    'description': "Convert spice sand into melange (primary currency)",
+    'aliases': ['sand'],
+    'description': "Deposits spice sand and converts it into melange (primary currency)",
     'params': {
         'amount': "Amount of spice sand to convert",
-        'landsraad_bonus': "Whether or not to apply the 25% Landsraad crafting reduction (default: false)." }
+        'landsraad_bonus': "Whether or not to apply the 25% Landsraad crafting reduction (default: false)."
+    }
 }
 
 import time
@@ -22,7 +23,7 @@ from utils.permissions import is_officer
 
 
 @handle_interaction_expiration
-async def sand(interaction, amount: int, landsraad_bonus: bool = False, use_followup: bool = True):
+async def deposit_sand(interaction, amount: int, landsraad_bonus: bool = False, use_followup: bool = True):
     """Convert spice sand into melange (primary currency)"""
     command_start = time.time()
 
@@ -88,7 +89,7 @@ async def sand(interaction, amount: int, landsraad_bonus: bool = False, use_foll
     # Log performance metrics using utility function
     total_time = time.time() - command_start
     log_command_metrics(
-        "Harvest",
+        "Deposit Sand",
         str(interaction.user.id),
         interaction.user.display_name,
         total_time,
