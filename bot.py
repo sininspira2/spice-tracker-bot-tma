@@ -120,7 +120,7 @@ async def on_ready():
 # Register commands with the bot's command tree
 def register_commands():
     """Register all commands explicitly with their exact signatures"""
-    from commands import deposit_sand, refinery, leaderboard, split, help, reset, ledger, expedition, payment, payroll, treasury, guild_withdraw, pending, fixedratecut
+    from commands import deposit_sand, calculate_sand, refinery, leaderboard, split, help, reset, ledger, expedition, payment, payroll, treasury, guild_withdraw, pending, fixedratecut
 
     # Deposit Sand command (formerly sand/harvest)
     @bot.tree.command(name="deposit_sand", description="Deposits spice sand and converts it into melange (50:1 ratio)")
@@ -130,6 +130,15 @@ def register_commands():
     )
     async def deposit_sand_cmd(interaction: discord.Interaction, amount: int, landsraad_bonus: bool = False):  # noqa: F841
         await deposit_sand(interaction, amount, landsraad_bonus, True)
+
+    # Calculate Sand command
+    @bot.tree.command(name="calculate_sand", description="Calculates melange conversion from spice sand without depositing")
+    @app_commands.describe(
+        amount="Amount of spice sand to calculate conversion for (1-10,000)",
+        landsraad_bonus="Whether or not Landsraad crafting bonus is in effect (default:false)"
+    )
+    async def calculate_sand_cmd(interaction: discord.Interaction, amount: int, landsraad_bonus: bool = False):  # noqa: F841
+        await calculate_sand(interaction, amount, landsraad_bonus, True)
 
     # Refinery command
     @bot.tree.command(name="refinery", description="View your melange production and payment status")

@@ -21,6 +21,7 @@ async def help(interaction, use_followup: bool = True):
     # Use utility function for embed building
     fields = {
         "📊 Harvester Commands": "**`/deposit_sand [amount]`** Convert sand→melange (1-10k, 50:1 ratio)\n"
+                                 "**`/calculate_sand [amount]`** Calculate melange conversion without depositing\n"
                                  "**`/refinery`** View melange status & payments\n"
                                  "**`/ledger`** View conversion history & status\n"
                                  "**`/expedition [id]`** View expedition details\n"

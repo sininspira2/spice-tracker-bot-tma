@@ -199,3 +199,37 @@ class TestCommandResponsiveness:
                 pytest.fail(f"Could not import command {command_name}: {e}")
             except AttributeError as e:
                 pytest.fail(f"Command function {actual_function_name} not found in module {command_name}: {e}")
+
+
+class TestCalculateSandCommand:
+    """Test the /calculate_sand command."""
+
+    @pytest.mark.asyncio
+    async def test_calculate_sand_command(self, mock_interaction):
+        """Test the calculate_sand command with valid input."""
+        from commands.calculate_sand import calculate_sand
+        with patch('commands.calculate_sand.is_allowed_user', return_value=True):
+            await calculate_sand(mock_interaction, 1000, landsraad_bonus=False)
+
+            # Verify that an embed was sent
+            assert mock_interaction.followup.send.called or mock_interaction.response.send_message.called
+
+            # Check the content of the embed
+            sent_embed = mock_interaction.followup.send.call_args.kwargs['embed']
+            assert "Sand Conversion Calculation" in sent_embed.title
+            assert "1,000 sand" in sent_embed.description
+            assert "20 melange" in sent_embed.description # 1000 / 50 = 20
+
+    @pytest.mark.asyncio
+    async def test_calculate_sand_command_not_allowed(self, mock_interaction):
+        """Test the calculate_sand command when the user is not allowed."""
+        from commands.calculate_sand import calculate_sand
+        with patch('commands.calculate_sand.is_allowed_user', return_value=False):
+            await calculate_sand(mock_interaction, 1000)
+
+            # Verify that an error message was sent
+            assert mock_interaction.followup.send.called or mock_interaction.response.send_message.called
+
+            # Check the content of the response
+            response_text = mock_interaction.followup.send.call_args.args[0]
+            assert "not authorized" in response_text
