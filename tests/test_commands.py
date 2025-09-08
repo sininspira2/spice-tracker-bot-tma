@@ -26,6 +26,7 @@ class TestCommandResponsiveness:
             ('expedition', 'expedition', [1, True], {}),
             ('payment', 'pay', [Mock(id=123, display_name="TestUser"), None, True], {}),
             ('payroll', 'payroll', [True], {}),
+            ('treasury', 'treasury', [True], {}),
         ]
 
         for module_name, function_name, args, kwargs in test_cases:
@@ -34,13 +35,14 @@ class TestCommandResponsiveness:
                 command_func = getattr(__import__(f'commands.{module_name}', fromlist=[module_name]), function_name)
 
                 # Mock the database for this command - try different import paths
-                try:
-                    with patch(f'commands.{module_name}.get_database', return_value=mock_database):
-                        await command_func(mock_interaction, *args, **kwargs)
-                except AttributeError:
-                    # Try patching utils.helpers.get_database instead
-                    with patch('utils.helpers.get_database', return_value=mock_database):
-                        await command_func(mock_interaction, *args, **kwargs)
+                with patch(f'commands.{module_name}.is_officer', return_value=True, create=True):
+                    try:
+                        with patch(f'commands.{module_name}.get_database', return_value=mock_database):
+                            await command_func(mock_interaction, *args, **kwargs)
+                    except AttributeError:
+                        # Try patching utils.helpers.get_database instead
+                        with patch('utils.helpers.get_database', return_value=mock_database):
+                            await command_func(mock_interaction, *args, **kwargs)
 
                 # Verify some form of response was sent (either followup.send or response.send)
                 response_sent = (
@@ -176,6 +178,7 @@ class TestCommandResponsiveness:
             'expedition': 'expedition',
             'payment': 'pay',
             'payroll': 'payroll',
+            'treasury': 'treasury',
         }
 
         for command_name in COMMAND_METADATA.keys():
