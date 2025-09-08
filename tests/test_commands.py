@@ -14,7 +14,7 @@ class TestCommandResponsiveness:
         """Test that all commands can execute and respond without crashing."""
         # Map of module names to actual function names and parameters
         test_cases = [
-            ('sand', 'sand', [100, True], {}),
+            ('deposit_sand', 'deposit_sand', [100, True], {}),
             ('refinery', 'refinery', [True], {}),
             ('leaderboard', 'leaderboard', [10, True], {}),
 
@@ -68,8 +68,8 @@ class TestCommandResponsiveness:
         """Test that commands handle invalid inputs gracefully."""
         # Test edge cases for commands that take parameters
         edge_cases = [
-            ('sand', 'sand', [0, True], {}),  # Too low
-            ('sand', 'sand', [15000, True], {}),  # Too high
+            ('deposit_sand', 'deposit_sand', [0, True], {}),  # Too low
+            ('deposit_sand', 'deposit_sand', [15000, True], {}),  # Too high
             ('split', 'split', [0, '@user1', True], {}),  # Invalid sand amount
             ('split', 'split', [1000, '@user1', True], {}),  # Valid split
             ('fixedratecut', 'fixedratecut', [0, '@user1', 5, True], {}),
@@ -114,15 +114,15 @@ class TestCommandResponsiveness:
                 pytest.fail(f"Command {function_name} failed with error on invalid input: {e}")
 
     @pytest.mark.asyncio
-    async def test_landsraad_bonus_sand_command(self, mock_interaction, mock_database):
-        """Test the sand command with the landsraad_bonus flag."""
-        from commands.sand import sand
-        with patch('commands.sand.get_sand_per_melange') as mock_get_sand_per_melange, \
-             patch('commands.sand.get_database', return_value=mock_database), \
-             patch('commands.sand.is_officer', return_value=True):
+    async def test_landsraad_bonus_deposit_sand_command(self, mock_interaction, mock_database):
+        """Test the deposit_sand command with the landsraad_bonus flag."""
+        from commands.deposit_sand import deposit_sand
+        with patch('commands.deposit_sand.get_sand_per_melange') as mock_get_sand_per_melange, \
+             patch('commands.deposit_sand.get_database', return_value=mock_database), \
+             patch('commands.deposit_sand.is_officer', return_value=True):
 
             mock_get_sand_per_melange.return_value = 37
-            await sand(mock_interaction, 100, landsraad_bonus=True)
+            await deposit_sand(mock_interaction, 100, landsraad_bonus=True)
             mock_get_sand_per_melange.assert_called_with(landsraad_bonus=True)
 
     @pytest.mark.asyncio
@@ -167,7 +167,7 @@ class TestCommandResponsiveness:
         """Test that all command functions can be imported and are callable."""
         # Map of module names to actual function names
         function_name_map = {
-            'sand': 'sand',
+            'deposit_sand': 'deposit_sand',
             'refinery': 'refinery',
             'leaderboard': 'leaderboard',
             'split': 'split',
