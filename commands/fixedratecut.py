@@ -21,11 +21,17 @@ import math
 from utils.decorators import handle_interaction_expiration
 from utils.helpers import get_database, get_sand_per_melange, send_response
 from utils.logger import logger
+from utils.permissions import is_officer
 
 @handle_interaction_expiration
 async def fixedratecut(interaction, total_sand: int, users: str, rate: int = 5, landsraad_bonus: bool = False, use_followup: bool = True):
     """Awards a fixed percentage of spice sand to tagged users, with the remainder going to the guild."""
     try:
+        # Check if user has officer permissions
+        if not is_officer(interaction):
+            await send_response(interaction, "❌ You need to be an officer to use this command.", use_followup=use_followup, ephemeral=True)
+            return
+
         # Validate inputs
         if total_sand < 1:
             await send_response(interaction, "❌ Total spice sand must be at least 1.", use_followup=use_followup, ephemeral=True)
