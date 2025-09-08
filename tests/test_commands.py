@@ -248,5 +248,8 @@ class TestCalculateSandCommand:
             assert mock_interaction.followup.send.called or mock_interaction.response.send_message.called
 
             # Check the content of the response
-            response_text = mock_interaction.followup.send.call_args.args[0]
+            if mock_interaction.followup.send.called:
+                response_text = mock_interaction.followup.send.call_args.args[0]
+            else:
+                response_text = mock_interaction.response.send_message.call_args.args[0]
             assert "Amount must be 1 or larger" in response_text
