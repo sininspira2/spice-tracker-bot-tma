@@ -552,7 +552,7 @@ class Database:
                     ''')
 
                     if not paid_users:
-                        await self._log_operation("update", "melange_payments", start_time, success=True,
+                        await self._log_operation("update_bulk", "melange_payments", start_time, success=True,
                                                 total_paid=0, users_paid=0, admin_user_id=admin_user_id)
                         return {"total_paid": 0, "users_paid": 0}
 
