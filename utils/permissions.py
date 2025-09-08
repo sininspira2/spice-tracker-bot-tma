@@ -86,7 +86,7 @@ def is_officer(interaction: discord.Interaction) -> bool:
 
     # Check if user has any of the specified officer roles
     if hasattr(interaction.user, 'roles'):
-        user_role_ids = [role.id for role in interaction.user.roles]
-        return any(role_id in user_role_ids for role_id in officer_role_ids)
+        user_role_ids = {role.id for role in interaction.user.roles}
+        return not user_role_ids.isdisjoint(officer_role_ids)
 
     return False
