@@ -187,7 +187,7 @@ python -m pytest tests/ --cov=. --cov-report=html
 
 ## 📝 Recent Updates
 
-- **✅ Command Rename:** `/harvest` → `/sand` for better game alignment
+- **✅ Command Rename:** `/sand` → `/deposit_sand` for improved clarity
 - **✅ Auto-Sync:** Commands sync automatically on bot startup
 - **✅ Structured Logging:** Professional logging system for production monitoring
 - **✅ Bug Fixes:** Resolved timestamp handling and database schema issues
