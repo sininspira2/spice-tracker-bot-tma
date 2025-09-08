@@ -116,7 +116,8 @@ class TestCommandResponsiveness:
         """Test the sand command with the landsraad_bonus flag."""
         from commands.sand import sand
         with patch('commands.sand.get_sand_per_melange') as mock_get_sand_per_melange, \
-             patch('commands.sand.get_database', return_value=mock_database):
+             patch('commands.sand.get_database', return_value=mock_database), \
+             patch('commands.sand.is_officer', return_value=True):
 
             mock_get_sand_per_melange.return_value = 37
             await sand(mock_interaction, 100, landsraad_bonus=True)
@@ -127,7 +128,8 @@ class TestCommandResponsiveness:
         """Test the split command with the landsraad_bonus flag."""
         from commands.split import split
         with patch('commands.split.get_sand_per_melange') as mock_get_sand_per_melange, \
-             patch('commands.split.get_database', return_value=mock_database):
+             patch('commands.split.get_database', return_value=mock_database), \
+             patch('commands.split.is_officer', return_value=True):
 
             mock_get_sand_per_melange.return_value = 37
             await split(mock_interaction, 1000, '<@12345>', 10, landsraad_bonus=True)
@@ -138,7 +140,8 @@ class TestCommandResponsiveness:
         """Test the fixedratecut command with the landsraad_bonus flag."""
         from commands.fixedratecut import fixedratecut
         with patch('commands.fixedratecut.get_sand_per_melange') as mock_get_sand_per_melange, \
-             patch('commands.fixedratecut.get_database', return_value=mock_database):
+             patch('commands.fixedratecut.get_database', return_value=mock_database), \
+             patch('commands.fixedratecut.is_officer', return_value=True):
 
             mock_get_sand_per_melange.return_value = 37
             await fixedratecut(mock_interaction, 10000, '<@12345>', 5, landsraad_bonus=True)

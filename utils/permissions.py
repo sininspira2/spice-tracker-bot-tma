@@ -29,6 +29,10 @@ def get_allowed_role_ids() -> List[int]:
     """Get allowed role IDs from environment variable"""
     return _parse_role_ids(os.getenv('ALLOWED_ROLE_IDS', ''))
 
+def get_officer_role_ids() -> List[int]:
+    """Get officer role IDs from environment variable"""
+    return _parse_role_ids(os.getenv('OFFICER_ROLE_IDS', ''))
+
 def is_admin(interaction: discord.Interaction) -> bool:
     """
     Check if user has admin permissions based on ADMIN_ROLE_IDS environment variable.
@@ -63,4 +67,26 @@ def is_allowed_user(interaction: discord.Interaction) -> bool:
         user_role_ids = [role.id for role in interaction.user.roles]
         return any(role_id in user_role_ids for role_id in allowed_role_ids)
     
+    return False
+
+def is_officer(interaction: discord.Interaction) -> bool:
+    """
+    Check if user has officer permissions.
+    Returns True if user has an officer role OR is an admin.
+    """
+    # Admins are always considered officers
+    if is_admin(interaction):
+        return True
+
+    officer_role_ids = get_officer_role_ids()
+
+    # If no officer roles configured, deny access
+    if not officer_role_ids:
+        return False
+
+    # Check if user has any of the specified officer roles
+    if hasattr(interaction.user, 'roles'):
+        user_role_ids = [role.id for role in interaction.user.roles]
+        return any(role_id in user_role_ids for role_id in officer_role_ids)
+
     return False
