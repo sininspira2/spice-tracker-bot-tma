@@ -20,7 +20,7 @@ async def help(interaction, use_followup: bool = True):
     
     # Use utility function for embed building
     fields = {
-        "📊 Harvester Commands": "**`/sand [amount]`** Convert sand→melange (1-10k, 50:1 ratio)\n"
+        "📊 Harvester Commands": "**`/deposit_sand [amount]`** Convert sand→melange (1-10k, 50:1 ratio)\n"
                                  "**`/refinery`** View melange status & payments\n"
                                  "**`/ledger`** View conversion history & status\n"
                                  "**`/expedition [id]`** View expedition details\n"
@@ -35,7 +35,7 @@ async def help(interaction, use_followup: bool = True):
                                    "**`/sync`** Sync commands (Owner)\n"
                                    "**`/reset confirm:True`** Reset all data",
 
-        "💡 Examples": "• `/sand 250` → 5 melange\n"
+        "💡 Examples": "• `/deposit_sand 250` → 5 melange\n"
                             "• `/split 1000 @user1 @user2` → 500 each\n"
                             "• `/pay @user` → pay pending melange\n"
                             "• `/payroll` → pay all users"

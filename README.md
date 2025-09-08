@@ -52,7 +52,7 @@ A Discord bot for **Dune: Awakening** guilds to convert spice sand to melange, m
 ## 🤖 Commands
 
 ### 🏜️ Harvester Commands
-- **`/sand <amount>`** - Convert spice sand to melange (1-10,000). Primary currency conversion at 50:1 ratio
+- **`/deposit_sand <amount>`** - Convert spice sand to melange (1-10,000). Primary currency conversion at 50:1 ratio
 - **`/refinery`** - View your melange production and payment status (private)
 - **`/ledger`** - View your sand conversion history and melange status (private)
 - **`/leaderboard [limit]`** - Display top spice refiners by melange production (5-25 users)
@@ -64,6 +64,11 @@ A Discord bot for **Dune: Awakening** guilds to convert spice sand to melange, m
   - **Example:** `/split 10000 "@harvester 30 @scout @pilot" 15`
   - **Guild Cut:** Percentage taken off the top (default: 10%)
   - **User Percentages:** Users with percentages get exact amounts, others split equally
+  - **Creates:** Expedition records and tracks melange owed for payout
+- **`/fixedratecut <total_sand> <users> [optional: rate]`** - Alternative split - Give each user a fixed % payout of spice and the leftover goes to guild
+  - **Example:** `/split 10000 "@harvester @scout @pilot" 15`
+  - **Guild Cut:** All leftover sand goes to guild
+  - **User Percentages:** Equal percent cuts for each user (default: 5%)
   - **Creates:** Expedition records and tracks melange owed for payout
 
 ### 🏛️ Guild Admin Commands
@@ -81,7 +86,7 @@ A Discord bot for **Dune: Awakening** guilds to convert spice sand to melange, m
 
 ### Individual Harvests
 ```
-/sand 2500  →  50 melange produced (50:1 conversion rate)
+/deposit_sand 2500  →  50 melange produced (50:1 conversion rate)
 ```
 
 ### Team Expeditions
@@ -90,7 +95,7 @@ A Discord bot for **Dune: Awakening** guilds to convert spice sand to melange, m
 
 Result (15% guild cut):
 - Guild Treasury: 1500 sand → 30 melange
-- Harvester: 2550 sand (30% of remaining) → 51 melange  
+- Harvester: 2550 sand (30% of remaining) → 51 melange
 - Scout: 2975 sand (35% of remaining) → 59 melange
 - Pilot: 2975 sand (35% of remaining) → 59 melange
 ```
@@ -162,7 +167,7 @@ The bot includes:
 ## ⚡ Performance Features
 
 - **🚀 Fast Startup:** < 2 second boot time with automatic command sync
-- **📊 Structured Logging:** Production-ready logging with Fly.io integration  
+- **📊 Structured Logging:** Production-ready logging with Fly.io integration
 - **🔄 Connection Pooling:** Efficient database connections with automatic retry
 - **⚡ Async Operations:** Non-blocking Discord interactions and database queries
 - **🛡️ Error Recovery:** Graceful handling of database and Discord API failures
@@ -182,7 +187,7 @@ python -m pytest tests/ --cov=. --cov-report=html
 
 ## 📝 Recent Updates
 
-- **✅ Command Rename:** `/harvest` → `/sand` for better game alignment
+- **✅ Command Rename:** `/sand` → `/deposit_sand` for improved clarity
 - **✅ Auto-Sync:** Commands sync automatically on bot startup
 - **✅ Structured Logging:** Professional logging system for production monitoring
 - **✅ Bug Fixes:** Resolved timestamp handling and database schema issues
@@ -191,7 +196,8 @@ python -m pytest tests/ --cov=. --cov-report=html
 
 ---
 
-**🎮 Game:** Dune: Awakening  
-**🚀 Status:** Production Ready  
-**📊 Deployment:** Fly.io + Supabase  
+**🎮 Game:** Dune: Awakening
+**🚀 Status:** Production Ready
+**📊 Deployment:** Fly.io + Supabase
+
 **🧪 Tests:** 46 passing ✅
