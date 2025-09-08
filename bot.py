@@ -134,7 +134,7 @@ def register_commands():
     # Calculate Sand command
     @bot.tree.command(name="calculate_sand", description="Calculates melange conversion from spice sand without depositing")
     @app_commands.describe(
-        amount="Amount of spice sand to calculate conversion for (1-10,000)",
+        amount="Amount of spice sand to calculate conversion for",
         landsraad_bonus="Whether or not Landsraad crafting bonus is in effect (default:false)"
     )
     async def calculate_sand_cmd(interaction: discord.Interaction, amount: int, landsraad_bonus: bool = False):  # noqa: F841
