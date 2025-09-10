@@ -761,7 +761,6 @@ class Database:
         start_time = time.time()
         async with self._get_connection() as conn:
             try:
-                new_total_melange = 0
                 async with conn.transaction():
                     # Step 1: Ensure user exists.
                     await conn.execute('''
@@ -778,21 +777,16 @@ class Database:
                         VALUES ($1, $2, $3, 'solo', CURRENT_TIMESTAMP)
                     ''', user_id, username, sand_amount)
 
-                    # Step 3: Update user's melange and get the new total.
-                    if melange_amount > 0:
-                        new_total_melange = await conn.fetchval('''
-                            UPDATE users
-                            SET total_melange = total_melange + $1,
-                                last_updated = CURRENT_TIMESTAMP
-                            WHERE user_id = $2
-                            RETURNING total_melange
-                        ''', melange_amount, user_id)
-                    else:
-                        # If no melange is added, just get the current total.
-                        new_total_melange = await conn.fetchval(
-                            'SELECT total_melange FROM users WHERE user_id = $1',
-                            user_id
-                        )
+                    # Step 3: Atomically update user's melange and get the new total.
+                    # Using COALESCE ensures that if total_melange is NULL, it is treated as 0.
+                    # This prevents data corruption and simplifies the logic by removing branching.
+                    new_total_melange = await conn.fetchval('''
+                        UPDATE users
+                        SET total_melange = COALESCE(total_melange, 0) + $1,
+                            last_updated = CURRENT_TIMESTAMP
+                        WHERE user_id = $2
+                        RETURNING total_melange
+                    ''', melange_amount, user_id)
 
                 await self._log_operation("atomic_deposit", "users_deposits", start_time, success=True,
                                         user_id=user_id, sand_amount=sand_amount, melange_amount=melange_amount)
