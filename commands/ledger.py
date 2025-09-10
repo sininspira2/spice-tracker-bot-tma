@@ -22,13 +22,17 @@ async def build_ledger_embed(interaction, user, total_deposits, page=1):
     """Builds the embed for the ledger command."""
     db = get_database()
 
-    deposits_data, get_deposits_time = await timed_database_operation(
-        "get_user_deposits_paginated",
-        db.get_user_deposits_paginated,
-        user['user_id'],
-        page=page,
-        page_size=PAGE_SIZE
-    )
+if user and total_deposits > 0:
+        deposits_data, get_deposits_time = await timed_database_operation(
+            "get_user_deposits_paginated",
+            db.get_user_deposits_paginated,
+            user['user_id'],
+            page=page,
+            page_size=PAGE_SIZE
+        )
+    else:
+        deposits_data = []
+        get_deposits_time = 0.0
 
     total_pages = math.ceil(total_deposits / PAGE_SIZE) if total_deposits > 0 else 1
     total_melange = user.get('total_melange', 0) if user else 0
