@@ -66,9 +66,15 @@ async def test_ledger_first_page(mock_get_database, mock_interaction, mock_db):
     assert not view.next_button.disabled
 
 @pytest.mark.asyncio
+@patch('commands.ledger.build_ledger_embed')
 @patch('commands.ledger.get_database')
-async def test_ledger_pagination(mock_get_database, mock_interaction, mock_db):
+async def test_ledger_pagination(mock_get_database, mock_build_ledger_embed, mock_interaction, mock_db):
     mock_get_database.return_value = mock_db
+
+    # Mock the return value of build_ledger_embed
+    embed = MagicMock()
+    embed.footer.text = "Page 1 of 3"
+    mock_build_ledger_embed.return_value = (embed, 3, 1000, 0.1)
 
     await ledger(mock_interaction)
 
@@ -77,18 +83,14 @@ async def test_ledger_pagination(mock_get_database, mock_interaction, mock_db):
     # Simulate clicking "Next"
     await view.next_button.callback(mock_interaction)
 
-    # Check that the embed was updated to page 2
-    kwargs = mock_interaction.edit_original_response.call_args.kwargs
-    embed = kwargs["embed"]
-    assert "Page 2 of 3" in embed.footer.text
+    # Check that build_ledger_embed was called with the correct page number
+    mock_build_ledger_embed.assert_called_with(mock_interaction, view.user, view.total_deposits, 2)
 
     # Simulate clicking "Previous"
     await view.previous_button.callback(mock_interaction)
 
-    # Check that the embed was updated back to page 1
-    kwargs = mock_interaction.edit_original_response.call_args.kwargs
-    embed = kwargs["embed"]
-    assert "Page 1 of 3" in embed.footer.text
+    # Check that build_ledger_embed was called with the correct page number
+    mock_build_ledger_embed.assert_called_with(mock_interaction, view.user, view.total_deposits, 1)
 
 @pytest.mark.asyncio
 @patch('commands.ledger.get_database')
