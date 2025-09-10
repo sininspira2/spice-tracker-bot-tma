@@ -93,14 +93,24 @@ async def test_ledger_pagination(mock_get_database, mock_build_ledger_embed, moc
     mock_build_ledger_embed.assert_called_with(mock_interaction, view.user, view.total_deposits, 1)
 
 @pytest.mark.asyncio
+@patch('commands.ledger.log_command_metrics')
 @patch('commands.ledger.get_database')
-async def test_ledger_invalid_sand_per_melange(mock_get_database, mock_interaction, mock_db):
+async def test_ledger_new_user(mock_get_database, mock_log_command_metrics, mock_interaction, mock_db):
+    mock_db.get_user.return_value = None
+    mock_db.get_user_deposits_count.return_value = 0
     mock_get_database.return_value = mock_db
 
-    # This test is no longer needed, as the mock is now static.
-    # The logic for handling invalid sand_per_melange is in the database layer,
-    # which is not being tested here.
-    pass
+    await ledger(mock_interaction)
+
+    mock_interaction.followup.send.assert_called_once()
+    kwargs = mock_interaction.followup.send.call_args.kwargs
+    embed = kwargs["embed"]
+    assert "You haven't made any melange yet!" in embed.description
+
+    mock_log_command_metrics.assert_called_once()
+    args, kwargs = mock_log_command_metrics.call_args
+    assert kwargs["result_count"] == 0
+    assert kwargs["total_melange"] == 0
 
 @pytest.mark.asyncio
 @patch('commands.ledger.log_command_metrics')
