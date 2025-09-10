@@ -33,6 +33,7 @@ The Spice Tracker Bot is a Python-based Discord bot for the game "Dune: Awakenin
 - To run the full test suite with coverage: `pytest tests/ -v --cov=. --cov-report=term-missing`
 - All new functionality must include unit tests.
 - Ensure tests pass before committing any code.
+- When reading the database schema, make sure to read the ENITRE migration history in order to understand the correct, current database structure.
 
 ## Code Style and Conventions
 
