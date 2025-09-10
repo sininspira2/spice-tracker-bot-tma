@@ -370,30 +370,21 @@ class Database:
         async with self._get_connection() as conn:
             try:
                 async with conn.transaction():
-                    # Prepare data for bulk operations
-                    participants_to_insert = []
-                    deposits_to_insert = []
-                    melange_to_update = []
+                    # Prepare data for bulk operations using list comprehensions
+                    participants_to_insert = [
+                        (expedition_id, p['user_id'], p['display_name'], p['user_sand'], p['participant_melange'], 0, False)
+                        for p in participants_data
+                    ]
 
-                    for p in participants_data:
-                        user_id = p['user_id']
-                        display_name = p['display_name']
-                        user_sand = p['user_sand']
-                        participant_melange = p['participant_melange']
+                    deposits_to_insert = [
+                        (p['user_id'], p['display_name'], p['user_sand'], 'expedition', expedition_id)
+                        for p in participants_data
+                    ]
 
-                        # 1. Add to expedition_participants
-                        participants_to_insert.append(
-                            (expedition_id, user_id, display_name, user_sand, participant_melange, 0, False)
-                        )
-
-                        # 2. Add to deposits
-                        deposits_to_insert.append(
-                            (user_id, display_name, user_sand, 'expedition', expedition_id)
-                        )
-
-                        # 3. Update user's melange
-                        if participant_melange > 0:
-                            melange_to_update.append((participant_melange, user_id))
+                    melange_to_update = [
+                        (p['participant_melange'], p['user_id'])
+                        for p in participants_data if p['participant_melange'] > 0
+                    ]
 
                     # Execute bulk inserts
                     if participants_to_insert:
