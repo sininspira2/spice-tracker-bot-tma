@@ -56,14 +56,14 @@ class TestHelpers:
         await send_response(mock_interaction, "Test message", use_followup=False)
 
         # When use_followup=False, it calls channel.send, not response.send
-        mock_interaction.channel.send.assert_called_once_with("Test message")
+        mock_interaction.channel.send.assert_called_once_with(content="Test message")
 
     @pytest.mark.asyncio
     async def test_send_response_followup(self, mock_interaction):
         """Test send_response with followup."""
-        await send_response(mock_interaction, "Test message", use_followup=True)
+        await send_response(mock_interaction, "Test message", use_followup=True, ephemeral=True)
 
-        mock_interaction.followup.send.assert_called_once_with("Test message", ephemeral=False)
+        mock_interaction.followup.send.assert_called_once_with(content="Test message", ephemeral=True)
 
     @pytest.mark.asyncio
     async def test_send_response_with_embed(self, mock_interaction):
@@ -73,6 +73,16 @@ class TestHelpers:
 
         # When use_followup=False, it calls channel.send, not response.send
         mock_interaction.channel.send.assert_called_once_with(embed=embed)
+
+    def test_get_sand_per_melange_dynamic_rate(self, mocker):
+        """Test that the Landsraad bonus is a percentage of the default rate."""
+        mocker.patch('utils.helpers.DEFAULT_SAND_PER_MELANGE', 100)
+        rate = get_sand_per_melange(landsraad_bonus=True)
+        assert rate == 75.0
+
+        mocker.patch('utils.helpers.DEFAULT_SAND_PER_MELANGE', 200)
+        rate = get_sand_per_melange(landsraad_bonus=True)
+        assert rate == 150.0
 
 class TestDatabaseUtils:
     """Test database utility functions."""

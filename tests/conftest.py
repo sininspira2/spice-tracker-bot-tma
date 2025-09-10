@@ -51,6 +51,8 @@ def mock_database():
     db.upsert_user = AsyncMock()
     db.add_deposit = AsyncMock()
     db.get_user_deposits = AsyncMock(return_value=[])
+    db.get_user_deposits_paginated = AsyncMock(return_value=[])
+    db.get_user_deposits_count = AsyncMock(return_value=0)
     db.get_user_stats = AsyncMock(return_value={
         'total_sand': 1000,
         'paid_sand': 500,
