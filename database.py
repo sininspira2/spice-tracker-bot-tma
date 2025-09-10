@@ -159,6 +159,26 @@ class Database:
                 await self._log_operation("upsert", "users", start_time, success=False, user_id=user_id, username=username, error=str(e))
                 raise e
 
+    async def bulk_upsert_users(self, users_data):
+        """Bulk create or update users from a list of (user_id, username) tuples."""
+        start_time = time.time()
+        if not users_data:
+            return
+
+        async with self._get_connection() as conn:
+            try:
+                await conn.executemany('''
+                    INSERT INTO users (user_id, username, last_updated)
+                    VALUES ($1, $2, CURRENT_TIMESTAMP)
+                    ON CONFLICT(user_id) DO UPDATE SET
+                        username = EXCLUDED.username,
+                        last_updated = CURRENT_TIMESTAMP
+                ''', users_data)
+                await self._log_operation("bulk_upsert", "users", start_time, success=True, num_users=len(users_data))
+            except Exception as e:
+                await self._log_operation("bulk_upsert", "users", start_time, success=False, num_users=len(users_data), error=str(e))
+                raise e
+
     async def add_deposit(self, user_id, username, sand_amount, deposit_type='solo', expedition_id=None):
         """Add a new sand deposit for a user (deposits are for record keeping only)"""
         start_time = time.time()
@@ -363,7 +383,7 @@ class Database:
 
                         # 1. Add to expedition_participants
                         participants_to_insert.append(
-                            (expedition_id, user_id, display_name, user_sand, participant_melange, False)
+                            (expedition_id, user_id, display_name, user_sand, participant_melange, 0, False)
                         )
 
                         # 2. Add to deposits
@@ -378,8 +398,8 @@ class Database:
                     # Execute bulk inserts
                     if participants_to_insert:
                         await conn.executemany('''
-                            INSERT INTO expedition_participants (expedition_id, user_id, username, sand_amount, melange_amount, is_harvester)
-                            VALUES ($1, $2, $3, $4, $5, $6)
+                            INSERT INTO expedition_participants (expedition_id, user_id, username, sand_amount, melange_amount, leftover_sand, is_harvester)
+                            VALUES ($1, $2, $3, $4, $5, $6, $7)
                         ''', participants_to_insert)
 
                     if deposits_to_insert:

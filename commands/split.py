@@ -147,6 +147,7 @@ async def split(interaction, total_sand: int, users: str, guild: int = 10, lands
         # Process all participants in bulk
         participants_to_process = []
         participant_details = []
+        users_to_upsert = []
         total_user_melange = 0
 
         for user_id, (user_sand, user_percentage) in unique_distributions.items():
@@ -162,8 +163,8 @@ async def split(interaction, total_sand: int, users: str, guild: int = 10, lands
                     except (discord.NotFound, discord.HTTPException):
                         display_name = f"User_{user_id}"
 
-                # Ensure user exists in the database before processing
-                await validate_user_exists(get_database(), user_id, display_name)
+                # Collect user data for bulk upsert
+                users_to_upsert.append((user_id, display_name))
 
                 # Calculate melange
                 participant_melange = math.ceil(user_sand / sand_per_melange) if sand_per_melange > 0 else 0
@@ -186,6 +187,11 @@ async def split(interaction, total_sand: int, users: str, guild: int = 10, lands
 
         # Perform bulk database operations
         try:
+            # First, ensure all users exist in the database
+            if users_to_upsert:
+                await get_database().bulk_upsert_users(users_to_upsert)
+
+            # Then, process the expedition participants
             if participants_to_process:
                 await get_database().process_expedition_participants(expedition_id, participants_to_process)
         except Exception as bulk_error:
