@@ -97,34 +97,38 @@ async def fixedratecut(interaction, total_sand: int, users: str, rate: int = 5, 
         total_user_melange = 0
 
         for user_id in user_ids:
-            # Try to get user from guild first, then client
             try:
-                user = await interaction.guild.fetch_member(int(user_id))
-                display_name = user.display_name
-            except (discord.NotFound, discord.HTTPException):
+                # Try to get user from guild first, then client
                 try:
-                    user = await interaction.client.fetch_user(int(user_id))
+                    user = await interaction.guild.fetch_member(int(user_id))
                     display_name = user.display_name
                 except (discord.NotFound, discord.HTTPException):
-                    display_name = f"User_{user_id}"
+                    try:
+                        user = await interaction.client.fetch_user(int(user_id))
+                        display_name = user.display_name
+                    except (discord.NotFound, discord.HTTPException):
+                        display_name = f"User_{user_id}"
 
-            # Ensure user exists in the database before processing
-            await validate_user_exists(get_database(), user_id, display_name)
+                # Ensure user exists in the database before processing
+                await validate_user_exists(get_database(), user_id, display_name)
 
-            # Calculate melange
-            participant_melange = math.ceil(user_sand / sand_per_melange) if sand_per_melange > 0 else 0
-            total_user_melange += participant_melange
+                # Calculate melange
+                participant_melange = math.ceil(user_sand / sand_per_melange) if sand_per_melange > 0 else 0
+                total_user_melange += participant_melange
 
-            # Add to list for bulk processing
-            participants_to_process.append({
-                'user_id': user_id,
-                'display_name': display_name,
-                'user_sand': user_sand,
-                'participant_melange': participant_melange
-            })
+                # Add to list for bulk processing
+                participants_to_process.append({
+                    'user_id': user_id,
+                    'display_name': display_name,
+                    'user_sand': user_sand,
+                    'participant_melange': participant_melange
+                })
 
-            # Format for display
-            participant_details.append(f"**{display_name}**: {user_sand:,} sand ({participant_melange:,} melange)")
+                # Format for display
+                participant_details.append(f"**{display_name}**: {user_sand:,} sand ({participant_melange:,} melange)")
+            except Exception as participant_error:
+                logger.error(f"Error processing participant {user_id}: {participant_error}")
+                participant_details.append(f"**User_{user_id}**: {user_sand:,} sand (error processing)")
 
         # Perform bulk database operations
         try:

@@ -150,35 +150,39 @@ async def split(interaction, total_sand: int, users: str, guild: int = 10, lands
         total_user_melange = 0
 
         for user_id, (user_sand, user_percentage) in unique_distributions.items():
-            # Try to get user from guild first, then client
             try:
-                user = await interaction.guild.fetch_member(int(user_id))
-                display_name = user.display_name
-            except:
+                # Try to get user from guild first, then client
                 try:
-                    user = await interaction.client.fetch_user(int(user_id))
+                    user = await interaction.guild.fetch_member(int(user_id))
                     display_name = user.display_name
-                except:
-                    display_name = f"User_{user_id}"
+                except (discord.NotFound, discord.HTTPException):
+                    try:
+                        user = await interaction.client.fetch_user(int(user_id))
+                        display_name = user.display_name
+                    except (discord.NotFound, discord.HTTPException):
+                        display_name = f"User_{user_id}"
 
-            # Ensure user exists in the database before processing
-            await validate_user_exists(get_database(), user_id, display_name)
+                # Ensure user exists in the database before processing
+                await validate_user_exists(get_database(), user_id, display_name)
 
-            # Calculate melange
-            participant_melange = math.ceil(user_sand / sand_per_melange) if sand_per_melange > 0 else 0
-            total_user_melange += participant_melange
+                # Calculate melange
+                participant_melange = math.ceil(user_sand / sand_per_melange) if sand_per_melange > 0 else 0
+                total_user_melange += participant_melange
 
-            # Add to list for bulk processing
-            participants_to_process.append({
-                'user_id': user_id,
-                'display_name': display_name,
-                'user_sand': user_sand,
-                'participant_melange': participant_melange
-            })
+                # Add to list for bulk processing
+                participants_to_process.append({
+                    'user_id': user_id,
+                    'display_name': display_name,
+                    'user_sand': user_sand,
+                    'participant_melange': participant_melange
+                })
 
-            # Format for display
-            percentage_text = f" ({user_percentage:.1f}%)" if user_percentage > 0 else ""
-            participant_details.append(f"**{display_name}**: {user_sand:,} sand ({participant_melange:,} melange){percentage_text}")
+                # Format for display
+                percentage_text = f" ({user_percentage:.1f}%)" if user_percentage > 0 else ""
+                participant_details.append(f"**{display_name}**: {user_sand:,} sand ({participant_melange:,} melange){percentage_text}")
+            except Exception as participant_error:
+                logger.error(f"Error processing participant {user_id}: {participant_error}")
+                participant_details.append(f"**User_{user_id}**: {user_sand:,} sand (error processing)")
 
         # Perform bulk database operations
         try:
