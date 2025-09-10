@@ -40,30 +40,22 @@ async def deposit_sand(interaction, amount: int, landsraad_bonus: bool = False, 
     # Get conversion rate and add deposit
     sand_per_melange = get_sand_per_melange(landsraad_bonus=landsraad_bonus)
 
-    # Database operations with timing using utility functions
-
-    # Add deposit with timing
-    _, add_deposit_time = await timed_database_operation(
-        "add_deposit",
-        get_database().add_deposit,
-        str(interaction.user.id), interaction.user.display_name, amount
-    )
-
-    # Ensure user exists and get their data
+    # Ensure user exists and get their data before the transaction
     user = await validate_user_exists(get_database(), str(interaction.user.id), interaction.user.display_name)
+    current_melange = user.get('total_melange', 0)
 
     # Convert sand directly to melange
     new_melange = math.ceil(amount / sand_per_melange) if sand_per_melange > 0 else 0
-    current_melange = user.get('total_melange', 0)
 
-    # Only update melange if we have new melange to add
-    update_melange_time = 0
-    if new_melange > 0:
-        _, update_melange_time = await timed_database_operation(
-            "update_user_melange",
-            get_database().update_user_melange,
-            str(interaction.user.id), new_melange
-        )
+    # Perform atomic deposit and melange update
+    _, process_deposit_time = await timed_database_operation(
+        "process_deposit",
+        get_database().process_deposit,
+        str(interaction.user.id),
+        interaction.user.display_name,
+        amount,
+        new_melange
+    )
 
     # Build concise response
     description = f"🎉 **+{new_melange:,} melange**" if new_melange > 0 else f"📦 **{amount:,} sand processed**"
@@ -94,8 +86,7 @@ async def deposit_sand(interaction, amount: int, landsraad_bonus: bool = False, 
         interaction.user.display_name,
         total_time,
         amount=amount,
-        add_deposit_time=f"{add_deposit_time:.3f}s",
-        update_melange_time=f"{update_melange_time:.3f}s",
+        process_deposit_time=f"{process_deposit_time:.3f}s",
         response_time=f"{response_time:.3f}s",
         new_melange=new_melange
     )
