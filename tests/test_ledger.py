@@ -13,6 +13,7 @@ def mock_interaction():
     interaction.created_at = datetime.now()
     interaction.response = AsyncMock()
     interaction.followup = AsyncMock()
+    interaction.edit_original_response = AsyncMock()
     return interaction
 
 @pytest.fixture
@@ -77,7 +78,7 @@ async def test_ledger_pagination(mock_get_database, mock_interaction, mock_db):
     await view.next_button.callback(mock_interaction)
 
     # Check that the embed was updated to page 2
-    kwargs = mock_interaction.response.edit_message.call_args.kwargs
+    kwargs = mock_interaction.edit_original_response.call_args.kwargs
     embed = kwargs["embed"]
     assert "Page 2 of 3" in embed.footer.text
 
@@ -85,7 +86,7 @@ async def test_ledger_pagination(mock_get_database, mock_interaction, mock_db):
     await view.previous_button.callback(mock_interaction)
 
     # Check that the embed was updated back to page 1
-    kwargs = mock_interaction.response.edit_message.call_args.kwargs
+    kwargs = mock_interaction.edit_original_response.call_args.kwargs
     embed = kwargs["embed"]
     assert "Page 1 of 3" in embed.footer.text
 

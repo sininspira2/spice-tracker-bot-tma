@@ -90,23 +90,21 @@ class LedgerView(discord.ui.View):
         """Update the message with the new page."""
         embed, self.total_pages, _, _ = await build_ledger_embed(self.interaction, self.user_id, self.current_page)
         self.update_buttons()
-        await interaction.response.edit_message(embed=embed.build(), view=self)
+        await interaction.edit_original_response(embed=embed.build(), view=self)
 
     @discord.ui.button(label="Previous", style=discord.ButtonStyle.grey)
     async def previous_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.defer()
         if self.current_page > 1:
             self.current_page -= 1
             await self.update_message(interaction)
-        else:
-            await interaction.response.defer()
 
     @discord.ui.button(label="Next", style=discord.ButtonStyle.grey)
     async def next_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.defer()
         if self.current_page < self.total_pages:
             self.current_page += 1
             await self.update_message(interaction)
-        else:
-            await interaction.response.defer()
 
 @handle_interaction_expiration
 async def ledger(interaction, use_followup: bool = True):
