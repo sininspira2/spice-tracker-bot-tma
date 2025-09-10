@@ -91,49 +91,49 @@ async def fixedratecut(interaction, total_sand: int, users: str, rate: int = 5, 
             guild_melange = math.ceil(guild_sand / sand_per_melange) if sand_per_melange > 0 else 0
             await get_database().update_guild_treasury(guild_sand, guild_melange)
 
-        # Process all participants
+        # Process all participants in bulk
+        participants_to_process = []
         participant_details = []
         total_user_melange = 0
 
         for user_id in user_ids:
+            # Try to get user from guild first, then client
             try:
-                # Try to get user from guild first, then client
+                user = await interaction.guild.fetch_member(int(user_id))
+                display_name = user.display_name
+            except (discord.NotFound, discord.HTTPException):
                 try:
-                    user = await interaction.guild.fetch_member(int(user_id))
+                    user = await interaction.client.fetch_user(int(user_id))
                     display_name = user.display_name
                 except (discord.NotFound, discord.HTTPException):
-                    try:
-                        user = await interaction.client.fetch_user(int(user_id))
-                        display_name = user.display_name
-                    except (discord.NotFound, discord.HTTPException):
-                        display_name = f"User_{user_id}"
+                    display_name = f"User_{user_id}"
 
-                # Ensure user exists in database
-                await validate_user_exists(get_database(), user_id, display_name)
+            # Ensure user exists in the database before processing
+            await validate_user_exists(get_database(), user_id, display_name)
 
-                # Calculate melange
-                participant_melange = math.ceil(user_sand / sand_per_melange) if sand_per_melange > 0 else 0
-                total_user_melange += participant_melange
+            # Calculate melange
+            participant_melange = math.ceil(user_sand / sand_per_melange) if sand_per_melange > 0 else 0
+            total_user_melange += participant_melange
 
-                # Add expedition participant
-                await get_database().add_expedition_participant(
-                    expedition_id, user_id, display_name, user_sand,
-                    participant_melange, is_harvester=False
-                )
+            # Add to list for bulk processing
+            participants_to_process.append({
+                'user_id': user_id,
+                'display_name': display_name,
+                'user_sand': user_sand,
+                'participant_melange': participant_melange
+            })
 
-                # Add deposit record
-                await get_database().add_deposit(user_id, display_name, user_sand, expedition_id=expedition_id)
+            # Format for display
+            participant_details.append(f"**{display_name}**: {user_sand:,} sand ({participant_melange:,} melange)")
 
-                # Update user's melange total if they earned melange
-                if participant_melange > 0:
-                    await get_database().update_user_melange(user_id, participant_melange)
-
-                # Format for display
-                participant_details.append(f"**{display_name}**: {user_sand:,} sand ({participant_melange:,} melange)")
-
-            except Exception as participant_error:
-                logger.error(f"Error processing participant {user_id}: {participant_error}")
-                participant_details.append(f"**User_{user_id}**: {user_sand:,} sand (error processing)")
+        # Perform bulk database operations
+        try:
+            if participants_to_process:
+                await get_database().process_expedition_participants(expedition_id, participants_to_process)
+        except Exception as bulk_error:
+            logger.error(f"Error during bulk processing for expedition {expedition_id}: {bulk_error}")
+            await send_response(interaction, "❌ An error occurred during bulk database update. Please check logs.", use_followup=use_followup, ephemeral=True)
+            return
 
         # Build response embed
         from utils.embed_utils import build_status_embed

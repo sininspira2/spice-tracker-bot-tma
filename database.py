@@ -341,6 +341,69 @@ class Database:
                                         melange_amount=melange_amount, target_user_id=target_user_id, error=str(e))
                 raise e
 
+    async def process_expedition_participants(self, expedition_id, participants_data):
+        """
+        Process a batch of expedition participants within a single transaction.
+        This includes adding participants, creating deposits, and updating user melange totals.
+        """
+        start_time = time.time()
+        async with self._get_connection() as conn:
+            try:
+                async with conn.transaction():
+                    # Prepare data for bulk operations
+                    participants_to_insert = []
+                    deposits_to_insert = []
+                    melange_to_update = []
+
+                    for p in participants_data:
+                        user_id = p['user_id']
+                        display_name = p['display_name']
+                        user_sand = p['user_sand']
+                        participant_melange = p['participant_melange']
+
+                        # 1. Add to expedition_participants
+                        participants_to_insert.append(
+                            (expedition_id, user_id, display_name, user_sand, participant_melange, False)
+                        )
+
+                        # 2. Add to deposits
+                        deposits_to_insert.append(
+                            (user_id, display_name, user_sand, 'expedition', expedition_id)
+                        )
+
+                        # 3. Update user's melange
+                        if participant_melange > 0:
+                            melange_to_update.append((participant_melange, user_id))
+
+                    # Execute bulk inserts
+                    if participants_to_insert:
+                        await conn.executemany('''
+                            INSERT INTO expedition_participants (expedition_id, user_id, username, sand_amount, melange_amount, is_harvester)
+                            VALUES ($1, $2, $3, $4, $5, $6)
+                        ''', participants_to_insert)
+
+                    if deposits_to_insert:
+                        await conn.executemany('''
+                            INSERT INTO deposits (user_id, username, sand_amount, type, expedition_id, created_at)
+                            VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
+                        ''', deposits_to_insert)
+
+                    # Execute bulk update for user melange
+                    if melange_to_update:
+                        await conn.executemany('''
+                            UPDATE users
+                            SET total_melange = total_melange + $1
+                            WHERE user_id = $2
+                        ''', melange_to_update)
+
+                await self._log_operation("bulk_process", "expedition_participants", start_time, success=True,
+                                        expedition_id=expedition_id, num_participants=len(participants_data))
+                return True
+            except Exception as e:
+                await self._log_operation("bulk_process", "expedition_participants", start_time, success=False,
+                                        expedition_id=expedition_id, num_participants=len(participants_data), error=str(e))
+                raise e
+
     async def add_expedition_participant(self, expedition_id, user_id, username, sand_amount, melange_amount, is_harvester=False):
         """Add a participant to an expedition"""
         start_time = time.time()
