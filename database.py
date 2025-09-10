@@ -751,6 +751,51 @@ class Database:
                                         days=days, error=str(e))
                 raise e
 
+    async def process_deposit(self, user_id, username, sand_amount, melange_amount):
+        """
+        Process a deposit atomically and return the new total melange for the user.
+
+        Returns:
+            The new total melange for the user after the deposit.
+        """
+        start_time = time.time()
+        async with self._get_connection() as conn:
+            try:
+                async with conn.transaction():
+                    # Step 1: Ensure user exists.
+                    await conn.execute('''
+                        INSERT INTO users (user_id, username, last_updated)
+                        VALUES ($1, $2, CURRENT_TIMESTAMP)
+                        ON CONFLICT(user_id) DO UPDATE SET
+                            username = EXCLUDED.username,
+                            last_updated = CURRENT_TIMESTAMP
+                    ''', user_id, username)
+
+                    # Step 2: Add deposit record.
+                    await conn.execute('''
+                        INSERT INTO deposits (user_id, username, sand_amount, type, created_at)
+                        VALUES ($1, $2, $3, 'solo', CURRENT_TIMESTAMP)
+                    ''', user_id, username, sand_amount)
+
+                    # Step 3: Atomically update user's melange and get the new total.
+                    # Using COALESCE ensures that if total_melange is NULL, it is treated as 0.
+                    # This prevents data corruption and simplifies the logic by removing branching.
+                    new_total_melange = await conn.fetchval('''
+                        UPDATE users
+                        SET total_melange = COALESCE(total_melange, 0) + $1,
+                            last_updated = CURRENT_TIMESTAMP
+                        WHERE user_id = $2
+                        RETURNING total_melange
+                    ''', melange_amount, user_id)
+
+                await self._log_operation("atomic_deposit", "users_deposits", start_time, success=True,
+                                        user_id=user_id, sand_amount=sand_amount, melange_amount=melange_amount)
+                return new_total_melange
+            except Exception as e:
+                await self._log_operation("atomic_deposit", "users_deposits", start_time, success=False,
+                                        user_id=user_id, sand_amount=sand_amount, melange_amount=melange_amount, error=str(e))
+                raise e
+
     async def update_user_melange(self, user_id, melange_amount):
         """Update user melange amount"""
         start_time = time.time()
