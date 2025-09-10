@@ -234,7 +234,7 @@ class TestCalculateSandCommand:
             assert mock_interaction.followup.send.called or mock_interaction.response.send_message.called
 
             # Check the content of the response
-            response_text = mock_interaction.followup.send.call_args.args[0]
+            response_text = mock_interaction.followup.send.call_args.kwargs['content']
             assert "not authorized" in response_text
 
     @pytest.mark.asyncio
@@ -249,9 +249,9 @@ class TestCalculateSandCommand:
 
             # Check the content of the response
             if mock_interaction.followup.send.called:
-                response_text = mock_interaction.followup.send.call_args.args[0]
+                response_text = mock_interaction.followup.send.call_args.kwargs['content']
             else:
-                response_text = mock_interaction.response.send_message.call_args.args[0]
+                response_text = mock_interaction.response.send_message.call_args.kwargs['content']
             assert "Amount must be 1 or larger" in response_text
 
 class TestRefineryCommand:
@@ -300,7 +300,8 @@ class TestLedgerCommand:
                 "last_updated": datetime.now()
             }
             # Mock get_user_deposits to return some data to avoid early exit
-            mock_database.get_user_deposits.return_value = [{'sand_amount': 1000, 'type': 'solo', 'created_at': datetime.now()}]
+            mock_database.get_user_deposits_paginated.return_value = [{'sand_amount': 1000, 'melange_amount': 20, 'type': 'solo', 'created_at': datetime.now()}]
+            mock_database.get_user_deposits_count.return_value = 1
             with patch('commands.ledger.get_database', return_value=mock_database):
                 await ledger(mock_interaction)
 

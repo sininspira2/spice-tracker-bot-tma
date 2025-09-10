@@ -15,16 +15,18 @@ def get_database():
         database = Database()
     return database
 
+LANDSRAAD_BONUS_MULTIPLIER = 0.75  # 25% reduction
+
+
 def get_sand_per_melange(landsraad_bonus: bool = False) -> float:
     """
     Get the spice sand to melange conversion rate.
     - Default rate: 50 sand per melange
-    - Landsraad bonus rate: 37.5 sand per melange
+    - Landsraad bonus rate: 37.5 sand per melange (25% reduction)
     """
-    LANDSRAAD_BONUS_RATE = 37.5
     if landsraad_bonus:
-        return LANDSRAAD_BONUS_RATE
-    return DEFAULT_SAND_PER_MELANGE
+        return DEFAULT_SAND_PER_MELANGE * LANDSRAAD_BONUS_MULTIPLIER
+    return float(DEFAULT_SAND_PER_MELANGE)
 
 async def send_response(interaction, content=None, embed=None, view=None, ephemeral=False, use_followup=True):
     """Helper function to send responses using the appropriate method based on use_followup"""

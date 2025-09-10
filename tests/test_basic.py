@@ -86,7 +86,7 @@ class TestUtilityFunctions:
         from utils.helpers import get_sand_per_melange
         
         rate = get_sand_per_melange()
-        assert isinstance(rate, int)
+        assert isinstance(rate, (int, float))
         assert rate > 0
     
     def test_embed_builder_basic(self):
