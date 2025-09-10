@@ -40,15 +40,11 @@ async def deposit_sand(interaction, amount: int, landsraad_bonus: bool = False, 
     # Get conversion rate and add deposit
     sand_per_melange = get_sand_per_melange(landsraad_bonus=landsraad_bonus)
 
-    # Ensure user exists and get their data before the transaction
-    user = await validate_user_exists(get_database(), str(interaction.user.id), interaction.user.display_name)
-    current_melange = user.get('total_melange', 0)
-
     # Convert sand directly to melange
     new_melange = math.ceil(amount / sand_per_melange) if sand_per_melange > 0 else 0
 
     # Perform atomic deposit and melange update
-    _, process_deposit_time = await timed_database_operation(
+    (new_total_melange, process_deposit_time) = await timed_database_operation(
         "process_deposit",
         get_database().process_deposit,
         str(interaction.user.id),
@@ -61,7 +57,7 @@ async def deposit_sand(interaction, amount: int, landsraad_bonus: bool = False, 
     description = f"🎉 **+{new_melange:,} melange**" if new_melange > 0 else f"📦 **{amount:,} sand processed**"
 
     fields = {
-        "💎 Total": f"{(current_melange + new_melange):,} melange",
+        "💎 Total": f"{new_total_melange:,} melange",
         "⚙️ Converted": f"{amount:,} sand → {new_melange:,} melange"
     }
 

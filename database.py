@@ -753,12 +753,15 @@ class Database:
 
     async def process_deposit(self, user_id, username, sand_amount, melange_amount):
         """
-        Process a deposit by adding a deposit record and updating the user's melange
-        in a single atomic transaction.
+        Process a deposit atomically and return the new total melange for the user.
+
+        Returns:
+            The new total melange for the user after the deposit.
         """
         start_time = time.time()
         async with self._get_connection() as conn:
             try:
+                new_total_melange = 0
                 async with conn.transaction():
                     # Step 1: Ensure user exists.
                     await conn.execute('''
@@ -775,18 +778,25 @@ class Database:
                         VALUES ($1, $2, $3, 'solo', CURRENT_TIMESTAMP)
                     ''', user_id, username, sand_amount)
 
-                    # Step 3: Update user's melange balance.
+                    # Step 3: Update user's melange and get the new total.
                     if melange_amount > 0:
-                        await conn.execute('''
+                        new_total_melange = await conn.fetchval('''
                             UPDATE users
                             SET total_melange = total_melange + $1,
                                 last_updated = CURRENT_TIMESTAMP
                             WHERE user_id = $2
+                            RETURNING total_melange
                         ''', melange_amount, user_id)
+                    else:
+                        # If no melange is added, just get the current total.
+                        new_total_melange = await conn.fetchval(
+                            'SELECT total_melange FROM users WHERE user_id = $1',
+                            user_id
+                        )
 
                 await self._log_operation("atomic_deposit", "users_deposits", start_time, success=True,
                                         user_id=user_id, sand_amount=sand_amount, melange_amount=melange_amount)
-                return True
+                return new_total_melange
             except Exception as e:
                 await self._log_operation("atomic_deposit", "users_deposits", start_time, success=False,
                                         user_id=user_id, sand_amount=sand_amount, melange_amount=melange_amount, error=str(e))
