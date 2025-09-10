@@ -18,23 +18,19 @@ COMMAND_METADATA = {
 
 PAGE_SIZE = 10
 
-async def build_ledger_embed(interaction, user_id, page=1):
+async def build_ledger_embed(interaction, user, total_deposits, page=1):
     """Builds the embed for the ledger command."""
     db = get_database()
-
-    user = await validate_user_exists(db, user_id, interaction.user.display_name, create_if_missing=False)
 
     deposits_data, get_deposits_time = await timed_database_operation(
         "get_user_deposits_paginated",
         db.get_user_deposits_paginated,
-        user_id,
+        user['user_id'],
         page=page,
         page_size=PAGE_SIZE
     )
 
-    total_deposits = await db.get_user_deposits_count(user_id)
     total_pages = math.ceil(total_deposits / PAGE_SIZE) if total_deposits > 0 else 1
-
     total_melange = user.get('total_melange', 0) if user else 0
 
     if not deposits_data:
@@ -73,10 +69,11 @@ async def build_ledger_embed(interaction, user_id, page=1):
 
 class LedgerView(discord.ui.View):
     """A view for paginating through the ledger."""
-    def __init__(self, interaction, user_id, total_pages, initial_page=1):
+    def __init__(self, interaction, user, total_deposits, total_pages, initial_page=1):
         super().__init__(timeout=180)
         self.interaction = interaction
-        self.user_id = user_id
+        self.user = user
+        self.total_deposits = total_deposits
         self.current_page = initial_page
         self.total_pages = total_pages
         self.update_buttons()
@@ -88,7 +85,7 @@ class LedgerView(discord.ui.View):
 
     async def update_message(self, interaction: discord.Interaction):
         """Update the message with the new page."""
-        embed, self.total_pages, _, _ = await build_ledger_embed(self.interaction, self.user_id, self.current_page)
+        embed, self.total_pages, _, _ = await build_ledger_embed(self.interaction, self.user, self.total_deposits, self.current_page)
         self.update_buttons()
         await interaction.edit_original_response(embed=embed.build(), view=self)
 
@@ -111,18 +108,20 @@ async def ledger(interaction, use_followup: bool = True):
     """View your sand conversion history and melange status"""
     command_start = time.time()
     user_id = str(interaction.user.id)
+    db = get_database()
 
-    embed, total_pages, total_melange, get_deposits_time = await build_ledger_embed(interaction, user_id, page=1)
+    user = await validate_user_exists(db, user_id, interaction.user.display_name, create_if_missing=False)
+    total_deposits = await db.get_user_deposits_count(user_id)
 
-    view = LedgerView(interaction, user_id, total_pages) if total_pages > 1 else None
+    embed, total_pages, total_melange, get_deposits_time = await build_ledger_embed(interaction, user, total_deposits, page=1)
+
+    view = LedgerView(interaction, user, total_deposits, total_pages) if total_pages > 1 else None
 
     response_start = time.time()
     await send_response(interaction, embed=embed.build(), view=view, use_followup=use_followup, ephemeral=True)
     response_time = time.time() - response_start
 
     total_time = time.time() - command_start
-    db = get_database()
-    total_deposits = await db.get_user_deposits_count(user_id)
     log_command_metrics(
         "Ledger",
         user_id,
