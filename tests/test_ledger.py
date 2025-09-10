@@ -119,3 +119,19 @@ async def test_ledger_logging(mock_get_database, mock_log_command_metrics, mock_
     assert "total_melange" in kwargs
     assert kwargs["result_count"] == 25
     assert kwargs["total_melange"] == 1000
+
+@pytest.mark.asyncio
+@patch('commands.ledger.log_command_metrics')
+@patch('commands.ledger.get_database')
+async def test_ledger_logging_no_deposits(mock_get_database, mock_log_command_metrics, mock_interaction, mock_db):
+    mock_db.get_user_deposits_paginated.return_value = []
+    mock_db.get_user_deposits_count.return_value = 0
+    mock_get_database.return_value = mock_db
+
+    await ledger(mock_interaction)
+
+    mock_log_command_metrics.assert_called_once()
+    args, kwargs = mock_log_command_metrics.call_args
+
+    assert kwargs["result_count"] == 0
+    assert kwargs["total_melange"] == 1000

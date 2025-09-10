@@ -35,6 +35,8 @@ async def build_ledger_embed(interaction, user_id, page=1):
     total_deposits = await db.get_user_deposits_count(user_id)
     total_pages = math.ceil(total_deposits / PAGE_SIZE) if total_deposits > 0 else 1
 
+    total_melange = user.get('total_melange', 0) if user else 0
+
     if not deposits_data:
         embed = build_status_embed(
             title="📋 Spice Deposit Ledger",
@@ -42,7 +44,7 @@ async def build_ledger_embed(interaction, user_id, page=1):
             color=0x95A5A6,
             timestamp=interaction.created_at
         )
-        return embed, total_pages, 0, 0 # embed, total_pages, total_melange, get_deposits_time
+        return embed, total_pages, total_melange, get_deposits_time
 
     ledger_text = ""
     for deposit in deposits_data:
@@ -50,7 +52,6 @@ async def build_ledger_embed(interaction, user_id, page=1):
         deposit_type = "🚀 Expedition" if deposit['type'] == 'expedition' else "🏜️ Solo"
         ledger_text += f"**{deposit['sand_amount']:,} sand** ({deposit['melange_amount']:,} melange) {deposit_type} - {date_str}\n"
 
-    total_melange = user.get('total_melange', 0) if user else 0
     paid_melange = user.get('paid_melange', 0) if user else 0
     pending_melange = total_melange - paid_melange
 
