@@ -24,7 +24,7 @@ async def build_ledger_embed(interaction, user_id, page=1):
 
     user = await validate_user_exists(db, user_id, interaction.user.display_name, create_if_missing=False)
 
-    deposits_data, _ = await timed_database_operation(
+    deposits_data, get_deposits_time = await timed_database_operation(
         "get_user_deposits_paginated",
         db.get_user_deposits_paginated,
         user_id,
@@ -42,7 +42,7 @@ async def build_ledger_embed(interaction, user_id, page=1):
             color=0x95A5A6,
             timestamp=interaction.created_at
         )
-        return embed, total_pages
+        return embed, total_pages, 0, 0 # embed, total_pages, total_melange, get_deposits_time
 
     ledger_text = ""
     for deposit in deposits_data:
@@ -68,7 +68,7 @@ async def build_ledger_embed(interaction, user_id, page=1):
         timestamp=interaction.created_at
     )
     embed.set_footer(text=f"Page {page} of {total_pages}")
-    return embed, total_pages
+    return embed, total_pages, total_melange, get_deposits_time
 
 class LedgerView(discord.ui.View):
     """A view for paginating through the ledger."""
@@ -87,7 +87,7 @@ class LedgerView(discord.ui.View):
 
     async def update_message(self, interaction: discord.Interaction):
         """Update the message with the new page."""
-        embed, self.total_pages = await build_ledger_embed(self.interaction, self.user_id, self.current_page)
+        embed, self.total_pages, _, _ = await build_ledger_embed(self.interaction, self.user_id, self.current_page)
         self.update_buttons()
         await interaction.response.edit_message(embed=embed.build(), view=self)
 
@@ -113,16 +113,24 @@ async def ledger(interaction, use_followup: bool = True):
     command_start = time.time()
     user_id = str(interaction.user.id)
 
-    embed, total_pages = await build_ledger_embed(interaction, user_id, page=1)
+    embed, total_pages, total_melange, get_deposits_time = await build_ledger_embed(interaction, user_id, page=1)
 
     view = LedgerView(interaction, user_id, total_pages) if total_pages > 1 else None
 
+    response_start = time.time()
     await send_response(interaction, embed=embed.build(), view=view, use_followup=use_followup, ephemeral=True)
+    response_time = time.time() - response_start
 
     total_time = time.time() - command_start
+    db = get_database()
+    total_deposits = await db.get_user_deposits_count(user_id)
     log_command_metrics(
         "Ledger",
         user_id,
         interaction.user.display_name,
-        total_time
+        total_time,
+        get_deposits_time=f"{get_deposits_time:.3f}s",
+        response_time=f"{response_time:.3f}s",
+        result_count=total_deposits,
+        total_melange=total_melange
     )

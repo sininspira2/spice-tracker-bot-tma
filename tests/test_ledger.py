@@ -2,6 +2,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime
 from commands.ledger import ledger, PAGE_SIZE
+from utils.command_utils import log_command_metrics
 from database import Database
 
 @pytest.fixture
@@ -140,3 +141,24 @@ async def test_ledger_invalid_sand_per_melange(mock_get_database, mock_interacti
 
     # 1000 sand / 50 default rate = 20 melange
     assert "(20 melange)" in embed.description
+
+@pytest.mark.asyncio
+@patch('commands.ledger.log_command_metrics')
+@patch('commands.ledger.get_database')
+async def test_ledger_logging(mock_get_database, mock_log_command_metrics, mock_interaction, mock_db):
+    mock_get_database.return_value = mock_db
+
+    await ledger(mock_interaction)
+
+    mock_log_command_metrics.assert_called_once()
+    args, kwargs = mock_log_command_metrics.call_args
+
+    assert args[0] == "Ledger"
+    assert args[1] == "12345"
+    assert args[2] == "TestUser"
+    assert "get_deposits_time" in kwargs
+    assert "response_time" in kwargs
+    assert "result_count" in kwargs
+    assert "total_melange" in kwargs
+    assert kwargs["result_count"] == 25
+    assert kwargs["total_melange"] == 1000
