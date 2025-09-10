@@ -6,6 +6,8 @@ from datetime import datetime, timedelta
 from contextlib import asynccontextmanager
 from utils.logger import logger
 
+DEFAULT_SAND_PER_MELANGE = 50
+
 class Database:
     def __init__(self, database_url=None):
         self.database_url = database_url or os.getenv('DATABASE_URL')
@@ -209,7 +211,10 @@ class Database:
             try:
                 # Get the default sand_per_melange from settings
                 default_sand_per_melange_str = await self.get_setting('sand_per_melange')
-                default_sand_per_melange = int(default_sand_per_melange_str) if default_sand_per_melange_str else 50
+                try:
+                    default_sand_per_melange = int(default_sand_per_melange_str) if default_sand_per_melange_str else DEFAULT_SAND_PER_MELANGE
+                except (ValueError, TypeError):
+                    default_sand_per_melange = DEFAULT_SAND_PER_MELANGE
 
                 # This query now joins with expeditions to get the specific sand_per_melange for expedition deposits
                 # and uses the default for solo deposits.
