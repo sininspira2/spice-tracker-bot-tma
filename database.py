@@ -372,7 +372,7 @@ class Database:
                 async with conn.transaction():
                     # Prepare data for bulk operations using list comprehensions
                     participants_to_insert = [
-                        (expedition_id, p['user_id'], p['display_name'], p['user_sand'], p['participant_melange'], 0, False)
+                        (expedition_id, p['user_id'], p['display_name'], p['user_sand'], p['participant_melange'], False)
                         for p in participants_data
                     ]
 
@@ -389,8 +389,8 @@ class Database:
                     # Execute bulk inserts
                     if participants_to_insert:
                         await conn.executemany('''
-                            INSERT INTO expedition_participants (expedition_id, user_id, username, sand_amount, melange_amount, leftover_sand, is_harvester)
-                            VALUES ($1, $2, $3, $4, $5, $6, $7)
+                            INSERT INTO expedition_participants (expedition_id, user_id, username, sand_amount, melange_amount, is_harvester)
+                            VALUES ($1, $2, $3, $4, $5, $6)
                         ''', participants_to_insert)
 
                     if deposits_to_insert:
