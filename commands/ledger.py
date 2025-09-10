@@ -1,36 +1,40 @@
 """
-Ledger command for viewing spice deposit history and melange status.
+Ledger command for viewing spice deposit history and melange status with pagination.
 """
-
-# Command metadata
-COMMAND_METADATA = {
-    'aliases': [],  # ['deposits'] - removed for simplicity
-    'description': "View your conversion history and melange status"
-}
-
+import math
 import time
+import discord
 from utils.database_utils import timed_database_operation, validate_user_exists
 from utils.embed_utils import build_status_embed
 from utils.command_utils import log_command_metrics
 from utils.decorators import handle_interaction_expiration
 from utils.helpers import get_database, send_response
 
+# Command metadata
+COMMAND_METADATA = {
+    'aliases': [],
+    'description': "View your conversion history and melange status"
+}
 
-@handle_interaction_expiration
-async def ledger(interaction, use_followup: bool = True):
-    """View your sand conversion history and melange status"""
-    command_start = time.time()
-    
-    # Get user data for melange information
-    user = await validate_user_exists(get_database(), str(interaction.user.id), interaction.user.display_name, create_if_missing=False)
-    
-    # Get deposit history
-    deposits_data, get_deposits_time = await timed_database_operation(
-        "get_user_deposits",
-        get_database().get_user_deposits,
-        str(interaction.user.id)
+PAGE_SIZE = 10
+
+async def build_ledger_embed(interaction, user_id, page=1):
+    """Builds the embed for the ledger command."""
+    db = get_database()
+
+    user = await validate_user_exists(db, user_id, interaction.user.display_name, create_if_missing=False)
+
+    deposits_data, _ = await timed_database_operation(
+        "get_user_deposits_paginated",
+        db.get_user_deposits_paginated,
+        user_id,
+        page=page,
+        page_size=PAGE_SIZE
     )
-    
+
+    total_deposits = await db.get_user_deposits_count(user_id)
+    total_pages = math.ceil(total_deposits / PAGE_SIZE) if total_deposits > 0 else 1
+
     if not deposits_data:
         embed = build_status_embed(
             title="📋 Spice Deposit Ledger",
@@ -38,31 +42,21 @@ async def ledger(interaction, use_followup: bool = True):
             color=0x95A5A6,
             timestamp=interaction.created_at
         )
-        await send_response(interaction, embed=embed.build(), use_followup=use_followup, ephemeral=True)
-        return
-    
-    # Build deposit history (sand amounts are just for audit/history)
+        return embed, total_pages
+
     ledger_text = ""
-    
     for deposit in deposits_data:
-        # Handle null created_at timestamps
-        if deposit['created_at'] and hasattr(deposit['created_at'], 'timestamp'):
-            date_str = f"<t:{int(deposit['created_at'].timestamp())}:R>"
-        else:
-            date_str = "Unknown date"
-        
-        # Show deposit type and sand amount (for historical record only)
+        date_str = f"<t:{int(deposit['created_at'].timestamp())}:R>" if deposit['created_at'] else "Unknown date"
         deposit_type = "🚀 Expedition" if deposit['type'] == 'expedition' else "🏜️ Solo"
-        ledger_text += f"**{deposit['sand_amount']:,} sand** {deposit_type} - {date_str}\n"
-    
-    # Calculate melange values
+        ledger_text += f"**{deposit['sand_amount']:,} sand** ({deposit['melange_amount']:,} melange) {deposit_type} - {date_str}\n"
+
     total_melange = user.get('total_melange', 0) if user else 0
     paid_melange = user.get('paid_melange', 0) if user else 0
     pending_melange = total_melange - paid_melange
 
     fields = {
         "💎 Melange": f"**{total_melange:,}** total | **{paid_melange:,}** paid | **{pending_melange:,}** pending",
-        "📊 Activity": f"{len(deposits_data)} conversions"
+        "📊 Activity": f"{total_deposits} conversions"
     }
 
     embed = build_status_embed(
@@ -73,21 +67,62 @@ async def ledger(interaction, use_followup: bool = True):
         thumbnail=interaction.user.display_avatar.url,
         timestamp=interaction.created_at
     )
-    
-    # Send response using helper function (ephemeral for privacy)
-    response_start = time.time()
-    await send_response(interaction, embed=embed.build(), use_followup=use_followup, ephemeral=True)
-    response_time = time.time() - response_start
-    
-    # Log performance metrics using utility function
+    embed.set_footer(text=f"Page {page} of {total_pages}")
+    return embed, total_pages
+
+class LedgerView(discord.ui.View):
+    """A view for paginating through the ledger."""
+    def __init__(self, interaction, user_id, total_pages, initial_page=1):
+        super().__init__(timeout=180)
+        self.interaction = interaction
+        self.user_id = user_id
+        self.current_page = initial_page
+        self.total_pages = total_pages
+        self.update_buttons()
+
+    def update_buttons(self):
+        """Enable or disable buttons based on the current page."""
+        self.previous_button.disabled = self.current_page <= 1
+        self.next_button.disabled = self.current_page >= self.total_pages
+
+    async def update_message(self, interaction: discord.Interaction):
+        """Update the message with the new page."""
+        embed, self.total_pages = await build_ledger_embed(self.interaction, self.user_id, self.current_page)
+        self.update_buttons()
+        await interaction.response.edit_message(embed=embed.build(), view=self)
+
+    @discord.ui.button(label="Previous", style=discord.ButtonStyle.grey)
+    async def previous_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.current_page > 1:
+            self.current_page -= 1
+            await self.update_message(interaction)
+        else:
+            await interaction.response.defer()
+
+    @discord.ui.button(label="Next", style=discord.ButtonStyle.grey)
+    async def next_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.current_page < self.total_pages:
+            self.current_page += 1
+            await self.update_message(interaction)
+        else:
+            await interaction.response.defer()
+
+@handle_interaction_expiration
+async def ledger(interaction, use_followup: bool = True):
+    """View your sand conversion history and melange status"""
+    command_start = time.time()
+    user_id = str(interaction.user.id)
+
+    embed, total_pages = await build_ledger_embed(interaction, user_id, page=1)
+
+    view = LedgerView(interaction, user_id, total_pages) if total_pages > 1 else None
+
+    await send_response(interaction, embed=embed.build(), view=view, use_followup=use_followup, ephemeral=True)
+
     total_time = time.time() - command_start
     log_command_metrics(
         "Ledger",
-        str(interaction.user.id),
+        user_id,
         interaction.user.display_name,
-        total_time,
-        get_deposits_time=f"{get_deposits_time:.3f}s",
-        response_time=f"{response_time:.3f}s",
-        result_count=len(deposits_data),
-        total_melange=total_melange
+        total_time
     )

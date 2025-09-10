@@ -200,37 +200,83 @@ class Database:
                                         user_id=user_id, sand_amount=sand_amount, deposit_type=deposit_type, expedition_id=expedition_id, error=str(e))
                 raise e
 
-    async def get_user_deposits(self, user_id):
-        """Get all deposits for a user (deposits are just sand logs, payments are tracked at user level)"""
+    async def get_user_deposits_paginated(self, user_id, page=1, page_size=10):
+        """Get a paginated list of deposits for a user with melange conversion details."""
         start_time = time.time()
+        offset = (page - 1) * page_size
+
         async with self._get_connection() as conn:
             try:
-                query = '''
-                    SELECT id, user_id, username, sand_amount, type, expedition_id, created_at
-                    FROM deposits
-                    WHERE user_id = $1
-                    ORDER BY created_at DESC
-                '''
+                # Get the default sand_per_melange from settings
+                default_sand_per_melange_str = await self.get_setting('sand_per_melange')
+                default_sand_per_melange = int(default_sand_per_melange_str) if default_sand_per_melange_str else 50
 
-                rows = await conn.fetch(query, user_id)
+                # This query now joins with expeditions to get the specific sand_per_melange for expedition deposits
+                # and uses the default for solo deposits.
+                query = '''
+                    SELECT
+                        d.id,
+                        d.user_id,
+                        d.username,
+                        d.sand_amount,
+                        d.type,
+                        d.expedition_id,
+                        d.created_at,
+                        COALESCE(e.sand_per_melange, $1) as sand_per_melange
+                    FROM
+                        deposits d
+                    LEFT JOIN
+                        expeditions e ON d.expedition_id = e.id
+                    WHERE
+                        d.user_id = $2
+                    ORDER BY
+                        d.created_at DESC
+                    LIMIT $3 OFFSET $4
+                '''
+                rows = await conn.fetch(query, default_sand_per_melange, user_id, page_size, offset)
 
                 deposits = []
                 for row in rows:
+                    sand_amount = row['sand_amount']
+                    sand_per_melange = row['sand_per_melange']
+
+                    # Calculate melange amount for this deposit
+                    melange_amount = sand_amount // sand_per_melange if sand_per_melange else 0
+
                     deposits.append({
-                        'id': row[0],
-                        'user_id': row[1],
-                        'username': row[2],
-                        'sand_amount': row[3],
-                        'type': row[4],
-                        'expedition_id': row[5],
-                        'created_at': row[6]
+                        'id': row['id'],
+                        'user_id': row['user_id'],
+                        'username': row['username'],
+                        'sand_amount': sand_amount,
+                        'melange_amount': melange_amount,
+                        'type': row['type'],
+                        'expedition_id': row['expedition_id'],
+                        'created_at': row['created_at']
                     })
 
-                await self._log_operation("select", "deposits", start_time, success=True,
-                                        user_id=user_id, result_count=len(deposits))
+                await self._log_operation("select_paginated", "deposits", start_time, success=True,
+                                        user_id=user_id, page=page, page_size=page_size, result_count=len(deposits))
                 return deposits
             except Exception as e:
-                await self._log_operation("select", "deposits", start_time, success=False,
+                await self._log_operation("select_paginated", "deposits", start_time, success=False,
+                                        user_id=user_id, page=page, page_size=page_size, error=str(e))
+                raise e
+
+    async def get_user_deposits_count(self, user_id: str) -> int:
+        """
+        Retrieves the total number of deposits for a specific user.
+        """
+        start_time = time.time()
+        async with self._get_connection() as conn:
+            try:
+                query = "SELECT COUNT(*) FROM deposits WHERE user_id = $1"
+                count = await conn.fetchval(query, user_id)
+
+                await self._log_operation("count", "deposits", start_time, success=True,
+                                        user_id=user_id, count=count)
+                return count or 0
+            except Exception as e:
+                await self._log_operation("count", "deposits", start_time, success=False,
                                         user_id=user_id, error=str(e))
                 raise e
 
