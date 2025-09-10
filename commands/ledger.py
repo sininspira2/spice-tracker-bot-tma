@@ -113,6 +113,31 @@ async def ledger(interaction, use_followup: bool = True):
     user = await validate_user_exists(db, user_id, interaction.user.display_name, create_if_missing=False)
     total_deposits = await db.get_user_deposits_count(user_id)
 
+    # Handle case where user has no deposits or doesn't exist
+    if not user or total_deposits == 0:
+        embed = build_status_embed(
+            title="📋 Spice Deposit Ledger",
+            description="💎 You haven't made any melange yet! Use `/sand` to convert spice sand into melange.",
+            color=0x95A5A6,
+            timestamp=interaction.created_at
+        )
+        total_melange = user.get('total_melange', 0) if user else 0
+        response_start = time.time()
+        await send_response(interaction, embed=embed.build(), use_followup=use_followup, ephemeral=True)
+        response_time = time.time() - response_start
+        total_time = time.time() - command_start
+        log_command_metrics(
+            "Ledger",
+            user_id,
+            interaction.user.display_name,
+            total_time,
+            get_deposits_time="0.000s",
+            response_time=f"{response_time:.3f}s",
+            result_count=0,
+            total_melange=total_melange
+        )
+        return
+
     embed, total_pages, total_melange, get_deposits_time = await build_ledger_embed(interaction, user, total_deposits, page=1)
 
     view = LedgerView(interaction, user, total_deposits, total_pages) if total_pages > 1 else None
