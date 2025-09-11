@@ -14,7 +14,7 @@ class TestCommandResponsiveness:
         """Test that all commands can execute and respond without crashing."""
         # Map of module names to actual function names and parameters
         test_cases = [
-            ('sand', 'sand', [100, True], {}),
+            ('deposit_sand', 'deposit_sand', [100, True], {}),
             ('refinery', 'refinery', [True], {}),
             ('leaderboard', 'leaderboard', [10, True], {}),
 
@@ -26,6 +26,7 @@ class TestCommandResponsiveness:
             ('expedition', 'expedition', [1, True], {}),
             ('payment', 'pay', [Mock(id=123, display_name="TestUser"), None, True], {}),
             ('payroll', 'payroll', [True], {}),
+            ('treasury', 'treasury', [True], {}),
         ]
 
         for module_name, function_name, args, kwargs in test_cases:
@@ -34,13 +35,14 @@ class TestCommandResponsiveness:
                 command_func = getattr(__import__(f'commands.{module_name}', fromlist=[module_name]), function_name)
 
                 # Mock the database for this command - try different import paths
-                try:
-                    with patch(f'commands.{module_name}.get_database', return_value=mock_database):
-                        await command_func(mock_interaction, *args, **kwargs)
-                except AttributeError:
-                    # Try patching utils.helpers.get_database instead
-                    with patch('utils.helpers.get_database', return_value=mock_database):
-                        await command_func(mock_interaction, *args, **kwargs)
+                with patch(f'commands.{module_name}.is_officer', return_value=True, create=True):
+                    try:
+                        with patch(f'commands.{module_name}.get_database', return_value=mock_database):
+                            await command_func(mock_interaction, *args, **kwargs)
+                    except AttributeError:
+                        # Try patching utils.helpers.get_database instead
+                        with patch('utils.helpers.get_database', return_value=mock_database):
+                            await command_func(mock_interaction, *args, **kwargs)
 
                 # Verify some form of response was sent (either followup.send or response.send)
                 response_sent = (
@@ -66,8 +68,8 @@ class TestCommandResponsiveness:
         """Test that commands handle invalid inputs gracefully."""
         # Test edge cases for commands that take parameters
         edge_cases = [
-            ('sand', 'sand', [0, True], {}),  # Too low
-            ('sand', 'sand', [15000, True], {}),  # Too high
+            ('deposit_sand', 'deposit_sand', [0, True], {}),  # Too low
+            ('deposit_sand', 'deposit_sand', [15000, True], {}),  # Too high
             ('split', 'split', [0, '@user1', True], {}),  # Invalid sand amount
             ('split', 'split', [1000, '@user1', True], {}),  # Valid split
             ('fixedratecut', 'fixedratecut', [0, '@user1', 5, True], {}),
@@ -112,14 +114,15 @@ class TestCommandResponsiveness:
                 pytest.fail(f"Command {function_name} failed with error on invalid input: {e}")
 
     @pytest.mark.asyncio
-    async def test_landsraad_bonus_sand_command(self, mock_interaction, mock_database):
-        """Test the sand command with the landsraad_bonus flag."""
-        from commands.sand import sand
-        with patch('commands.sand.get_sand_per_melange') as mock_get_sand_per_melange, \
-             patch('commands.sand.get_database', return_value=mock_database):
+    async def test_landsraad_bonus_deposit_sand_command(self, mock_interaction, mock_database):
+        """Test the deposit_sand command with the landsraad_bonus flag."""
+        from commands.deposit_sand import deposit_sand
+        with patch('commands.deposit_sand.get_sand_per_melange') as mock_get_sand_per_melange, \
+             patch('commands.deposit_sand.get_database', return_value=mock_database), \
+             patch('commands.deposit_sand.is_officer', return_value=True):
 
             mock_get_sand_per_melange.return_value = 37
-            await sand(mock_interaction, 100, landsraad_bonus=True)
+            await deposit_sand(mock_interaction, 100, landsraad_bonus=True)
             mock_get_sand_per_melange.assert_called_with(landsraad_bonus=True)
 
     @pytest.mark.asyncio
@@ -127,7 +130,8 @@ class TestCommandResponsiveness:
         """Test the split command with the landsraad_bonus flag."""
         from commands.split import split
         with patch('commands.split.get_sand_per_melange') as mock_get_sand_per_melange, \
-             patch('commands.split.get_database', return_value=mock_database):
+             patch('commands.split.get_database', return_value=mock_database), \
+             patch('commands.split.is_officer', return_value=True):
 
             mock_get_sand_per_melange.return_value = 37
             await split(mock_interaction, 1000, '<@12345>', 10, landsraad_bonus=True)
@@ -138,7 +142,8 @@ class TestCommandResponsiveness:
         """Test the fixedratecut command with the landsraad_bonus flag."""
         from commands.fixedratecut import fixedratecut
         with patch('commands.fixedratecut.get_sand_per_melange') as mock_get_sand_per_melange, \
-             patch('commands.fixedratecut.get_database', return_value=mock_database):
+             patch('commands.fixedratecut.get_database', return_value=mock_database), \
+             patch('commands.fixedratecut.is_officer', return_value=True):
 
             mock_get_sand_per_melange.return_value = 37
             await fixedratecut(mock_interaction, 10000, '<@12345>', 5, landsraad_bonus=True)
@@ -162,7 +167,7 @@ class TestCommandResponsiveness:
         """Test that all command functions can be imported and are callable."""
         # Map of module names to actual function names
         function_name_map = {
-            'sand': 'sand',
+            'deposit_sand': 'deposit_sand',
             'refinery': 'refinery',
             'leaderboard': 'leaderboard',
             'split': 'split',
@@ -173,6 +178,7 @@ class TestCommandResponsiveness:
             'expedition': 'expedition',
             'payment': 'pay',
             'payroll': 'payroll',
+            'treasury': 'treasury',
         }
 
         for command_name in COMMAND_METADATA.keys():
@@ -193,3 +199,113 @@ class TestCommandResponsiveness:
                 pytest.fail(f"Could not import command {command_name}: {e}")
             except AttributeError as e:
                 pytest.fail(f"Command function {actual_function_name} not found in module {command_name}: {e}")
+
+
+class TestCalculateSandCommand:
+    """Test the /calculate_sand command."""
+
+    @pytest.mark.asyncio
+    async def test_calculate_sand_command(self, mock_interaction):
+        """Test the calculate_sand command with a decimal result."""
+        from commands.calculate_sand import calculate_sand
+        with patch('commands.calculate_sand.is_allowed_user', return_value=True):
+            await calculate_sand(mock_interaction, 125, landsraad_bonus=False)
+
+            # Verify that an embed was sent
+            assert mock_interaction.followup.send.called or mock_interaction.response.send_message.called
+
+            # Check the content of the embed
+            if mock_interaction.followup.send.called:
+                sent_embed = mock_interaction.followup.send.call_args.kwargs['embed']
+            else:
+                sent_embed = mock_interaction.response.send_message.call_args.kwargs['embed']
+            assert "Sand Conversion Calculation" in sent_embed.title
+            assert "125 sand" in sent_embed.description
+            assert "2.50 melange" in sent_embed.description # 125 / 50 = 2.5
+
+    @pytest.mark.asyncio
+    async def test_calculate_sand_command_not_allowed(self, mock_interaction):
+        """Test the calculate_sand command when the user is not allowed."""
+        from commands.calculate_sand import calculate_sand
+        with patch('commands.calculate_sand.is_allowed_user', return_value=False):
+            await calculate_sand(mock_interaction, 1000)
+
+            # Verify that an error message was sent
+            assert mock_interaction.followup.send.called or mock_interaction.response.send_message.called
+
+            # Check the content of the response
+            response_text = mock_interaction.followup.send.call_args.kwargs['content']
+            assert "not authorized" in response_text
+
+    @pytest.mark.asyncio
+    async def test_calculate_sand_command_invalid_amount(self, mock_interaction):
+        """Test the calculate_sand command with an invalid amount."""
+        from commands.calculate_sand import calculate_sand
+        with patch('commands.calculate_sand.is_allowed_user', return_value=True):
+            await calculate_sand(mock_interaction, 0)
+
+            # Verify that an error message was sent
+            assert mock_interaction.followup.send.called or mock_interaction.response.send_message.called
+
+            # Check the content of the response
+            if mock_interaction.followup.send.called:
+                response_text = mock_interaction.followup.send.call_args.kwargs['content']
+            else:
+                response_text = mock_interaction.response.send_message.call_args.kwargs['content']
+            assert "Amount must be 1 or larger" in response_text
+
+class TestRefineryCommand:
+    """Test the /refinery command."""
+
+    @pytest.mark.asyncio
+    async def test_refinery_command_with_real_user_data(self, mock_interaction, mock_database):
+        """Test the refinery command with more realistic user data."""
+        from commands.refinery import refinery
+        from datetime import datetime
+
+        user_id = "test_user_id_2"
+        username = "test_user_2"
+
+        with patch('commands.refinery.validate_user_exists') as mock_validate_user:
+            mock_validate_user.return_value = {
+                "user_id": user_id,
+                "username": username,
+                "total_melange": 150,
+                "paid_melange": 50,
+                "last_updated": datetime.now()
+            }
+            await refinery(mock_interaction)
+
+        assert mock_interaction.followup.send.called or mock_interaction.response.send_message.called
+
+
+class TestLedgerCommand:
+    """Test the /ledger command."""
+
+    @pytest.mark.asyncio
+    async def test_ledger_command_shows_paid_melange(self, mock_interaction, mock_database):
+        """Test that the ledger command correctly displays paid melange."""
+        from commands.ledger import ledger
+        from datetime import datetime
+
+        user_id = "test_user_id_3"
+        username = "test_user_3"
+
+        with patch('commands.ledger.validate_user_exists') as mock_validate_user:
+            mock_validate_user.return_value = {
+                "user_id": user_id,
+                "username": username,
+                "total_melange": 200,
+                "paid_melange": 100,
+                "last_updated": datetime.now()
+            }
+            # Mock get_user_deposits to return some data to avoid early exit
+            mock_database.get_user_deposits_paginated.return_value = [{'sand_amount': 1000, 'melange_amount': 20, 'type': 'solo', 'created_at': datetime.now()}]
+            mock_database.get_user_deposits_count.return_value = 1
+            with patch('commands.ledger.get_database', return_value=mock_database):
+                await ledger(mock_interaction)
+
+        assert mock_interaction.followup.send.called
+        sent_embed = mock_interaction.followup.send.call_args.kwargs['embed']
+        assert "100" in sent_embed.fields[0].value
+        assert "paid" in sent_embed.fields[0].value

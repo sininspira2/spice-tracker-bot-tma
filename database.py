@@ -6,6 +6,8 @@ from datetime import datetime, timedelta
 from contextlib import asynccontextmanager
 from utils.logger import logger
 
+DEFAULT_SAND_PER_MELANGE = 50
+
 class Database:
     def __init__(self, database_url=None):
         self.database_url = database_url or os.getenv('DATABASE_URL')
@@ -122,15 +124,16 @@ class Database:
         async with self._get_connection() as conn:
             try:
                 row = await conn.fetchrow(
-                    'SELECT * FROM users WHERE user_id = $1',
+                    'SELECT user_id, username, total_melange, paid_melange, last_updated FROM users WHERE user_id = $1',
                     user_id
                 )
                 if row:
                     result = {
-                        'user_id': row[0],
-                        'username': row[1],
-                        'total_melange': row[2],
-                        'last_updated': row[3] if row[3] else datetime.now()
+                        'user_id': row['user_id'],
+                        'username': row['username'],
+                        'total_melange': row['total_melange'],
+                        'paid_melange': row['paid_melange'],
+                        'last_updated': row['last_updated'] if row['last_updated'] else datetime.now()
                     }
                     await self._log_operation("select", "users", start_time, success=True, user_id=user_id, found=True)
                     return result
@@ -158,6 +161,26 @@ class Database:
                 await self._log_operation("upsert", "users", start_time, success=False, user_id=user_id, username=username, error=str(e))
                 raise e
 
+    async def bulk_upsert_users(self, users_data):
+        """Bulk create or update users from a list of (user_id, username) tuples."""
+        start_time = time.time()
+        if not users_data:
+            return
+
+        async with self._get_connection() as conn:
+            try:
+                await conn.executemany('''
+                    INSERT INTO users (user_id, username, last_updated)
+                    VALUES ($1, $2, CURRENT_TIMESTAMP)
+                    ON CONFLICT(user_id) DO UPDATE SET
+                        username = EXCLUDED.username,
+                        last_updated = CURRENT_TIMESTAMP
+                ''', users_data)
+                await self._log_operation("bulk_upsert", "users", start_time, success=True, num_users=len(users_data))
+            except Exception as e:
+                await self._log_operation("bulk_upsert", "users", start_time, success=False, num_users=len(users_data), error=str(e))
+                raise e
+
     async def add_deposit(self, user_id, username, sand_amount, deposit_type='solo', expedition_id=None):
         """Add a new sand deposit for a user (deposits are for record keeping only)"""
         start_time = time.time()
@@ -179,37 +202,86 @@ class Database:
                                         user_id=user_id, sand_amount=sand_amount, deposit_type=deposit_type, expedition_id=expedition_id, error=str(e))
                 raise e
 
-    async def get_user_deposits(self, user_id):
-        """Get all deposits for a user (deposits are just sand logs, payments are tracked at user level)"""
+    async def get_user_deposits_paginated(self, user_id, page=1, page_size=10):
+        """Get a paginated list of deposits for a user with melange conversion details."""
         start_time = time.time()
+        offset = (page - 1) * page_size
+
         async with self._get_connection() as conn:
             try:
-                query = '''
-                    SELECT id, user_id, username, sand_amount, type, expedition_id, created_at
-                    FROM deposits
-                    WHERE user_id = $1
-                    ORDER BY created_at DESC
-                '''
+                # Get the default sand_per_melange from settings
+                default_sand_per_melange_str = await self.get_setting('sand_per_melange')
+                try:
+                    default_sand_per_melange = int(default_sand_per_melange_str) if default_sand_per_melange_str else DEFAULT_SAND_PER_MELANGE
+                except (ValueError, TypeError):
+                    default_sand_per_melange = DEFAULT_SAND_PER_MELANGE
 
-                rows = await conn.fetch(query, user_id)
+                # This query now joins with expeditions to get the specific sand_per_melange for expedition deposits
+                # and uses the default for solo deposits.
+                query = '''
+                    SELECT
+                        d.id,
+                        d.user_id,
+                        d.username,
+                        d.sand_amount,
+                        d.type,
+                        d.expedition_id,
+                        d.created_at,
+                        COALESCE(e.sand_per_melange, $1) as sand_per_melange
+                    FROM
+                        deposits d
+                    LEFT JOIN
+                        expeditions e ON d.expedition_id = e.id
+                    WHERE
+                        d.user_id = $2
+                    ORDER BY
+                        d.created_at DESC
+                    LIMIT $3 OFFSET $4
+                '''
+                rows = await conn.fetch(query, default_sand_per_melange, user_id, page_size, offset)
 
                 deposits = []
                 for row in rows:
+                    sand_amount = row['sand_amount']
+                    sand_per_melange = row['sand_per_melange']
+
+                    # Calculate melange amount for this deposit
+                    melange_amount = sand_amount // sand_per_melange if sand_per_melange else 0
+
                     deposits.append({
-                        'id': row[0],
-                        'user_id': row[1],
-                        'username': row[2],
-                        'sand_amount': row[3],
-                        'type': row[4],
-                        'expedition_id': row[5],
-                        'created_at': row[6]
+                        'id': row['id'],
+                        'user_id': row['user_id'],
+                        'username': row['username'],
+                        'sand_amount': sand_amount,
+                        'melange_amount': melange_amount,
+                        'type': row['type'],
+                        'expedition_id': row['expedition_id'],
+                        'created_at': row['created_at']
                     })
 
-                await self._log_operation("select", "deposits", start_time, success=True,
-                                        user_id=user_id, result_count=len(deposits))
+                await self._log_operation("select_paginated", "deposits", start_time, success=True,
+                                        user_id=user_id, page=page, page_size=page_size, result_count=len(deposits))
                 return deposits
             except Exception as e:
-                await self._log_operation("select", "deposits", start_time, success=False,
+                await self._log_operation("select_paginated", "deposits", start_time, success=False,
+                                        user_id=user_id, page=page, page_size=page_size, error=str(e))
+                raise e
+
+    async def get_user_deposits_count(self, user_id: str) -> int:
+        """
+        Retrieves the total number of deposits for a specific user.
+        """
+        start_time = time.time()
+        async with self._get_connection() as conn:
+            try:
+                query = "SELECT COUNT(*) FROM deposits WHERE user_id = $1"
+                count = await conn.fetchval(query, user_id)
+
+                await self._log_operation("count", "deposits", start_time, success=True,
+                                        user_id=user_id, count=count)
+                return count or 0
+            except Exception as e:
+                await self._log_operation("count", "deposits", start_time, success=False,
                                         user_id=user_id, error=str(e))
                 raise e
 
@@ -338,6 +410,60 @@ class Database:
             except Exception as e:
                 await self._log_operation("withdrawal", "guild_treasury", start_time, success=False,
                                         melange_amount=melange_amount, target_user_id=target_user_id, error=str(e))
+                raise e
+
+    async def process_expedition_participants(self, expedition_id, participants_data):
+        """
+        Process a batch of expedition participants within a single transaction.
+        This includes adding participants, creating deposits, and updating user melange totals.
+        """
+        start_time = time.time()
+        async with self._get_connection() as conn:
+            try:
+                async with conn.transaction():
+                    # Prepare data for bulk operations using list comprehensions
+                    participants_to_insert = [
+                        (expedition_id, p['user_id'], p['display_name'], p['user_sand'], p['participant_melange'], False)
+                        for p in participants_data
+                    ]
+
+                    deposits_to_insert = [
+                        (p['user_id'], p['display_name'], p['user_sand'], 'expedition', expedition_id)
+                        for p in participants_data
+                    ]
+
+                    melange_to_update = [
+                        (p['participant_melange'], p['user_id'])
+                        for p in participants_data if p['participant_melange'] > 0
+                    ]
+
+                    # Execute bulk inserts
+                    if participants_to_insert:
+                        await conn.executemany('''
+                            INSERT INTO expedition_participants (expedition_id, user_id, username, sand_amount, melange_amount, is_harvester)
+                            VALUES ($1, $2, $3, $4, $5, $6)
+                        ''', participants_to_insert)
+
+                    if deposits_to_insert:
+                        await conn.executemany('''
+                            INSERT INTO deposits (user_id, username, sand_amount, type, expedition_id, created_at)
+                            VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
+                        ''', deposits_to_insert)
+
+                    # Execute bulk update for user melange
+                    if melange_to_update:
+                        await conn.executemany('''
+                            UPDATE users
+                            SET total_melange = total_melange + $1
+                            WHERE user_id = $2
+                        ''', melange_to_update)
+
+                await self._log_operation("bulk_process", "expedition_participants", start_time, success=True,
+                                        expedition_id=expedition_id, num_participants=len(participants_data))
+                return True
+            except Exception as e:
+                await self._log_operation("bulk_process", "expedition_participants", start_time, success=False,
+                                        expedition_id=expedition_id, num_participants=len(participants_data), error=str(e))
                 raise e
 
     async def add_expedition_participant(self, expedition_id, user_id, username, sand_amount, melange_amount, is_harvester=False):
@@ -530,47 +656,60 @@ class Database:
                 raise e
 
     async def pay_all_pending_melange(self, admin_user_id=None, admin_username=None):
-        """Pay all users their pending melange"""
+        """Pay all users their pending melange atomically."""
         start_time = time.time()
         async with self._get_connection() as conn:
             try:
-                # Get all users with pending melange
-                users_with_pending = await conn.fetch('''
-                    SELECT user_id, username, total_melange, paid_melange,
-                           (total_melange - paid_melange) as pending_melange
-                    FROM users
-                    WHERE total_melange > paid_melange
-                ''')
-
-                total_paid = 0
-                users_paid = 0
-
                 async with conn.transaction():
-                    for user in users_with_pending:
-                        pending = user['pending_melange']
-                        if pending > 0:
-                            # Update user's paid_melange
-                            await conn.execute('''
-                                UPDATE users
-                                SET paid_melange = total_melange,
-                                    last_updated = CURRENT_TIMESTAMP
-                                WHERE user_id = $1
-                            ''', user['user_id'])
+                    # Step 1: Select users with pending melange and lock their rows to prevent race conditions.
+                    # This query calculates the amount to be paid for each user.
+                    users_to_pay = await conn.fetch('''
+                        SELECT
+                            user_id,
+                            username,
+                            (total_melange - paid_melange) as amount_paid
+                        FROM users
+                        WHERE total_melange > paid_melange
+                        FOR UPDATE
+                    ''')
 
-                            # Record the payment
-                            await conn.execute('''
-                                INSERT INTO melange_payments (user_id, username, melange_amount, admin_user_id, admin_username,.description)
-                                VALUES ($1, $2, $3, $4, $5, $6)
-                            ''', user['user_id'], user['username'], pending, admin_user_id, admin_username, f"Bulk melange payment to {user['username']}")
+                    if not users_to_pay:
+                        await self._log_operation("update_bulk", "melange_payments", start_time, success=True,
+                                                total_paid=0, users_paid=0, admin_user_id=admin_user_id)
+                        return {"total_paid": 0, "users_paid": 0}
 
-                            total_paid += pending
-                            users_paid += 1
+                    # Step 2: Update the paid_melange for the identified users.
+                    user_ids_to_update = [user['user_id'] for user in users_to_pay]
+                    await conn.execute('''
+                        UPDATE users
+                        SET paid_melange = total_melange,
+                            last_updated = CURRENT_TIMESTAMP
+                        WHERE user_id = ANY($1::text[])
+                    ''', user_ids_to_update)
 
-                await self._log_operation("update", "melange_payments", start_time, success=True,
+                    # Step 3: Prepare and bulk insert payment records.
+                    payment_records = []
+                    total_paid = 0
+                    for user in users_to_pay:
+                        amount_paid = user['amount_paid']
+                        if amount_paid > 0:
+                            payment_records.append(
+                                (user['user_id'], user['username'], amount_paid, admin_user_id, admin_username, f"Bulk melange payment to {user['username']}")
+                            )
+                            total_paid += amount_paid
+
+                    if payment_records:
+                        await conn.executemany('''
+                            INSERT INTO melange_payments (user_id, username, melange_amount, admin_user_id, admin_username, description)
+                            VALUES ($1, $2, $3, $4, $5, $6)
+                        ''', payment_records)
+
+                users_paid = len(users_to_pay)
+                await self._log_operation("update_bulk", "melange_payments", start_time, success=True,
                                         total_paid=total_paid, users_paid=users_paid, admin_user_id=admin_user_id)
                 return {"total_paid": total_paid, "users_paid": users_paid}
             except Exception as e:
-                await self._log_operation("update", "melange_payments", start_time, success=False,
+                await self._log_operation("update_bulk", "melange_payments", start_time, success=False,
                                         admin_user_id=admin_user_id, error=str(e))
                 raise e
 
@@ -661,6 +800,51 @@ class Database:
             except Exception as e:
                 await self._log_operation("delete", "deposits", start_time, success=False,
                                         days=days, error=str(e))
+                raise e
+
+    async def process_deposit(self, user_id, username, sand_amount, melange_amount):
+        """
+        Process a deposit atomically and return the new total melange for the user.
+
+        Returns:
+            The new total melange for the user after the deposit.
+        """
+        start_time = time.time()
+        async with self._get_connection() as conn:
+            try:
+                async with conn.transaction():
+                    # Step 1: Ensure user exists.
+                    await conn.execute('''
+                        INSERT INTO users (user_id, username, last_updated)
+                        VALUES ($1, $2, CURRENT_TIMESTAMP)
+                        ON CONFLICT(user_id) DO UPDATE SET
+                            username = EXCLUDED.username,
+                            last_updated = CURRENT_TIMESTAMP
+                    ''', user_id, username)
+
+                    # Step 2: Add deposit record.
+                    await conn.execute('''
+                        INSERT INTO deposits (user_id, username, sand_amount, type, created_at)
+                        VALUES ($1, $2, $3, 'solo', CURRENT_TIMESTAMP)
+                    ''', user_id, username, sand_amount)
+
+                    # Step 3: Atomically update user's melange and get the new total.
+                    # Using COALESCE ensures that if total_melange is NULL, it is treated as 0.
+                    # This prevents data corruption and simplifies the logic by removing branching.
+                    new_total_melange = await conn.fetchval('''
+                        UPDATE users
+                        SET total_melange = COALESCE(total_melange, 0) + $1,
+                            last_updated = CURRENT_TIMESTAMP
+                        WHERE user_id = $2
+                        RETURNING total_melange
+                    ''', melange_amount, user_id)
+
+                await self._log_operation("atomic_deposit", "users_deposits", start_time, success=True,
+                                        user_id=user_id, sand_amount=sand_amount, melange_amount=melange_amount)
+                return new_total_melange
+            except Exception as e:
+                await self._log_operation("atomic_deposit", "users_deposits", start_time, success=False,
+                                        user_id=user_id, sand_amount=sand_amount, melange_amount=melange_amount, error=str(e))
                 raise e
 
     async def update_user_melange(self, user_id, melange_amount):

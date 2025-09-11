@@ -50,9 +50,10 @@ class TestCommandDiscovery:
         from commands import COMMAND_METADATA
         
         expected_commands = {
-            'sand', 'refinery', 'leaderboard',
+            'deposit_sand', 'refinery', 'leaderboard',
             'split', 'help', 'reset', 'ledger', 'expedition',
-            'payment', 'payroll', 'treasury', 'guild_withdraw', 'pending', 'fixedratecut'
+            'payment', 'payroll', 'treasury', 'guild_withdraw', 'pending', 'fixedratecut',
+            'calculate_sand'
         }
         
         discovered_commands = set(COMMAND_METADATA.keys())
@@ -85,7 +86,7 @@ class TestUtilityFunctions:
         from utils.helpers import get_sand_per_melange
         
         rate = get_sand_per_melange()
-        assert isinstance(rate, int)
+        assert isinstance(rate, (int, float))
         assert rate > 0
     
     def test_embed_builder_basic(self):

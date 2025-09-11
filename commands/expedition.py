@@ -17,6 +17,7 @@ from utils.command_utils import log_command_metrics
 from utils.decorators import handle_interaction_expiration
 from utils.helpers import get_database, send_response
 from utils.logger import logger
+from utils.permissions import is_officer
 
 
 @handle_interaction_expiration
@@ -25,6 +26,11 @@ async def expedition(interaction, expedition_id: int, use_followup: bool = True)
     command_start = time.time()
 
     try:
+        # Check if user has officer permissions
+        if not is_officer(interaction):
+            await send_response(interaction, "❌ You need to be an officer to use this command.", use_followup=use_followup, ephemeral=True)
+            return
+
         # Get expedition details using utility function
         expedition_data, get_participants_time = await timed_database_operation(
             "get_expedition_participants",

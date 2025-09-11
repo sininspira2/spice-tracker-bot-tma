@@ -21,11 +21,17 @@ import math
 from utils.decorators import handle_interaction_expiration
 from utils.helpers import get_database, get_sand_per_melange, send_response
 from utils.logger import logger
+from utils.permissions import is_officer
 
 @handle_interaction_expiration
 async def fixedratecut(interaction, total_sand: int, users: str, rate: int = 5, landsraad_bonus: bool = False, use_followup: bool = True):
     """Awards a fixed percentage of spice sand to tagged users, with the remainder going to the guild."""
     try:
+        # Check if user has officer permissions
+        if not is_officer(interaction):
+            await send_response(interaction, "❌ You need to be an officer to use this command.", use_followup=use_followup, ephemeral=True)
+            return
+
         # Validate inputs
         if total_sand < 1:
             await send_response(interaction, "❌ Total spice sand must be at least 1.", use_followup=use_followup, ephemeral=True)
@@ -85,8 +91,10 @@ async def fixedratecut(interaction, total_sand: int, users: str, rate: int = 5, 
             guild_melange = math.ceil(guild_sand / sand_per_melange) if sand_per_melange > 0 else 0
             await get_database().update_guild_treasury(guild_sand, guild_melange)
 
-        # Process all participants
+        # Process all participants in bulk
+        participants_to_process = []
         participant_details = []
+        users_to_upsert = []
         total_user_melange = 0
 
         for user_id in user_ids:
@@ -102,32 +110,40 @@ async def fixedratecut(interaction, total_sand: int, users: str, rate: int = 5, 
                     except (discord.NotFound, discord.HTTPException):
                         display_name = f"User_{user_id}"
 
-                # Ensure user exists in database
-                await validate_user_exists(get_database(), user_id, display_name)
+                # Collect user data for bulk upsert
+                users_to_upsert.append((user_id, display_name))
 
                 # Calculate melange
                 participant_melange = math.ceil(user_sand / sand_per_melange) if sand_per_melange > 0 else 0
                 total_user_melange += participant_melange
 
-                # Add expedition participant
-                await get_database().add_expedition_participant(
-                    expedition_id, user_id, display_name, user_sand,
-                    participant_melange, is_harvester=False
-                )
-
-                # Add deposit record
-                await get_database().add_deposit(user_id, display_name, user_sand, expedition_id=expedition_id)
-
-                # Update user's melange total if they earned melange
-                if participant_melange > 0:
-                    await get_database().update_user_melange(user_id, participant_melange)
+                # Add to list for bulk processing
+                participants_to_process.append({
+                    'user_id': user_id,
+                    'display_name': display_name,
+                    'user_sand': user_sand,
+                    'participant_melange': participant_melange
+                })
 
                 # Format for display
                 participant_details.append(f"**{display_name}**: {user_sand:,} sand ({participant_melange:,} melange)")
-
             except Exception as participant_error:
                 logger.error(f"Error processing participant {user_id}: {participant_error}")
                 participant_details.append(f"**User_{user_id}**: {user_sand:,} sand (error processing)")
+
+        # Perform bulk database operations
+        try:
+            # First, ensure all users exist in the database
+            if users_to_upsert:
+                await get_database().bulk_upsert_users(users_to_upsert)
+
+            # Then, process the expedition participants
+            if participants_to_process:
+                await get_database().process_expedition_participants(expedition_id, participants_to_process)
+        except Exception as bulk_error:
+            logger.error(f"Error during bulk processing for expedition {expedition_id}: {bulk_error}")
+            await send_response(interaction, "❌ An error occurred during bulk database update. Please check logs.", use_followup=use_followup, ephemeral=True)
+            return
 
         # Build response embed
         from utils.embed_utils import build_status_embed

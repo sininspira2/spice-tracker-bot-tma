@@ -51,42 +51,35 @@ A Discord bot for **Dune: Awakening** guilds to convert spice sand to melange, m
 
 ## 🤖 Commands
 
-### 🏜️ Harvester Commands
-- **`/sand <amount>`** - Convert spice sand to melange (1-10,000). Primary currency conversion at 50:1 ratio
-- **`/refinery`** - View your melange production and payment status (private)
-- **`/ledger`** - View your sand conversion history and melange status (private)
-- **`/leaderboard [limit]`** - Display top spice refiners by melange production (5-25 users)
-- **`/expedition <id>`** - View details of a specific expedition
-- **`/help`** - Display all available commands (private)
+### 📊 Harvester Commands
+- **`/calculate_sand <amount>`** - Calculate melange conversion without depositing.
+- **`/refinery`** - View your melange production and payment status (private).
+- **`/ledger`** - View your sand conversion history and melange status (private).
+- **`/help`** - Display all available commands (private).
 
-### 🚀 Team Commands
-- **`/split <total_sand> <users> [guild]`** - Split spice sand among expedition members and convert to melange
-  - **Example:** `/split 10000 "@harvester 30 @scout @pilot" 15`
-  - **Guild Cut:** Percentage taken off the top (default: 10%)
-  - **User Percentages:** Users with percentages get exact amounts, others split equally
-  - **Creates:** Expedition records and tracks melange owed for payout
-- **`/fixedratecut <total_sand> <users> [optional: rate]`** - Alternative split - Give each user a fixed % payout of spice and the leftover goes to guild
-  - **Example:** `/split 10000 "@harvester @scout @pilot" 15`
-  - **Guild Cut:** All leftover sand goes to guild
-  - **User Percentages:** Equal percent cuts for each user (default: 5%)
-  - **Creates:** Expedition records and tracks melange owed for payout
-  
-### 🏛️ Guild Admin Commands
-- **`/pending`** - View all users with pending melange payments and amounts owed
-- **`/payment <user>`** - Process payment for a specific harvester's deposits
-- **`/payroll`** - Process payments for all unpaid harvesters at once
-- **`/treasury`** - View guild treasury balance and melange reserves
-- **`/guild_withdraw <user> <amount>`** - Withdraw resources from guild treasury to give to a user
-- **`/reset confirm:True`** - Reset all refinery statistics (requires confirmation)
+### 🛡️ Officer Commands
+- **`/deposit_sand <amount>`** - Convert spice sand to melange (1-10,000).
+- **`/expedition <id>`** - View details of a specific expedition.
+- **`/leaderboard [limit]`** - Display top spice refiners by melange production.
+- **`/split <total_sand> <users> [guild]`** - Split spice sand among expedition members.
+- **`/fixedratecut <total_sand> <users> [rate]`** - Split a fixed percentage of sand between users.
+- **`/treasury`** - View guild treasury balance and statistics.
 
-### 🔧 Bot Owner Commands
-- **`/sync`** - Sync slash commands (Bot Owner Only)
+### ⚙️ Admin Commands
+- **`/pending`** - View all users with pending melange payments.
+- **`/pay <user> [amount]`** - Process a user's melange payment.
+- **`/payroll`** - Process payments for all unpaid harvesters.
+- **`/guild_withdraw <user> <amount>`** - Withdraw melange from the guild treasury.
+- **`/reset confirm:True`** - Reset all refinery statistics (requires confirmation).
+
+### 👑 Bot Owner Commands
+- **`/sync`** - Sync slash commands with Discord.
 
 ## 📊 How It Works
 
 ### Individual Harvests
 ```
-/sand 2500  →  50 melange produced (50:1 conversion rate)
+/deposit_sand 2500  →  50 melange produced (50:1 conversion rate)
 ```
 
 ### Team Expeditions
@@ -95,7 +88,7 @@ A Discord bot for **Dune: Awakening** guilds to convert spice sand to melange, m
 
 Result (15% guild cut):
 - Guild Treasury: 1500 sand → 30 melange
-- Harvester: 2550 sand (30% of remaining) → 51 melange  
+- Harvester: 2550 sand (30% of remaining) → 51 melange
 - Scout: 2975 sand (35% of remaining) → 59 melange
 - Pilot: 2975 sand (35% of remaining) → 59 melange
 ```
@@ -108,7 +101,7 @@ Result (15% guild cut):
 
 ### Payment System
 - **Pending Tracking:** All melange owed to users from deposits and expeditions
-- **Individual Payments:** Process specific user payments with `/payment`
+- **Individual Payments:** Process specific user payments with `/pay`
 - **Bulk Payroll:** Pay all pending melange at once with `/payroll`
 - **Payment History:** Complete audit trail of all melange payments
 
@@ -159,15 +152,16 @@ The bot includes:
 
 ## 🛡️ Permissions
 
-- **👥 Basic Commands:** All guild members can use harvesting and viewing commands
-- **🛡️ Admin Commands:** Discord administrators only (payment, treasury, reset)
-- **👑 Owner Commands:** Bot owner only (sync, advanced debugging)
-- **🔒 Private Responses:** Personal financial data sent as ephemeral messages
+- **👥 Harvester Commands:** All guild members can use basic commands.
+- **🛡️ Officer Commands:** Users with an "Officer" or "Admin" role can use these commands.
+- **⚙️ Admin Commands:** Users with an "Admin" role can use these commands.
+- **👑 Owner Commands:** Only the bot owner can use these commands.
+- **🔒 Private Responses:** Personal financial data is sent as ephemeral messages, visible only to you.
 
 ## ⚡ Performance Features
 
 - **🚀 Fast Startup:** < 2 second boot time with automatic command sync
-- **📊 Structured Logging:** Production-ready logging with Fly.io integration  
+- **📊 Structured Logging:** Production-ready logging with Fly.io integration
 - **🔄 Connection Pooling:** Efficient database connections with automatic retry
 - **⚡ Async Operations:** Non-blocking Discord interactions and database queries
 - **🛡️ Error Recovery:** Graceful handling of database and Discord API failures
@@ -187,7 +181,7 @@ python -m pytest tests/ --cov=. --cov-report=html
 
 ## 📝 Recent Updates
 
-- **✅ Command Rename:** `/harvest` → `/sand` for better game alignment
+- **✅ Command Rename:** `/sand` → `/deposit_sand` for improved clarity
 - **✅ Auto-Sync:** Commands sync automatically on bot startup
 - **✅ Structured Logging:** Professional logging system for production monitoring
 - **✅ Bug Fixes:** Resolved timestamp handling and database schema issues
@@ -196,8 +190,8 @@ python -m pytest tests/ --cov=. --cov-report=html
 
 ---
 
-**🎮 Game:** Dune: Awakening  
-**🚀 Status:** Production Ready  
-**📊 Deployment:** Fly.io + Supabase  
+**🎮 Game:** Dune: Awakening
+**🚀 Status:** Production Ready
+**📊 Deployment:** Fly.io + Supabase
 
 **🧪 Tests:** 46 passing ✅
