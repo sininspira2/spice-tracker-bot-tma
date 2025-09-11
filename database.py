@@ -127,12 +127,12 @@ class Database:
                 )
                 if row:
                     result = {
-                        'user_id': row[0],
-                        'username': row[1], 
-                        'total_melange': row[2],
-                        'paid_melange': row[3],
-                        'created_at': row[4],
-                        'last_updated': row[5] if row[5] else datetime.now()
+                        'user_id': row['user_id'],
+                        'username': row['username'], 
+                        'total_melange': row['total_melange'],
+                        'paid_melange': row['paid_melange'],
+                        'created_at': row['created_at'],
+                        'last_updated': row['last_updated'] if row['last_updated'] else datetime.now()
                     }
                     await self._log_operation("select", "users", start_time, success=True, user_id=user_id, found=True)
                     return result
@@ -198,13 +198,13 @@ class Database:
                 deposits = []
                 for row in rows:
                     deposits.append({
-                        'id': row[0],
-                        'user_id': row[1],
-                        'username': row[2],
-                        'sand_amount': row[3],
-                        'type': row[4],
-                        'expedition_id': row[5],
-                        'created_at': row[6]
+                        'id': row['id'],
+                        'user_id': row['user_id'],
+                        'username': row['username'],
+                        'sand_amount': row['sand_amount'],
+                        'type': row['type'],
+                        'expedition_id': row['expedition_id'],
+                        'created_at': row['created_at']
                     })
                 
                 await self._log_operation("select", "deposits", start_time, success=True, 
@@ -226,7 +226,7 @@ class Database:
                     RETURNING id
                 ''', initiator_id, initiator_username, total_sand, sand_per_melange, guild_cut_percentage)
                 
-                expedition_id = row[0] if row else None
+                expedition_id = row['id'] if row else None
                 await self._log_operation("insert", "expeditions", start_time, success=True, 
                                         initiator_id=initiator_id, total_sand=total_sand, expedition_id=expedition_id, guild_cut_percentage=guild_cut_percentage)
                 return expedition_id
@@ -401,14 +401,14 @@ class Database:
                 participants = []
                 for row in rows:
                     participants.append({
-                        'id': row[0],
-                        'expedition_id': row[1],
-                        'user_id': row[2],
-                        'username': row[3],
-                        'sand_amount': row[4],
-                        'melange_amount': row[5],
-                        'leftover_sand': row[6],
-                        'is_harvester': bool(row[7])
+                        'id': row['id'],
+                        'expedition_id': row['expedition_id'],
+                        'user_id': row['user_id'],
+                        'username': row['username'],
+                        'sand_amount': row['sand_amount'],
+                        'melange_amount': row['melange_amount'],
+                        'leftover_sand': row['leftover_sand'],
+                        'is_harvester': bool(row['is_harvester'])
                     })
                 
                 # Combine expedition details with participants
@@ -456,17 +456,17 @@ class Database:
                 deposits = []
                 for row in rows:
                     deposits.append({
-                        'id': row[0],
-                        'user_id': row[1],
-                        'username': row[2],
-                        'sand_amount': row[3],
-                        'type': row[4],
-                        'expedition_id': row[5],
-                        'paid': bool(row[6]),
-                        'created_at': row[7] if row[7] else datetime.now(),
-                        'paid_at': row[8] if row[8] else None,
-                        'initiator_username': row[9] if len(row) > 9 else None,
-                        'expedition_total': row[10] if len(row) > 10 else None
+                        'id': row['id'],
+                        'user_id': row['user_id'],
+                        'username': row['username'],
+                        'sand_amount': row['sand_amount'],
+                        'type': row['type'],
+                        'expedition_id': row['expedition_id'],
+                        'paid': bool(row['paid']),
+                        'created_at': row['created_at'] if row['created_at'] else datetime.now(),
+                        'paid_at': row['paid_at'] if row['paid_at'] else None,
+                        'initiator_username': row.get('initiator_username'),
+                        'expedition_total': row.get('expedition_total')
                     })
                 
                 await self._log_operation("select", "deposits_join_expeditions", start_time, success=True, 
@@ -490,7 +490,7 @@ class Database:
                     WHERE user_id = $1 AND paid = TRUE
                 ''', user_id)
                 
-                total_sand = row[0] if row else 0
+                total_sand = row['total_sand'] if row else 0
                 await self._log_operation("select_sum", "deposits", start_time, success=True, 
                                         user_id=user_id, total_sand=total_sand, paid=True)
                 return total_sand
@@ -713,7 +713,7 @@ class Database:
                     key
                 )
                 
-                value = row[0] if row else None
+                value = row['value'] if row else None
                 await self._log_operation("select", "settings", start_time, success=True, 
                                         key=key, found=value is not None)
                 return value
@@ -800,16 +800,16 @@ class Database:
                 deposits = []
                 for row in rows:
                     deposits.append({
-                        'id': row[0],
-                        'user_id': row[1],
-                        'username': row[2],
-                        'sand_amount': row[3],
-                        'type': row[4] if len(row) > 4 else 'solo',
-                        'expedition_id': row[5] if len(row) > 5 else None,
-                        'paid': bool(row[6] if len(row) > 6 else row[4]),
-                        'created_at': row[7] if len(row) > 7 else (row[5] if len(row) > 5 else datetime.now()),
-                        'paid_at': row[8] if len(row) > 8 else (row[6] if len(row) > 6 else None),
-                        'total_melange': row[9] if len(row) > 9 else 0
+                        'id': row['id'],
+                        'user_id': row['user_id'],
+                        'username': row['username'],
+                        'sand_amount': row['sand_amount'],
+                        'type': row.get('type', 'solo'),
+                        'expedition_id': row.get('expedition_id'),
+                        'paid': bool(row.get('paid', False)),
+                        'created_at': row.get('created_at', datetime.now()),
+                        'paid_at': row.get('paid_at'),
+                        'total_melange': row.get('total_melange', 0)
                     })
                 
                 await self._log_operation("select_join", "deposits_users", start_time, success=True, 
