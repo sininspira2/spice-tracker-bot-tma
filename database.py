@@ -130,7 +130,9 @@ class Database:
                         'user_id': row[0],
                         'username': row[1], 
                         'total_melange': row[2],
-                        'last_updated': row[3] if row[3] else datetime.now()
+                        'paid_melange': row[3],
+                        'created_at': row[4],
+                        'last_updated': row[5] if row[5] else datetime.now()
                     }
                     await self._log_operation("select", "users", start_time, success=True, user_id=user_id, found=True)
                     return result
