@@ -90,7 +90,7 @@ A Discord bot for **Dune: Awakening** guilds to convert spice sand to melange, m
 
 Result (15% guild cut):
 - Guild Treasury: 1500 sand → 30 melange
-- Harvester: 2550 sand (30% of remaining) → 51 melange  
+- Harvester: 2550 sand (30% of remaining) → 51 melange
 - Scout: 2975 sand (35% of remaining) → 59 melange
 - Pilot: 2975 sand (35% of remaining) → 59 melange
 ```
@@ -162,7 +162,7 @@ The bot includes:
 ## ⚡ Performance Features
 
 - **🚀 Fast Startup:** < 2 second boot time with automatic command sync
-- **📊 Structured Logging:** Production-ready logging with Fly.io integration  
+- **📊 Structured Logging:** Production-ready logging with Fly.io integration
 - **🔄 Connection Pooling:** Efficient database connections with automatic retry
 - **⚡ Async Operations:** Non-blocking Discord interactions and database queries
 - **🛡️ Error Recovery:** Graceful handling of database and Discord API failures
@@ -191,7 +191,7 @@ python -m pytest tests/ --cov=. --cov-report=html
 
 ---
 
-**🎮 Game:** Dune: Awakening  
-**🚀 Status:** Production Ready  
-**📊 Deployment:** Fly.io + Supabase  
+**🎮 Game:** Dune: Awakening
+**🚀 Status:** Production Ready
+**📊 Deployment:** Fly.io + Supabase
 **🧪 Tests:** 46 passing ✅

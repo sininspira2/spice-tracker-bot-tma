@@ -17,7 +17,7 @@ from utils.helpers import send_response
 @handle_interaction_expiration
 async def help(interaction, use_followup: bool = True):
     """Show all available commands and their descriptions"""
-    
+
     # Use utility function for embed building
     fields = {
         "📊 Harvester Commands": "**`/sand [amount]`** Convert sand→melange (1-10k, 50:1 ratio)\n"
@@ -40,7 +40,7 @@ async def help(interaction, use_followup: bool = True):
                             "• `/pay @user` → pay pending melange\n"
                             "• `/payroll` → pay all users"
     }
-    
+
     embed = build_status_embed(
         title="🏜️ Spice Refinery Commands",
         description="Sand→melange conversion & production tracking",
@@ -48,5 +48,5 @@ async def help(interaction, use_followup: bool = True):
         fields=fields,
         timestamp=interaction.created_at
     )
-    
+
     await send_response(interaction, embed=embed.build(), use_followup=use_followup, ephemeral=True)

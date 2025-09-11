@@ -31,15 +31,15 @@ def mock_interaction():
     interaction.guild.id = 987654321
     interaction.guild.name = "TestGuild"
     interaction.channel = Mock()
-    
+
     # Make response methods properly async
     interaction.response.send = AsyncMock()
     interaction.response.defer = AsyncMock()
     interaction.followup.send = AsyncMock()
-    
+
     # Make channel methods async for fallback responses
     interaction.channel.send = AsyncMock()
-    
+
     return interaction
 
 @pytest.fixture
@@ -62,7 +62,7 @@ def mock_database():
     db.add_expedition_deposit = AsyncMock()
     db.get_expedition_participants = AsyncMock(return_value=[])
     db.cleanup_old_deposits = AsyncMock(return_value=0)
-    
+
     # Add missing methods that tests expect
     db.get_top_refiners = AsyncMock(return_value=[
         {'username': 'User1', 'total_melange': 100},
@@ -70,10 +70,10 @@ def mock_database():
     ])
     db.reset_all_statistics = AsyncMock()
     db.get_all_unpaid_users = AsyncMock(return_value=[])
-    
+
     # Add methods that database_utils expects
     db.get_user = AsyncMock(return_value={
-        "user_id": "123", 
+        "user_id": "123",
         "username": "TestUser",
         "total_melange": 20,
         "paid_melange": 10
@@ -85,7 +85,7 @@ def mock_database():
         'paid_melange': 10,
         'pending_melange': 10
     })
-    
+
     # Add missing methods that commands expect
     db.get_leaderboard = AsyncMock(return_value=[
         {'username': 'User1', 'total_melange': 100},
@@ -94,7 +94,7 @@ def mock_database():
     db.get_all_unpaid_deposits = AsyncMock(return_value=[])
     db.reset_all_stats = AsyncMock()  # Add this method
     db.reset_all_statistics = AsyncMock()  # Add this method too
-    
+
     # Add get_user_stats method that some commands call directly
     db.get_user_stats = AsyncMock(return_value={
         'total_sand': 1000,
@@ -102,7 +102,7 @@ def mock_database():
         'total_melange': 20,
         'timing': {'add_deposit_time': 0.1}
     })
-    
+
     return db
 
 @pytest.fixture
