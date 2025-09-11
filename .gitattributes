@@ -12,9 +12,10 @@
 *.sql text eol=lf
 *.sh text eol=lf
 *.ps1 text eol=lf
-*.dockerfile text eol=lf
+[Dd]ockerfile* text eol=lf
 *.gitignore text eol=lf
 *.gitattributes text eol=lf
+*.lock text eol=lf
 
 # Force CRLF for Windows batch files
 *.bat text eol=crlf
@@ -22,7 +23,6 @@
 
 # Binary files
 *.db binary
-*.lock binary
 *.png binary
 *.jpg binary
 *.jpeg binary
