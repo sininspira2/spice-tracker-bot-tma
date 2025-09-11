@@ -6,6 +6,7 @@ import asyncio
 import os
 from unittest.mock import Mock, AsyncMock
 from dotenv import load_dotenv
+from datetime import datetime
 
 # Load environment variables for testing
 load_dotenv()
@@ -24,7 +25,7 @@ def mock_interaction():
     interaction.user.id = 123456789
     interaction.user.display_name = "TestUser"
     interaction.user.name = "testuser"
-    interaction.created_at = Mock()
+    interaction.created_at = datetime.now()
     interaction.response = AsyncMock()
     interaction.followup = AsyncMock()
     interaction.guild = Mock()
@@ -50,6 +51,8 @@ def mock_database():
     db.upsert_user = AsyncMock()
     db.add_deposit = AsyncMock()
     db.get_user_deposits = AsyncMock(return_value=[])
+    db.get_user_deposits_paginated = AsyncMock(return_value=[])
+    db.get_user_deposits_count = AsyncMock(return_value=0)
     db.get_user_stats = AsyncMock(return_value={
         'total_sand': 1000,
         'paid_sand': 500,
