@@ -16,10 +16,6 @@ WHERE total_melange > paid_melange;
 -- Index for expedition participants ordering - optimizes harvester-first, then username ordering
 CREATE INDEX idx_expedition_participants_harvester_username ON expedition_participants (expedition_id, is_harvester DESC, username ASC);
 
--- Index for unpaid deposits queries - optimizes filtering and ordering unpaid deposits
-CREATE INDEX idx_deposits_unpaid_created_at ON deposits (paid, created_at ASC)
-WHERE paid = FALSE;
-
 -- Index for expedition deposits with user filtering - optimizes user expedition history queries
 CREATE INDEX idx_deposits_user_type_created_at ON deposits (user_id, type, created_at DESC);
 
