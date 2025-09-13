@@ -30,8 +30,8 @@ def _get_command_permission_level(command_name: str) -> str:
     """
     # Default permission levels for known commands
     admin_commands = {'reset', 'pending', 'payroll', 'payment', 'guild_withdraw'}
-    user_commands = {'sand', 'refinery', 'treasury', 'leaderboard', 'ledger', 'expedition', 'split', 'water'}
-    any_commands = {'help'}
+    user_commands = {'sand', 'refinery', 'treasury', 'ledger', 'expedition', 'split', 'water'}
+    any_commands = {'help', 'leaderboard'}
 
     if command_name in admin_commands:
         return 'admin'

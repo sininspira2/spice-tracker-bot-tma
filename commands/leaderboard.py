@@ -7,7 +7,7 @@ COMMAND_METADATA = {
     'aliases': [],  # ['top'] - removed for simplicity
     'description': "Display top spice refiners by melange production",
     'params': {'limit': "Number of top refiners to display (default: 10)"},
-    'permission_level': 'user'
+    'permission_level': 'any'
 }
 
 import time
