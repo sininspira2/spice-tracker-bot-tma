@@ -1,7 +1,7 @@
 """Initial migration from ORM models
 
 Revision ID: 8f3aac27db9a
-Revises: 
+Revises:
 Create Date: 2025-09-13 09:32:29.847428
 
 """
@@ -101,7 +101,6 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['expedition_id'], ['expeditions.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
-    op.drop_table('settings')
     op.add_column('users', sa.Column('id', sa.Integer(), autoincrement=True, nullable=False))
     op.add_column('users', sa.Column('paid_melange', sa.Integer(), nullable=False))
     op.add_column('users', sa.Column('created_at', sa.DateTime(), nullable=False))
@@ -150,11 +149,6 @@ def downgrade() -> None:
     op.drop_column('users', 'created_at')
     op.drop_column('users', 'paid_melange')
     op.drop_column('users', 'id')
-    op.create_table('settings',
-    sa.Column('key', sa.TEXT(), nullable=True),
-    sa.Column('value', sa.TEXT(), nullable=False),
-    sa.PrimaryKeyConstraint('key')
-    )
     op.drop_table('guild_transactions')
     op.drop_table('expedition_participants')
     op.drop_table('deposits')
