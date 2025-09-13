@@ -1,4 +1,5 @@
 import asyncpg
+import aiosqlite
 import asyncio
 import os
 import time
@@ -11,6 +12,9 @@ class Database:
         self.database_url = database_url or os.getenv('DATABASE_URL')
         if not self.database_url:
             raise ValueError("DATABASE_URL environment variable is required")
+
+        # Detect if this is a SQLite database
+        self.is_sqlite = self.database_url.startswith('sqlite://') or self.database_url.endswith('.db')
 
         # Connection pool settings for better reliability
         self.max_retries = 3
@@ -25,16 +29,22 @@ class Database:
         for attempt in range(self.max_retries):
             start_time = time.time()
             try:
-                # Configure connection for Supabase compatibility
-                conn = await asyncpg.connect(
-                    self.database_url,
-                    statement_cache_size=0,  # Disable prepared statements for pgbouncer compatibility
-                    command_timeout=30,      # Reduce timeout for faster failures
-                    timeout=10,              # Connection timeout in seconds
-                    server_settings={
-                        'application_name': 'spice_tracker_bot'
-                    }
-                )
+                if self.is_sqlite:
+                    # SQLite connection
+                    db_path = self.database_url.replace('sqlite://', '') if self.database_url.startswith('sqlite://') else self.database_url
+                    conn = await aiosqlite.connect(db_path)
+                    conn.row_factory = aiosqlite.Row  # Enable dict-like access
+                else:
+                    # PostgreSQL connection
+                    conn = await asyncpg.connect(
+                        self.database_url,
+                        statement_cache_size=0,  # Disable prepared statements for pgbouncer compatibility
+                        command_timeout=30,      # Reduce timeout for faster failures
+                        timeout=10,              # Connection timeout in seconds
+                        server_settings={
+                            'application_name': 'spice_tracker_bot'
+                        }
+                    )
 
                 connection_time = time.time() - start_time
                 logger.database_operation(
@@ -51,7 +61,7 @@ class Database:
                     return  # Success, exit retry loop
                 finally:
                     # Always close connection in finally block
-                    if conn and not conn.is_closed():
+                    if conn:
                         try:
                             await asyncio.wait_for(conn.close(), timeout=5.0)
                         except (asyncio.TimeoutError, Exception) as close_error:
@@ -70,7 +80,7 @@ class Database:
                 )
 
                 # Close failed connection if it exists
-                if conn and not conn.is_closed():
+                if conn:
                     try:
                         await asyncio.wait_for(conn.close(), timeout=2.0)
                     except Exception:
@@ -99,12 +109,16 @@ class Database:
 
 
     async def initialize(self):
-        """Test database connectivity only - migrations handled by Supabase CLI"""
+        """Initialize database - create schema for SQLite, test connectivity for PostgreSQL"""
         start_time = time.time()
         try:
             async with self._get_connection() as conn:
-                # Simple connectivity test
-                await conn.fetchval('SELECT 1')
+                if self.is_sqlite:
+                    # Create SQLite schema
+                    await self._create_sqlite_schema(conn)
+                else:
+                    # Simple connectivity test for PostgreSQL
+                    await conn.fetchval('SELECT 1')
 
             init_time = time.time() - start_time
             await self._log_operation("connectivity_check", "database", start_time, success=True, init_time=f"{init_time:.3f}s")
@@ -116,14 +130,162 @@ class Database:
             print(f'❌ Database connection failed in {init_time:.3f}s: {e}')
             raise e
 
+    async def _create_sqlite_schema(self, conn):
+        """Create the SQLite database schema"""
+        schema_sql = """
+        -- Users table
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id TEXT UNIQUE NOT NULL,
+            username TEXT NOT NULL,
+            total_melange REAL DEFAULT 0,
+            paid_melange REAL DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Deposits table
+        CREATE TABLE IF NOT EXISTS deposits (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id TEXT NOT NULL,
+            username TEXT NOT NULL,
+            sand_amount INTEGER NOT NULL,
+            type TEXT DEFAULT 'solo',
+            expedition_id INTEGER,
+            paid BOOLEAN DEFAULT FALSE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            paid_at TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(user_id),
+            FOREIGN KEY (expedition_id) REFERENCES expeditions(id)
+        );
+
+        -- Expeditions table
+        CREATE TABLE IF NOT EXISTS expeditions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            initiator_id TEXT NOT NULL,
+            initiator_username TEXT NOT NULL,
+            total_sand INTEGER NOT NULL,
+            sand_per_melange INTEGER,
+            guild_cut_percentage REAL DEFAULT 10.0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (initiator_id) REFERENCES users(user_id)
+        );
+
+        -- Expedition participants table
+        CREATE TABLE IF NOT EXISTS expedition_participants (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            expedition_id INTEGER NOT NULL,
+            user_id TEXT NOT NULL,
+            username TEXT NOT NULL,
+            sand_amount INTEGER NOT NULL,
+            melange_amount REAL NOT NULL,
+            is_harvester BOOLEAN DEFAULT FALSE,
+            FOREIGN KEY (expedition_id) REFERENCES expeditions(id),
+            FOREIGN KEY (user_id) REFERENCES users(user_id)
+        );
+
+        -- Guild treasury table
+        CREATE TABLE IF NOT EXISTS guild_treasury (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            total_sand INTEGER DEFAULT 0,
+            total_melange REAL DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Guild transactions table
+        CREATE TABLE IF NOT EXISTS guild_transactions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            transaction_type TEXT NOT NULL,
+            sand_amount INTEGER NOT NULL,
+            admin_user_id TEXT NOT NULL,
+            admin_username TEXT NOT NULL,
+            target_user_id TEXT,
+            target_username TEXT,
+            description TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Melange payments table
+        CREATE TABLE IF NOT EXISTS melange_payments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id TEXT NOT NULL,
+            username TEXT NOT NULL,
+            melange_amount REAL NOT NULL,
+            admin_user_id TEXT,
+            admin_username TEXT,
+            description TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(user_id)
+        );
+
+        -- Global settings table
+        CREATE TABLE IF NOT EXISTS global_settings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            setting_key TEXT UNIQUE NOT NULL,
+            setting_value TEXT NOT NULL,
+            description TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Create indexes for better performance
+        CREATE INDEX IF NOT EXISTS idx_users_user_id ON users(user_id);
+        CREATE INDEX IF NOT EXISTS idx_deposits_user_id ON deposits(user_id);
+        CREATE INDEX IF NOT EXISTS idx_deposits_expedition_id ON deposits(expedition_id);
+        CREATE INDEX IF NOT EXISTS idx_expedition_participants_expedition_id ON expedition_participants(expedition_id);
+        CREATE INDEX IF NOT EXISTS idx_expedition_participants_user_id ON expedition_participants(user_id);
+        CREATE INDEX IF NOT EXISTS idx_melange_payments_user_id ON melange_payments(user_id);
+        CREATE INDEX IF NOT EXISTS idx_global_settings_key ON global_settings(setting_key);
+        """
+
+        await conn.executescript(schema_sql)
+
+    async def _execute_query(self, conn, query, params=None, fetch_type='fetchrow'):
+        """Execute a query with appropriate parameter binding for PostgreSQL or SQLite"""
+        if self.is_sqlite:
+            # Convert PostgreSQL $1, $2, etc. to SQLite ? placeholders
+            sqlite_query = query
+            sqlite_params = params or []
+
+            # Simple parameter conversion - replace $1, $2, etc. with ?
+            import re
+            sqlite_query = re.sub(r'\$\d+', '?', query)
+
+            if fetch_type == 'fetchrow':
+                return await conn.fetchone(sqlite_query, sqlite_params)
+            elif fetch_type == 'fetchall':
+                return await conn.fetchall(sqlite_query, sqlite_params)
+            elif fetch_type == 'fetchval':
+                result = await conn.fetchone(sqlite_query, sqlite_params)
+                return result[0] if result else None
+            elif fetch_type == 'execute':
+                return await conn.execute(sqlite_query, sqlite_params)
+            elif fetch_type == 'executescript':
+                return await conn.executescript(sqlite_query)
+        else:
+            # PostgreSQL
+            if fetch_type == 'fetchrow':
+                return await conn.fetchrow(query, *params) if params else await conn.fetchrow(query)
+            elif fetch_type == 'fetchall':
+                return await conn.fetch(query, *params) if params else await conn.fetch(query)
+            elif fetch_type == 'fetchval':
+                return await conn.fetchval(query, *params) if params else await conn.fetchval(query)
+            elif fetch_type == 'execute':
+                return await conn.execute(query, *params) if params else await conn.execute(query)
+            elif fetch_type == 'executescript':
+                return await conn.executescript(query)
+
     async def get_user(self, user_id):
         """Get user data by user ID"""
         start_time = time.time()
         async with self._get_connection() as conn:
             try:
-                row = await conn.fetchrow(
+                row = await self._execute_query(
+                    conn,
                     'SELECT * FROM users WHERE user_id = $1',
-                    user_id
+                    [user_id],
+                    'fetchrow'
                 )
                 if row:
                     result = {
