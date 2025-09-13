@@ -50,7 +50,7 @@ def mock_interaction():
 
 @pytest_asyncio.fixture
 async def test_database():
-    """Create a real SQLite database for testing using SQLAlchemy ORM."""
+    """Create a real SQLite database for testing using SQLAlchemy ORM with Alembic migrations."""
     # Create a temporary database file
     temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.db')
     temp_file.close()
@@ -60,11 +60,19 @@ async def test_database():
     os.environ['DATABASE_URL'] = f'sqlite+aiosqlite:///{temp_file.name}'
 
     try:
-        # Create database instance
-        db = Database()
-
-        # Initialize the database
-        await db.initialize()
+        # Run migrations to set up the database schema
+        import subprocess
+        result = subprocess.run(['python', 'migrate.py', 'apply'],
+                              capture_output=True, text=True, cwd=os.getcwd())
+        if result.returncode != 0:
+            print(f"Migration failed: {result.stderr}")
+            # Fallback to direct initialization if migrations fail
+            db = Database()
+            await db.initialize()
+        else:
+            # Create database instance (migrations already applied)
+            db = Database()
+            await db.initialize()
 
         yield db
 
