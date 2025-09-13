@@ -72,19 +72,15 @@ async def test_database():
     os.environ['DATABASE_URL'] = f'sqlite+aiosqlite:///{temp_file.name}'
 
     try:
-        # Run migrations to set up the database schema
-        import subprocess
-        result = subprocess.run(['python', 'migrate.py', 'apply'],
-                              capture_output=True, text=True, cwd=os.getcwd())
-        if result.returncode != 0:
-            print(f"Migration failed: {result.stderr}")
-            # Fallback to direct initialization if migrations fail
-            db = Database()
-            await db.initialize()
-        else:
-            # Create database instance (migrations already applied)
-            db = Database()
-            await db.initialize()
+        # Create database instance and initialize schema directly
+        db = Database()
+        await db.initialize()
+
+        # Create all tables directly using SQLAlchemy (faster than migrations for tests)
+        from database_orm import Base
+        async with db.engine.begin() as conn:
+            # Create all tables
+            await conn.run_sync(Base.metadata.create_all)
 
         yield db
 
