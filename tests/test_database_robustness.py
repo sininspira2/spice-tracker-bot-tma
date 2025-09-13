@@ -161,18 +161,29 @@ class TestDatabaseColumnAccess:
     @pytest.mark.asyncio
     async def test_database_handles_empty_results(self):
         """Test that database operations handle empty results gracefully."""
-        conn = AsyncMock()
-        conn.fetchrow.return_value = None  # No user found
-        conn.fetch.return_value = []  # No deposits found
+        # Mock SQLAlchemy session
+        session = AsyncMock()
+
+        # Mock the result object for get_user (no user found)
+        result_mock = Mock()
+        result_mock.scalar_one_or_none.return_value = None
+        session.execute = AsyncMock(return_value=result_mock)
+
+        # Mock the result object for get_user_deposits (no deposits found)
+        deposits_result_mock = Mock()
+        deposits_result_mock.scalars.return_value.all.return_value = []
 
         with patch.object(Database, '_get_session') as mock_get_conn:
-            mock_get_conn.return_value.__aenter__.return_value = conn
+            mock_get_conn.return_value.__aenter__.return_value = session
 
             db = Database("sqlite+aiosqlite:///:memory:")
 
             # Test get_user with no results
             result = await db.get_user("nonexistent")
             assert result is None
+
+            # Update mock for deposits test
+            session.execute = AsyncMock(return_value=deposits_result_mock)
 
             # Test get_user_deposits with no results
             deposits = await db.get_user_deposits("nonexistent")
@@ -198,23 +209,25 @@ class TestDatabaseSchemaCompatibility:
     @pytest.mark.asyncio
     async def test_user_schema_compatibility(self):
         """Test that user operations work with expected schema."""
-        conn = AsyncMock()
+        # Mock SQLAlchemy session
+        session = AsyncMock()
 
-        # Mock the expected user table schema
-        user_row = Mock()
-        user_row.__getitem__ = Mock(side_effect=lambda key: {
-            'user_id': '123456789',
-            'username': 'TestUser',
-            'total_melange': 100,
-            'paid_melange': 50,
-            'created_at': '2024-01-01T00:00:00Z',
-            'last_updated': '2024-01-01T00:00:00Z'
-        }.get(key, None))
+        # Mock user object with expected attributes
+        user_mock = Mock()
+        user_mock.user_id = '123456789'
+        user_mock.username = 'TestUser'
+        user_mock.total_melange = 100
+        user_mock.paid_melange = 50
+        user_mock.created_at = '2024-01-01T00:00:00Z'
+        user_mock.last_updated = '2024-01-01T00:00:00Z'
 
-        conn.fetchrow.return_value = user_row
+        # Mock the result object
+        result_mock = Mock()
+        result_mock.scalar_one_or_none.return_value = user_mock
+        session.execute = AsyncMock(return_value=result_mock)
 
         with patch.object(Database, '_get_session') as mock_get_conn:
-            mock_get_conn.return_value.__aenter__.return_value = conn
+            mock_get_conn.return_value.__aenter__.return_value = session
 
             db = Database("sqlite+aiosqlite:///:memory:")
             result = await db.get_user("123456789")
@@ -227,26 +240,26 @@ class TestDatabaseSchemaCompatibility:
     @pytest.mark.asyncio
     async def test_deposits_schema_compatibility(self):
         """Test that deposits operations work with expected schema."""
-        conn = AsyncMock()
+        # Mock SQLAlchemy session
+        session = AsyncMock()
 
-        # Mock the expected deposits table schema
-        deposit_row = Mock()
-        deposit_row.__getitem__ = Mock(side_effect=lambda key: {
-            'id': 1,
-            'user_id': '123456789',
-            'username': 'TestUser',
-            'sand_amount': 1000,
-            'type': 'solo',
-            'expedition_id': None,
-            'paid': False,
-            'created_at': '2024-01-01T00:00:00Z',
-            'paid_at': None
-        }.get(key, None))
+        # Mock deposit object with expected attributes
+        deposit_mock = Mock()
+        deposit_mock.id = 1
+        deposit_mock.user_id = '123456789'
+        deposit_mock.username = 'TestUser'
+        deposit_mock.sand_amount = 1000
+        deposit_mock.type = 'solo'
+        deposit_mock.expedition_id = None
+        deposit_mock.created_at = '2024-01-01T00:00:00Z'
 
-        conn.fetch.return_value = [deposit_row]
+        # Mock the result object for deposits
+        deposits_result_mock = Mock()
+        deposits_result_mock.scalars.return_value.all.return_value = [deposit_mock]
+        session.execute = AsyncMock(return_value=deposits_result_mock)
 
         with patch.object(Database, '_get_session') as mock_get_conn:
-            mock_get_conn.return_value.__aenter__.return_value = conn
+            mock_get_conn.return_value.__aenter__.return_value = session
 
             db = Database("sqlite+aiosqlite:///:memory:")
             result = await db.get_user_deposits("123456789")

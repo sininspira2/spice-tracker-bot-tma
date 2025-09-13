@@ -68,16 +68,7 @@ class TestLandsraadBonus:
         """Test getting conversion rate when landsraad bonus is inactive."""
         with patch('utils.helpers.get_database') as mock_get_db:
             mock_db = AsyncMock()
-            mock_conn = AsyncMock()
-            mock_conn.fetchval.return_value = 'false'
-
-            # Mock the async context manager
-            mock_context_manager = AsyncMock()
-            mock_context_manager.__aenter__.return_value = mock_conn
-            mock_context_manager.__aexit__.return_value = None
-
-            # Mock _get_connection as a method that returns the context manager
-            mock_db._get_connection = lambda: mock_context_manager
+            mock_db.get_landsraad_bonus_status.return_value = False  # Inactive
             mock_get_db.return_value = mock_db
 
             rate = await get_sand_per_melange_with_bonus()
@@ -88,16 +79,7 @@ class TestLandsraadBonus:
         """Test fallback to normal rate when database error occurs."""
         with patch('utils.helpers.get_database') as mock_get_db:
             mock_db = AsyncMock()
-            mock_conn = AsyncMock()
-            mock_conn.fetchval.side_effect = Exception("Database error")
-
-            # Mock the async context manager
-            mock_context_manager = AsyncMock()
-            mock_context_manager.__aenter__.return_value = mock_conn
-            mock_context_manager.__aexit__.return_value = None
-
-            # Mock _get_connection as a method that returns the context manager
-            mock_db._get_connection = lambda: mock_context_manager
+            mock_db.get_landsraad_bonus_status.side_effect = Exception("Database error")
             mock_get_db.return_value = mock_db
 
             rate = await get_sand_per_melange_with_bonus()
@@ -108,16 +90,7 @@ class TestLandsraadBonus:
         """Test handling when database returns None."""
         with patch('utils.helpers.get_database') as mock_get_db:
             mock_db = AsyncMock()
-            mock_conn = AsyncMock()
-            mock_conn.fetchval.return_value = None
-
-            # Mock the async context manager
-            mock_context_manager = AsyncMock()
-            mock_context_manager.__aenter__.return_value = mock_conn
-            mock_context_manager.__aexit__.return_value = None
-
-            # Mock _get_connection as a method that returns the context manager
-            mock_db._get_connection = lambda: mock_context_manager
+            mock_db.get_landsraad_bonus_status.return_value = None
             mock_get_db.return_value = mock_db
 
             rate = await get_sand_per_melange_with_bonus()

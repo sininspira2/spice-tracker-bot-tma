@@ -27,15 +27,12 @@ async def get_sand_per_melange_with_bonus() -> float:
     """Get the current sand to melange conversion rate, considering landsraad bonus"""
     try:
         db = get_database()
-        async with db._get_connection() as conn:
-            result = await conn.fetchval(
-                "SELECT setting_value FROM global_settings WHERE setting_key = 'landsraad_bonus_active'"
-            )
+        is_active = await db.get_landsraad_bonus_status()
 
-            if result and result.lower() == 'true':
-                return SAND_PER_MELANGE_LANDSRAAD
-            else:
-                return float(SAND_PER_MELANGE_NORMAL)
+        if is_active:
+            return SAND_PER_MELANGE_LANDSRAAD
+        else:
+            return float(SAND_PER_MELANGE_NORMAL)
     except Exception as e:
         from utils.logger import logger
         logger.error(f"Error checking landsraad bonus status: {e}")

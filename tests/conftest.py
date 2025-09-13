@@ -24,6 +24,18 @@ def event_loop():
     loop.close()
 
 @pytest.fixture
+def mock_database():
+    """Create a mock database for testing."""
+    db = AsyncMock()
+    db.get_user = AsyncMock()
+    db.upsert_user = AsyncMock()
+    db.add_deposit = AsyncMock()
+    db.get_user_deposits = AsyncMock()
+    db.get_landsraad_bonus_status = AsyncMock()
+    db.set_landsraad_bonus_status = AsyncMock()
+    return db
+
+@pytest.fixture
 def mock_interaction():
     """Create a mock Discord interaction for testing."""
     interaction = Mock()

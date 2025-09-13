@@ -222,6 +222,12 @@ class Database:
         self.retry_delay = 1.0
 
     @asynccontextmanager
+    async def _get_connection(self):
+        """Legacy method for backward compatibility with tests."""
+        async with self._get_session() as session:
+            yield session
+
+    @asynccontextmanager
     async def _get_session(self):
         """Context manager for database sessions with retry logic."""
         session = None
