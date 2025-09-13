@@ -30,8 +30,8 @@ class User(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
     username: Mapped[str] = mapped_column(String(100), nullable=False)
-    total_melange: Mapped[int] = mapped_column(Integer, default=0)
-    paid_melange: Mapped[int] = mapped_column(Integer, default=0)
+    total_melange: Mapped[float] = mapped_column(Float, default=0.0)
+    paid_melange: Mapped[float] = mapped_column(Float, default=0.0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
     last_updated: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
@@ -118,7 +118,7 @@ class GuildTreasury(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     total_sand: Mapped[int] = mapped_column(Integer, default=0)
-    total_melange: Mapped[int] = mapped_column(Integer, default=0)
+    total_melange: Mapped[float] = mapped_column(Float, default=0.0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
     last_updated: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
@@ -214,8 +214,10 @@ class Database:
             expire_on_commit=False
         )
 
-        # Detect database type
-        self.is_sqlite = self.database_url.startswith('sqlite') or self.database_url.endswith('.db')
+        # Detect database type using URL scheme
+        from urllib.parse import urlparse
+        parsed_url = urlparse(self.database_url)
+        self.is_sqlite = parsed_url.scheme.startswith('sqlite')
 
         # Connection pool settings
         self.max_retries = 3
