@@ -51,9 +51,7 @@ class Deposit(Base):
     sand_amount: Mapped[int] = mapped_column(Integer, nullable=False)
     type: Mapped[str] = mapped_column(String, default="solo")
     expedition_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("expeditions.id"))
-    paid: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
-    paid_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
 
     # Relationships
     user: Mapped["User"] = relationship("User", back_populates="deposits")
@@ -573,10 +571,10 @@ class Database:
                 if not user:
                     return None
 
-                # Get paid sand amount
+                # Get total sand amount
                 result = await session.execute(
                     select(func.sum(Deposit.sand_amount))
-                    .where(Deposit.user_id == user_id, Deposit.paid == True)
+                    .where(Deposit.user_id == user_id)
                 )
                 paid_sand = result.scalar() or 0
 
@@ -594,22 +592,22 @@ class Database:
                 raise e
 
     async def get_user_paid_sand(self, user_id: str) -> int:
-        """Get total sand from paid deposits for a user"""
+        """Get total sand from all deposits for a user"""
         start_time = time.time()
         async with self._get_session() as session:
             try:
                 result = await session.execute(
                     select(func.coalesce(func.sum(Deposit.sand_amount), 0))
-                    .where(Deposit.user_id == user_id, Deposit.paid == True)
+                    .where(Deposit.user_id == user_id)
                 )
                 total_sand = result.scalar() or 0
 
                 await self._log_operation("select_sum", "deposits", start_time, success=True,
-                                        user_id=user_id, total_sand=total_sand, paid=True)
+                                        user_id=user_id, total_sand=total_sand)
                 return total_sand
             except Exception as e:
                 await self._log_operation("select_sum", "deposits", start_time, success=False,
-                                        user_id=user_id, paid=True, error=str(e))
+                                        user_id=user_id, error=str(e))
                 raise e
 
     async def get_user_pending_melange(self, user_id: str) -> Dict[str, float]:
