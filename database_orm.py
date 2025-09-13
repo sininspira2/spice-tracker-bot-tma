@@ -11,7 +11,7 @@ from typing import Optional, List, Dict, Any
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
-from sqlalchemy import String, Integer, Float, Boolean, DateTime, Text, ForeignKey, select, update, delete, func
+from sqlalchemy import String, Integer, Float, Boolean, DateTime, Text, ForeignKey, select, update, delete, func, Index
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
@@ -40,6 +40,12 @@ class User(Base):
     expedition_participants: Mapped[List["ExpeditionParticipant"]] = relationship("ExpeditionParticipant", back_populates="user")
     melange_payments: Mapped[List["MelangePayment"]] = relationship("MelangePayment", back_populates="user")
 
+    # Indices
+    __table_args__ = (
+        Index('ix_users_user_id', 'user_id'),
+        Index('ix_users_leaderboard', 'total_melange', 'username'),
+    )
+
 
 class Deposit(Base):
     """Deposit model."""
@@ -56,6 +62,13 @@ class Deposit(Base):
     # Relationships
     user: Mapped["User"] = relationship("User", back_populates="deposits")
     expedition: Mapped[Optional["Expedition"]] = relationship("Expedition", back_populates="deposits")
+
+    # Indices
+    __table_args__ = (
+        Index('ix_deposits_user_id', 'user_id'),
+        Index('ix_deposits_user_created', 'user_id', 'created_at'),
+        Index('ix_deposits_expedition_id', 'expedition_id'),
+    )
 
 
 class Expedition(Base):
@@ -92,6 +105,12 @@ class ExpeditionParticipant(Base):
     expedition: Mapped["Expedition"] = relationship("Expedition", back_populates="participants")
     user: Mapped["User"] = relationship("User", back_populates="expedition_participants")
 
+    # Indices
+    __table_args__ = (
+        Index('ix_expedition_participants_expedition_id', 'expedition_id'),
+        Index('ix_expedition_participants_user_id', 'user_id'),
+    )
+
 
 class GuildTreasury(Base):
     """Guild treasury model."""
@@ -102,6 +121,11 @@ class GuildTreasury(Base):
     total_melange: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
     last_updated: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+    # Indices
+    __table_args__ = (
+        Index('ix_guild_treasury_id_desc', 'id'),
+    )
 
 
 class GuildTransaction(Base):
@@ -120,6 +144,13 @@ class GuildTransaction(Base):
     description: Mapped[Optional[str]] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
+    # Indices
+    __table_args__ = (
+        Index('ix_guild_transactions_expedition_id', 'expedition_id'),
+        Index('ix_guild_transactions_admin', 'admin_user_id'),
+        Index('ix_guild_transactions_target_user', 'target_user_id'),
+    )
+
 
 class MelangePayment(Base):
     """Melange payment model."""
@@ -137,6 +168,12 @@ class MelangePayment(Base):
     # Relationships
     user: Mapped["User"] = relationship("User", back_populates="melange_payments")
 
+    # Indices
+    __table_args__ = (
+        Index('ix_melange_payments_user_id', 'user_id'),
+        Index('ix_melange_payments_admin', 'admin_user_id'),
+    )
+
 
 class GlobalSetting(Base):
     """Global setting model."""
@@ -148,6 +185,11 @@ class GlobalSetting(Base):
     description: Mapped[Optional[str]] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
     last_updated: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+    # Indices
+    __table_args__ = (
+        Index('ix_global_settings_setting_key', 'setting_key'),
+    )
 
 
 class Database:

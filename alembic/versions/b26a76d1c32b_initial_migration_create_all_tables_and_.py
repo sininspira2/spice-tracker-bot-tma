@@ -1,8 +1,8 @@
-"""Initial migration from ORM models
+"""Initial migration - create all tables and indices
 
-Revision ID: 8f3aac27db9a
-Revises:
-Create Date: 2025-09-13 09:32:29.847428
+Revision ID: b26a76d1c32b
+Revises: 
+Create Date: 2025-09-13 10:30:31.976741
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '8f3aac27db9a'
+revision: str = 'b26a76d1c32b'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -31,6 +31,7 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('setting_key')
     )
+    op.create_index('ix_global_settings_setting_key', 'global_settings', ['setting_key'], unique=False)
     op.create_table('guild_treasury',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('total_sand', sa.Integer(), nullable=False),
@@ -39,6 +40,20 @@ def upgrade() -> None:
     sa.Column('last_updated', sa.DateTime(), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
+    op.create_index('ix_guild_treasury_id_desc', 'guild_treasury', ['id'], unique=False)
+    op.create_table('users',
+    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+    sa.Column('user_id', sa.String(), nullable=False),
+    sa.Column('username', sa.String(), nullable=False),
+    sa.Column('total_melange', sa.Integer(), nullable=False),
+    sa.Column('paid_melange', sa.Integer(), nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('last_updated', sa.DateTime(), nullable=False),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('user_id')
+    )
+    op.create_index('ix_users_leaderboard', 'users', ['total_melange', 'username'], unique=False)
+    op.create_index('ix_users_user_id', 'users', ['user_id'], unique=False)
     op.create_table('expeditions',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('initiator_id', sa.String(), nullable=False),
@@ -62,6 +77,8 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['user_id'], ['users.user_id'], ),
     sa.PrimaryKeyConstraint('id')
     )
+    op.create_index('ix_melange_payments_admin', 'melange_payments', ['admin_user_id'], unique=False)
+    op.create_index('ix_melange_payments_user_id', 'melange_payments', ['user_id'], unique=False)
     op.create_table('deposits',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('user_id', sa.String(), nullable=False),
@@ -74,6 +91,9 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['user_id'], ['users.user_id'], ),
     sa.PrimaryKeyConstraint('id')
     )
+    op.create_index('ix_deposits_expedition_id', 'deposits', ['expedition_id'], unique=False)
+    op.create_index('ix_deposits_user_created', 'deposits', ['user_id', 'created_at'], unique=False)
+    op.create_index('ix_deposits_user_id', 'deposits', ['user_id'], unique=False)
     op.create_table('expedition_participants',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('expedition_id', sa.Integer(), nullable=False),
@@ -86,6 +106,8 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['user_id'], ['users.user_id'], ),
     sa.PrimaryKeyConstraint('id')
     )
+    op.create_index('ix_expedition_participants_expedition_id', 'expedition_participants', ['expedition_id'], unique=False)
+    op.create_index('ix_expedition_participants_user_id', 'expedition_participants', ['user_id'], unique=False)
     op.create_table('guild_transactions',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('transaction_type', sa.String(), nullable=False),
@@ -101,59 +123,35 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['expedition_id'], ['expeditions.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
-    op.add_column('users', sa.Column('id', sa.Integer(), autoincrement=True, nullable=False))
-    op.add_column('users', sa.Column('paid_melange', sa.Integer(), nullable=False))
-    op.add_column('users', sa.Column('created_at', sa.DateTime(), nullable=False))
-    op.alter_column('users', 'user_id',
-               existing_type=sa.TEXT(),
-               type_=sa.String(),
-               nullable=False)
-    op.alter_column('users', 'username',
-               existing_type=sa.TEXT(),
-               type_=sa.String(),
-               existing_nullable=False)
-    op.alter_column('users', 'total_melange',
-               existing_type=sa.INTEGER(),
-               nullable=False,
-               existing_server_default=sa.text('0'))
-    op.alter_column('users', 'last_updated',
-               existing_type=sa.DATETIME(),
-               nullable=False,
-               existing_server_default=sa.text('(CURRENT_TIMESTAMP)'))
-    op.create_unique_constraint(None, 'users', ['user_id'])
-    op.drop_column('users', 'total_sand')
+    op.create_index('ix_guild_transactions_admin', 'guild_transactions', ['admin_user_id'], unique=False)
+    op.create_index('ix_guild_transactions_expedition_id', 'guild_transactions', ['expedition_id'], unique=False)
+    op.create_index('ix_guild_transactions_target_user', 'guild_transactions', ['target_user_id'], unique=False)
     # ### end Alembic commands ###
 
 
 def downgrade() -> None:
     """Downgrade schema."""
     # ### commands auto generated by Alembic - please adjust! ###
-    op.add_column('users', sa.Column('total_sand', sa.INTEGER(), server_default=sa.text('0'), nullable=True))
-    op.drop_constraint(None, 'users', type_='unique')
-    op.alter_column('users', 'last_updated',
-               existing_type=sa.DATETIME(),
-               nullable=True,
-               existing_server_default=sa.text('(CURRENT_TIMESTAMP)'))
-    op.alter_column('users', 'total_melange',
-               existing_type=sa.INTEGER(),
-               nullable=True,
-               existing_server_default=sa.text('0'))
-    op.alter_column('users', 'username',
-               existing_type=sa.String(),
-               type_=sa.TEXT(),
-               existing_nullable=False)
-    op.alter_column('users', 'user_id',
-               existing_type=sa.String(),
-               type_=sa.TEXT(),
-               nullable=True)
-    op.drop_column('users', 'created_at')
-    op.drop_column('users', 'paid_melange')
-    op.drop_column('users', 'id')
+    op.drop_index('ix_guild_transactions_target_user', table_name='guild_transactions')
+    op.drop_index('ix_guild_transactions_expedition_id', table_name='guild_transactions')
+    op.drop_index('ix_guild_transactions_admin', table_name='guild_transactions')
     op.drop_table('guild_transactions')
+    op.drop_index('ix_expedition_participants_user_id', table_name='expedition_participants')
+    op.drop_index('ix_expedition_participants_expedition_id', table_name='expedition_participants')
     op.drop_table('expedition_participants')
+    op.drop_index('ix_deposits_user_id', table_name='deposits')
+    op.drop_index('ix_deposits_user_created', table_name='deposits')
+    op.drop_index('ix_deposits_expedition_id', table_name='deposits')
     op.drop_table('deposits')
+    op.drop_index('ix_melange_payments_user_id', table_name='melange_payments')
+    op.drop_index('ix_melange_payments_admin', table_name='melange_payments')
     op.drop_table('melange_payments')
     op.drop_table('expeditions')
+    op.drop_index('ix_users_user_id', table_name='users')
+    op.drop_index('ix_users_leaderboard', table_name='users')
+    op.drop_table('users')
+    op.drop_index('ix_guild_treasury_id_desc', table_name='guild_treasury')
     op.drop_table('guild_treasury')
+    op.drop_index('ix_global_settings_setting_key', table_name='global_settings')
     op.drop_table('global_settings')
     # ### end Alembic commands ###

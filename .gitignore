@@ -53,4 +53,3 @@ Thumbs.db
 # Fly.io
 .fly/
 fly.toml
-spice_tracker.db
