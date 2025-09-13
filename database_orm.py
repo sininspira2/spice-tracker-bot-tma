@@ -28,8 +28,8 @@ class User(Base):
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    user_id: Mapped[str] = mapped_column(String, unique=True, nullable=False)
-    username: Mapped[str] = mapped_column(String, nullable=False)
+    user_id: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
+    username: Mapped[str] = mapped_column(String(100), nullable=False)
     total_melange: Mapped[int] = mapped_column(Integer, default=0)
     paid_melange: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
@@ -52,10 +52,10 @@ class Deposit(Base):
     __tablename__ = "deposits"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    user_id: Mapped[str] = mapped_column(String, ForeignKey("users.user_id"), nullable=False)
-    username: Mapped[str] = mapped_column(String, nullable=False)
+    user_id: Mapped[str] = mapped_column(String(50), ForeignKey("users.user_id"), nullable=False)
+    username: Mapped[str] = mapped_column(String(100), nullable=False)
     sand_amount: Mapped[int] = mapped_column(Integer, nullable=False)
-    type: Mapped[str] = mapped_column(String, default="solo")
+    type: Mapped[str] = mapped_column(String(20), default="solo")
     expedition_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("expeditions.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
@@ -76,8 +76,8 @@ class Expedition(Base):
     __tablename__ = "expeditions"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    initiator_id: Mapped[str] = mapped_column(String, ForeignKey("users.user_id"), nullable=False)
-    initiator_username: Mapped[str] = mapped_column(String, nullable=False)
+    initiator_id: Mapped[str] = mapped_column(String(50), ForeignKey("users.user_id"), nullable=False)
+    initiator_username: Mapped[str] = mapped_column(String(100), nullable=False)
     total_sand: Mapped[int] = mapped_column(Integer, nullable=False)
     sand_per_melange: Mapped[Optional[int]] = mapped_column(Integer)
     guild_cut_percentage: Mapped[float] = mapped_column(Float, default=10.0)
@@ -95,8 +95,8 @@ class ExpeditionParticipant(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     expedition_id: Mapped[int] = mapped_column(Integer, ForeignKey("expeditions.id"), nullable=False)
-    user_id: Mapped[str] = mapped_column(String, ForeignKey("users.user_id"), nullable=False)
-    username: Mapped[str] = mapped_column(String, nullable=False)
+    user_id: Mapped[str] = mapped_column(String(50), ForeignKey("users.user_id"), nullable=False)
+    username: Mapped[str] = mapped_column(String(100), nullable=False)
     sand_amount: Mapped[int] = mapped_column(Integer, nullable=False)
     melange_amount: Mapped[int] = mapped_column(Integer, nullable=False)
     is_harvester: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -133,14 +133,14 @@ class GuildTransaction(Base):
     __tablename__ = "guild_transactions"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    transaction_type: Mapped[str] = mapped_column(String, nullable=False)
+    transaction_type: Mapped[str] = mapped_column(String(50), nullable=False)
     sand_amount: Mapped[int] = mapped_column(Integer, nullable=False)
     melange_amount: Mapped[int] = mapped_column(Integer, default=0)
     expedition_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("expeditions.id"))
-    admin_user_id: Mapped[str] = mapped_column(String, nullable=False)
-    admin_username: Mapped[str] = mapped_column(String, nullable=False)
-    target_user_id: Mapped[Optional[str]] = mapped_column(String)
-    target_username: Mapped[Optional[str]] = mapped_column(String)
+    admin_user_id: Mapped[str] = mapped_column(String(50), nullable=False)
+    admin_username: Mapped[str] = mapped_column(String(100), nullable=False)
+    target_user_id: Mapped[Optional[str]] = mapped_column(String(50))
+    target_username: Mapped[Optional[str]] = mapped_column(String(100))
     description: Mapped[Optional[str]] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
@@ -157,11 +157,11 @@ class MelangePayment(Base):
     __tablename__ = "melange_payments"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    user_id: Mapped[str] = mapped_column(String, ForeignKey("users.user_id"), nullable=False)
-    username: Mapped[str] = mapped_column(String, nullable=False)
+    user_id: Mapped[str] = mapped_column(String(50), ForeignKey("users.user_id"), nullable=False)
+    username: Mapped[str] = mapped_column(String(100), nullable=False)
     melange_amount: Mapped[int] = mapped_column(Integer, nullable=False)
-    admin_user_id: Mapped[Optional[str]] = mapped_column(String)
-    admin_username: Mapped[Optional[str]] = mapped_column(String)
+    admin_user_id: Mapped[Optional[str]] = mapped_column(String(50))
+    admin_username: Mapped[Optional[str]] = mapped_column(String(100))
     description: Mapped[Optional[str]] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
@@ -180,8 +180,8 @@ class GlobalSetting(Base):
     __tablename__ = "global_settings"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    setting_key: Mapped[str] = mapped_column(String, unique=True, nullable=False)
-    setting_value: Mapped[str] = mapped_column(String, nullable=False)
+    setting_key: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
+    setting_value: Mapped[str] = mapped_column(String(500), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
     last_updated: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
