@@ -33,7 +33,7 @@ class TestBasicImports:
 
     def test_database_module_import(self):
         """Test that the database module can be imported."""
-        import database_orm_orm
+        import database_orm
         assert hasattr(database_orm, 'Database')
 
     def test_bot_module_import(self):
@@ -183,5 +183,5 @@ class TestIntegrationBasics:
 
         assert commands is not None
         assert utils is not None
-        assert database is not None
+        assert database_orm is not None
         assert bot is not None
