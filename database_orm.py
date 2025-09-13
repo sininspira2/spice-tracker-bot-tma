@@ -692,11 +692,101 @@ class Database:
 
     async def add_expedition_deposit(self, user_id: str, username: str, sand_amount: int, expedition_id: int):
         """Add a deposit record for an expedition participant"""
-        raise NotImplementedError("Method needs to be implemented")
+        start_time = time.time()
+        async with self._get_session() as session:
+            try:
+                # Create the deposit record
+                deposit = Deposit(
+                    user_id=user_id,
+                    username=username,
+                    sand_amount=sand_amount,
+                    type='expedition',
+                    expedition_id=expedition_id
+                )
+                session.add(deposit)
+
+                # Update user's total melange
+                result = await session.execute(
+                    select(User).where(User.user_id == user_id)
+                )
+                user = result.scalar_one_or_none()
+
+                if user:
+                    # Calculate melange amount based on current conversion rate
+                    from utils.helpers import get_sand_per_melange_with_bonus
+                    conversion_rate = await get_sand_per_melange_with_bonus()
+                    melange_amount = int(sand_amount / conversion_rate)
+                    user.total_melange += melange_amount
+
+                await session.commit()
+                await self._log_operation("insert", "deposits", start_time, success=True,
+                                        user_id=user_id, sand_amount=sand_amount, expedition_id=expedition_id)
+                return deposit.id
+
+            except Exception as e:
+                await self._log_operation("insert", "deposits", start_time, success=False,
+                                        user_id=user_id, error=str(e))
+                raise e
 
     async def get_expedition_participants(self, expedition_id: int):
         """Get all participants for a specific expedition with expedition details"""
-        raise NotImplementedError("Method needs to be implemented")
+        start_time = time.time()
+        async with self._get_session() as session:
+            try:
+                # Get expedition details
+                expedition_result = await session.execute(
+                    select(Expedition).where(Expedition.id == expedition_id)
+                )
+                expedition = expedition_result.scalar_one_or_none()
+
+                if not expedition:
+                    await self._log_operation("select", "expeditions", start_time, success=False,
+                                            expedition_id=expedition_id, error="Expedition not found")
+                    return None
+
+                # Get participants
+                participants_result = await session.execute(
+                    select(ExpeditionParticipant)
+                    .where(ExpeditionParticipant.expedition_id == expedition_id)
+                    .order_by(ExpeditionParticipant.created_at)
+                )
+                participants = participants_result.scalars().all()
+
+                # Convert to dictionaries
+                expedition_data = {
+                    'id': expedition.id,
+                    'initiator_id': expedition.initiator_id,
+                    'initiator_username': expedition.initiator_username,
+                    'total_sand': expedition.total_sand,
+                    'sand_per_melange': expedition.sand_per_melange,
+                    'guild_cut_percentage': expedition.guild_cut_percentage,
+                    'created_at': expedition.created_at
+                }
+
+                participants_data = []
+                for participant in participants:
+                    participants_data.append({
+                        'id': participant.id,
+                        'user_id': participant.user_id,
+                        'username': participant.username,
+                        'sand_amount': participant.sand_amount,
+                        'melange_amount': participant.melange_amount,
+                        'is_harvester': participant.is_harvester,
+                        'created_at': participant.created_at
+                    })
+
+                await self._log_operation("select", "expedition_participants", start_time, success=True,
+                                        expedition_id=expedition_id, count=len(participants_data))
+
+                return {
+                    'expedition': expedition_data,
+                    'participants': participants_data
+                }
+
+            except Exception as e:
+                await self._log_operation("select", "expedition_participants", start_time, success=False,
+                                        expedition_id=expedition_id, error=str(e))
+                raise e
 
     async def get_user_expedition_deposits(self, user_id: str, include_paid: bool = True):
         """Get expedition deposits for a specific user"""
@@ -705,15 +795,116 @@ class Database:
     async def pay_user_melange(self, user_id: str, username: str, melange_amount: float,
                              admin_user_id: Optional[str] = None, admin_username: Optional[str] = None):
         """Pay melange to a user and record the payment"""
-        raise NotImplementedError("Method needs to be implemented")
+        start_time = time.time()
+        async with self._get_session() as session:
+            try:
+                # Get the user
+                result = await session.execute(
+                    select(User).where(User.user_id == user_id)
+                )
+                user = result.scalar_one_or_none()
+
+                if not user:
+                    await self._log_operation("select", "users", start_time, success=False,
+                                            user_id=user_id, error="User not found")
+                    return 0
+
+                # Update user's paid melange
+                user.paid_melange += melange_amount
+
+                # Record the payment
+                payment = MelangePayment(
+                    user_id=user_id,
+                    username=username,
+                    melange_amount=melange_amount,
+                    admin_user_id=admin_user_id,
+                    admin_username=admin_username,
+                    description=f"Payment of {melange_amount} melange"
+                )
+                session.add(payment)
+
+                await session.commit()
+                await self._log_operation("update", "users", start_time, success=True,
+                                        user_id=user_id, melange_amount=melange_amount)
+                return melange_amount
+
+            except Exception as e:
+                await self._log_operation("update", "users", start_time, success=False,
+                                        user_id=user_id, error=str(e))
+                raise e
 
     async def pay_all_pending_melange(self, admin_user_id: Optional[str] = None, admin_username: Optional[str] = None):
         """Pay all users their pending melange"""
-        raise NotImplementedError("Method needs to be implemented")
+        start_time = time.time()
+        async with self._get_session() as session:
+            try:
+                # Get all users
+                result = await session.execute(select(User))
+                users = result.scalars().all()
+
+                count = 0
+                total_paid = 0
+
+                for user in users:
+                    pending = user.total_melange - user.paid_melange
+                    if pending > 0:
+                        # Update user's paid melange
+                        user.paid_melange += pending
+
+                        # Record the payment
+                        payment = MelangePayment(
+                            user_id=user.user_id,
+                            username=user.username,
+                            melange_amount=pending,
+                            admin_user_id=admin_user_id,
+                            admin_username=admin_username,
+                            description=f"Bulk payment of {pending} melange"
+                        )
+                        session.add(payment)
+
+                        count += 1
+                        total_paid += pending
+
+                await session.commit()
+                await self._log_operation("update", "users", start_time, success=True,
+                                        count=count, total_paid=total_paid)
+                return count
+
+            except Exception as e:
+                await self._log_operation("update", "users", start_time, success=False,
+                                        error=str(e))
+                raise e
 
     async def get_all_users_with_pending_melange(self):
         """Get all users with pending melange payments"""
-        raise NotImplementedError("Method needs to be implemented")
+        start_time = time.time()
+        async with self._get_session() as session:
+            try:
+                result = await session.execute(select(User))
+                users = result.scalars().all()
+
+                pending_users = []
+                for user in users:
+                    pending = user.total_melange - user.paid_melange
+                    if pending > 0:
+                        pending_users.append({
+                            'user_id': user.user_id,
+                            'username': user.username,
+                            'total_melange': user.total_melange,
+                            'paid_melange': user.paid_melange,
+                            'pending_melange': pending,
+                            'created_at': user.created_at,
+                            'last_updated': user.last_updated
+                        })
+
+                await self._log_operation("select", "users", start_time, success=True,
+                                        count=len(pending_users))
+                return pending_users
+
+            except Exception as e:
+                await self._log_operation("select", "users", start_time, success=False,
+                                        error=str(e))
+                raise e
 
     async def cleanup_old_deposits(self, days: int = 30):
         """Remove deposits older than specified days"""

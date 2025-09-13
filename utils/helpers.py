@@ -29,7 +29,8 @@ async def get_sand_per_melange_with_bonus() -> float:
         db = get_database()
         is_active = await db.get_landsraad_bonus_status()
 
-        if is_active:
+        # Explicitly check for True to handle any edge cases
+        if is_active is True:
             return SAND_PER_MELANGE_LANDSRAAD
         else:
             return float(SAND_PER_MELANGE_NORMAL)
