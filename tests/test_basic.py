@@ -52,7 +52,7 @@ class TestCommandDiscovery:
         expected_commands = {
             'sand', 'refinery', 'leaderboard',
             'split', 'help', 'reset', 'ledger', 'expedition',
-            'payment', 'payroll', 'treasury', 'guild_withdraw', 'pending', 'water', 'landsraad'
+            'pay', 'payroll', 'treasury', 'guild_withdraw', 'pending', 'water', 'landsraad'
         }
 
         discovered_commands = set(COMMAND_METADATA.keys())
@@ -167,8 +167,7 @@ class TestIntegrationBasics:
                 command_func = getattr(command_module, f'{command_name}_command')
             elif hasattr(command_module, f'{command_name}_details'):
                 command_func = getattr(command_module, f'{command_name}_details')
-            elif hasattr(command_module, 'pay') and command_name == 'payment':  # Special case for payment -> pay
-                command_func = getattr(command_module, 'pay')
+            # No special cases needed - file name matches function name
 
             assert command_func is not None, f"Command function {command_name} not found"
             assert callable(command_func), f"Command function {command_name} is not callable"

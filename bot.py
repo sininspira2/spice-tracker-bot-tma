@@ -124,7 +124,7 @@ async def on_ready():
 # Register commands with the bot's command tree
 def register_commands():
     """Register all commands explicitly with their exact signatures"""
-    from commands import sand, refinery, leaderboard, split, help, reset, ledger, expedition, payment, payroll, treasury, guild_withdraw, pending, water, landsraad
+    from commands import sand, refinery, leaderboard, split, help, reset, ledger, expedition, pay, payroll, treasury, guild_withdraw, pending, water, landsraad
 
     # Sand command (formerly harvest)
     @bot.tree.command(name="sand", description="Convert spice sand into melange (50:1 ratio)")
@@ -184,7 +184,7 @@ def register_commands():
         amount="Amount of melange to pay (optional, defaults to full pending amount)"
     )
     async def pay_cmd(interaction: discord.Interaction, user: discord.Member, amount: int = None):  # noqa: F841
-        await payment(interaction, user, amount)
+        await pay(interaction, user, amount)
 
     # Payroll command
     @bot.tree.command(name="payroll", description="Process payments for all unpaid harvesters (Admin only)")

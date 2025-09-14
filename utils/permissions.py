@@ -29,7 +29,7 @@ def _get_command_permission_level(command_name: str) -> str:
     This is a simplified version that doesn't depend on the commands package.
     """
     # Default permission levels for known commands
-    admin_commands = {'reset', 'pending', 'payroll', 'payment', 'guild_withdraw'}
+    admin_commands = {'reset', 'pending', 'payroll', 'pay', 'guild_withdraw'}
     user_commands = {'sand', 'refinery', 'treasury', 'ledger', 'expedition', 'split', 'water'}
     any_commands = {'help', 'leaderboard'}
 
