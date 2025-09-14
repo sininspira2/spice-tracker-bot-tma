@@ -7,7 +7,7 @@ COMMAND_METADATA = {
     'aliases': [],  # ['top'] - removed for simplicity
     'description': "Display top spice refiners by melange production",
     'params': {'limit': "Number of top refiners to display (default: 10)"},
-    'permission_level': 'user'
+    'permission_level': 'any'
 }
 
 import time
@@ -23,8 +23,8 @@ async def leaderboard(interaction, command_start, limit: int = 10, use_followup:
     """Display top refiners by melange earned"""
 
     # Validate limit
-    if not 5 <= limit <= 25:
-        await send_response(interaction, "❌ Limit must be between 5 and 25.", use_followup=use_followup, ephemeral=True)
+    if not 5 <= limit <= 100:
+        await send_response(interaction, "❌ Limit must be between 5 and 100.", use_followup=use_followup, ephemeral=True)
         return
 
     # Database operation with timing using utility function
