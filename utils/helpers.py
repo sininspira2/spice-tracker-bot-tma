@@ -66,7 +66,7 @@ async def convert_sand_to_melange(sand_amount: int) -> tuple[int, int]:
 
     return melange_amount, remaining_sand
 
-async def send_response(interaction, content=None, embed=None, ephemeral=False, use_followup=True):
+async def send_response(interaction, content=None, embed=None, view=None, ephemeral=False, use_followup=True):
     """Helper function to send responses using the appropriate method based on use_followup"""
     import time
     from utils.logger import logger
@@ -87,21 +87,23 @@ async def send_response(interaction, content=None, embed=None, ephemeral=False, 
     # But we do need to check if we're in a guild context for certain operations
     is_guild_context = hasattr(interaction, 'guild') and interaction.guild is not None
 
+    kwargs = {}
+    if content:
+        kwargs['content'] = content
+    if embed:
+        kwargs['embed'] = embed
+    if view:
+        kwargs['view'] = view
+    if ephemeral:
+        kwargs['ephemeral'] = ephemeral
+
     try:
         if use_followup:
-            if embed is not None and content is None:
-                await interaction.followup.send(embed=embed, ephemeral=ephemeral)
-            elif embed is None and content is not None:
-                await interaction.followup.send(content, ephemeral=ephemeral)
-            elif embed is not None and content is not None:
-                await interaction.followup.send(content=content, embed=embed, ephemeral=ephemeral)
+            await interaction.followup.send(**kwargs)
         else:
-            if embed is not None and content is None:
-                await interaction.channel.send(embed=embed)
-            elif embed is None and content is not None:
-                await interaction.channel.send(content)
-            elif embed is not None and content is not None:
-                await interaction.channel.send(content=content, embed=embed)
+            # remove ephemeral for channel.send, as it is not supported
+            kwargs.pop('ephemeral', None)
+            await interaction.channel.send(**kwargs)
 
         response_time = time.time() - start_time
         logger.info(f"Response sent successfully",
