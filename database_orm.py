@@ -10,6 +10,7 @@ from contextlib import asynccontextmanager
 from typing import Optional, List, Dict, Any
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy.pool import NullPool
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy import String, Integer, Float, Boolean, DateTime, Text, ForeignKey, select, update, delete, func, Index
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -204,7 +205,9 @@ class Database:
         self.engine = create_async_engine(
             self.database_url,
             echo=False,  # Set to True for SQL debugging
-            future=True
+            future=True,
+            poolclass=NullPool,
+            pool_pre_ping=True,
         )
 
         # Create session factory
