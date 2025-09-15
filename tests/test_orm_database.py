@@ -189,3 +189,48 @@ class TestORMDatabase:
         user = await test_database.get_user(user_id)
         assert user is not None
         assert user['username'] == username
+
+
+class TestPaginatedDepositOperations:
+    """Test paginated deposit operations."""
+
+    @pytest.fixture(scope="function")
+    async def setup_deposits(self, test_database):
+        """Setup a user with many deposits for pagination tests."""
+        user_id = "pagination_user"
+        username = "PaginationUser"
+        await test_database.upsert_user(user_id, username)
+        for i in range(25):
+            await test_database.add_deposit(user_id, username, 100 + i, melange_amount=2.0, conversion_rate=50.0)
+        return user_id
+
+    @pytest.mark.asyncio
+    async def test_get_user_deposits_count(self, test_database, setup_deposits):
+        """Test counting user deposits."""
+        user_id = await setup_deposits
+        count = await test_database.get_user_deposits_count(user_id)
+        assert count == 25
+
+    @pytest.mark.asyncio
+    async def test_get_user_deposits_pagination(self, test_database, setup_deposits):
+        """Test paginated fetching of user deposits."""
+        user_id = await setup_deposits
+
+        # Test first page
+        page1 = await test_database.get_user_deposits(user_id, page=1, per_page=10)
+        assert len(page1) == 10
+        assert page1[0]['sand_amount'] == 124 # Most recent deposit
+
+        # Test second page
+        page2 = await test_database.get_user_deposits(user_id, page=2, per_page=10)
+        assert len(page2) == 10
+        assert page2[0]['sand_amount'] == 114
+
+        # Test last page
+        page3 = await test_database.get_user_deposits(user_id, page=3, per_page=10)
+        assert len(page3) == 5
+        assert page3[0]['sand_amount'] == 104
+
+        # Test out of bounds page
+        page4 = await test_database.get_user_deposits(user_id, page=4, per_page=10)
+        assert len(page4) == 0

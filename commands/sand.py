@@ -28,18 +28,24 @@ async def sand(interaction, command_start, amount: int, use_followup: bool = Tru
         await send_response(interaction, "❌ Amount must be between 1 and 10,000 spice sand.", use_followup=use_followup, ephemeral=True)
         return
 
+    # Convert sand to melange using utility method (handles landsraad bonus)
+    from utils.helpers import get_sand_per_melange_with_bonus
+    conversion_rate = await get_sand_per_melange_with_bonus()
+    new_melange, remaining_sand = await convert_sand_to_melange(amount)
+
     # Add deposit with timing
     _, add_deposit_time = await timed_database_operation(
         "add_deposit",
         get_database().add_deposit,
-        str(interaction.user.id), interaction.user.display_name, amount
+        str(interaction.user.id),
+        interaction.user.display_name,
+        amount,
+        melange_amount=new_melange,
+        conversion_rate=conversion_rate
     )
 
     # Ensure user exists and get their data
     user = await validate_user_exists(get_database(), str(interaction.user.id), interaction.user.display_name)
-
-    # Convert sand to melange using utility method (handles landsraad bonus)
-    new_melange, remaining_sand = await convert_sand_to_melange(amount)
     current_melange = user.get('total_melange', 0)
 
     # Only update melange if we have new melange to add
