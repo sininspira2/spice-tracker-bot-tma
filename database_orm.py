@@ -10,7 +10,6 @@ from contextlib import asynccontextmanager
 from typing import Optional, List, Dict, Any
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from sqlalchemy.engine import make_url
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy import String, Integer, Float, Boolean, DateTime, Text, ForeignKey, select, update, delete, func, Index
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -201,9 +200,6 @@ class Database:
         if not self.database_url:
             raise ValueError("DATABASE_URL environment variable is required")
 
-        # Normalize URL to ensure async drivers are used
-        self.database_url = self._normalize_database_url(self.database_url)
-
         # Create async engine
         self.engine = create_async_engine(
             self.database_url,
@@ -226,39 +222,6 @@ class Database:
         # Connection pool settings
         self.max_retries = 3
         self.retry_delay = 1.0
-
-    def _normalize_database_url(self, url: str) -> str:
-        """Ensure SQLAlchemy uses an async-capable driver.
-
-        - For Postgres, enforce drivername 'postgresql+asyncpg'
-        - For SQLite, enforce drivername 'sqlite+aiosqlite'
-        Other schemes are returned unchanged.
-        """
-        try:
-            parsed = make_url(url)
-            drivername = parsed.drivername
-
-            # Normalize postgres schemes
-            if drivername in {"postgres", "postgresql", "postgresql+psycopg2", "postgres+psycopg2"}:
-                parsed = parsed.set(drivername="postgresql+asyncpg")
-                return str(parsed)
-
-            # Normalize sqlite scheme
-            if drivername in {"sqlite"}:
-                parsed = parsed.set(drivername="sqlite+aiosqlite")
-                return str(parsed)
-
-            # If already async or different DB, return as-is
-            return str(parsed)
-        except Exception:
-            # Fallback: simple string fixes if parsing fails
-            if url.startswith("postgres://"):
-                return url.replace("postgres://", "postgresql+asyncpg://", 1)
-            if url.startswith("postgresql://"):
-                return url.replace("postgresql://", "postgresql+asyncpg://", 1)
-            if url.startswith("sqlite://") and "+aiosqlite" not in url:
-                return url.replace("sqlite://", "sqlite+aiosqlite://", 1)
-            return url
 
     @asynccontextmanager
     async def _get_connection(self):
