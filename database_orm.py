@@ -201,8 +201,10 @@ class Database:
             raise ValueError("DATABASE_URL environment variable is required")
 
         # Ensure the correct async driver is used for PostgreSQL
-        if self.database_url.startswith("postgresql://"):
-            self.database_url = self.database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+        from sqlalchemy.engine.url import make_url
+        url = make_url(self.database_url)
+        if url.get_dialect().name == 'postgresql' and url.drivername != 'postgresql+asyncpg':
+            self.database_url = str(url.set(drivername='postgresql+asyncpg'))
 
         # Create async engine
         self.engine = create_async_engine(
