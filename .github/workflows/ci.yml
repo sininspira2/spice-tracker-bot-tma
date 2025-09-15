@@ -108,7 +108,6 @@ jobs:
   security:
     name: Security Checks
     runs-on: ubuntu-latest
-    needs: test
 
     steps:
     - name: Checkout code
@@ -142,7 +141,6 @@ jobs:
   dependency-check:
     name: Dependency Check
     runs-on: ubuntu-latest
-    needs: test
 
     steps:
     - name: Checkout code
@@ -169,33 +167,6 @@ jobs:
         name: dependency-reports
         path: pip-audit-report.json
         retention-days: 30
-
-  ci-success:
-    name: CI Success
-    runs-on: ubuntu-latest
-    needs: [test, security, dependency-check]
-    if: always()
-
-    steps:
-    - name: Check CI Status
-      run: |
-        if [[ "${{ needs.test.result }}" == "success" && "${{ needs.security.result }}" == "success" && "${{ needs.dependency-check.result }}" == "success" ]]; then
-          echo "✅ All CI checks passed successfully!"
-          echo "🔍 All validation, security, and dependency checks completed"
-        else
-          echo "❌ Some CI checks failed"
-          echo "🔍 Check the failed jobs above for details"
-          exit 1
-        fi
-
-    - name: CI Summary
-      if: needs.test.result == 'success' && needs.security.result == 'success' && needs.dependency-check.result == 'success'
-      run: |
-        echo "🎉 CI Pipeline completed successfully!"
-        echo "📊 Test Results: ✅ PASSED"
-        echo "🔒 Security Checks: ✅ PASSED"
-        echo "📦 Dependency Checks: ✅ PASSED"
-        echo "🔍 All checks completed - ready for manual deployment"
 
   deploy:
     name: Deploy to Fly.io
