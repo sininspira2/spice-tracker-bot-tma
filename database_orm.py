@@ -200,6 +200,10 @@ class Database:
         if not self.database_url:
             raise ValueError("DATABASE_URL environment variable is required")
 
+        # Ensure the correct async driver is used for PostgreSQL
+        if self.database_url.startswith("postgresql://"):
+            self.database_url = self.database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+
         # Create async engine
         self.engine = create_async_engine(
             self.database_url,
