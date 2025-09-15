@@ -124,7 +124,9 @@ async def on_ready():
 # Register commands with the bot's command tree
 def register_commands():
     """Register all commands explicitly with their exact signatures"""
-    from commands import sand, refinery, leaderboard, split, help, reset, ledger, expedition, pay, payroll, treasury, guild_withdraw, pending, water, landsraad
+
+    from commands import sand, refinery, leaderboard, split, help, reset, ledger, expedition, pay, payroll, treasury, guild_withdraw, pending, water, landsraad, perms
+
 
     # Sand command (formerly harvest)
     @bot.tree.command(name="sand", description="Convert spice sand into melange (50:1 ratio)")
@@ -159,6 +161,11 @@ def register_commands():
     @bot.tree.command(name="help", description="Show all available spice tracking commands")
     async def help_cmd(interaction: discord.Interaction):  # noqa: F841
         await help(interaction)
+
+    # Perms command
+    @bot.tree.command(name="perms", description="Show your permission status and matched roles")
+    async def perms_cmd(interaction: discord.Interaction):  # noqa: F841
+        await perms(interaction)
 
     # Reset command
     @bot.tree.command(name="reset", description="Reset all spice refinery statistics (Admin only - USE WITH CAUTION)")
