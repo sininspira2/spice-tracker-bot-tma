@@ -69,6 +69,11 @@ class LedgerView(discord.ui.View):
         self.current_page = 1
         self.total_pages = math.ceil(total_deposits / DEPOSITS_PER_PAGE)
 
+        # Disable buttons if there is only one page
+        if self.total_pages <= 1:
+            self.previous_button.disabled = True
+            self.next_button.disabled = True
+
     async def update_view(self, interaction: discord.Interaction):
         """Update the view with the new page content."""
         self.previous_button.disabled = self.current_page == 1
