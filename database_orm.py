@@ -33,7 +33,7 @@ class User(Base):
     username: Mapped[str] = mapped_column(String(100), nullable=False)
     total_melange: Mapped[float] = mapped_column(Float, default=0.0)
     paid_melange: Mapped[float] = mapped_column(Float, default=0.0)
-    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, default=lambda: datetime.utcnow())
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.utcnow())
     last_updated: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.utcnow(), onupdate=lambda: datetime.utcnow())
 
     # Relationships
