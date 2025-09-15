@@ -204,23 +204,15 @@ class Database:
         # Normalize URL to ensure async drivers are used
         self.database_url = self._normalize_database_url(self.database_url)
 
-        # Create async engine (tune connect args for asyncpg/PgBouncer, handle SSL)
+        # Create async engine (tune connect args for asyncpg/PgBouncer)
         connect_args = {}
         try:
             parsed_for_engine = make_url(self.database_url)
             if parsed_for_engine.drivername == 'postgresql+asyncpg':
                 # Disable prepared statements for PgBouncer compatibility
                 connect_args["statement_cache_size"] = 0
+                # Some environments use this alternate key
                 connect_args["prepared_statement_cache_size"] = 0
-
-                # Map sslmode to asyncpg 'ssl' connect arg and remove from URL
-                query = dict(parsed_for_engine.query)
-                sslmode = query.pop('sslmode', None)
-                if sslmode:
-                    # Any sslmode presence implies SSL; asyncpg expects 'ssl' param
-                    connect_args['ssl'] = True
-                    parsed_for_engine = parsed_for_engine.set(query=query)
-                    self.database_url = str(parsed_for_engine)
         except Exception:
             pass
 
@@ -260,9 +252,13 @@ class Database:
 
             # Normalize postgres schemes
             if drivername in {"postgres", "postgresql", "postgresql+psycopg2", "postgres+psycopg2"}:
-                # Prefer async driver at runtime
                 parsed = parsed.set(drivername="postgresql+asyncpg")
-                # Do NOT inject sslmode for asyncpg here; handled via connect_args
+                # Ensure sslmode=require for common managed Postgres providers
+                if parsed.drivername.startswith('postgresql'):
+                    query = dict(parsed.query)
+                    if 'sslmode' not in query:
+                        query['sslmode'] = 'require'
+                    parsed = parsed.set(query=query)
                 return str(parsed)
 
             # Normalize sqlite scheme
