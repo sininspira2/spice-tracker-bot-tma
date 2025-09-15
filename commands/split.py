@@ -81,13 +81,17 @@ async def split(interaction, command_start, total_sand: int, users: str, guild: 
         from utils.helpers import get_sand_per_melange_with_bonus
         conversion_rate = await get_sand_per_melange_with_bonus()
 
+        # Calculate guild cut first
+        guild_melange_cut = int(total_melange * (guild / 100))
+        melange_for_players = total_melange - guild_melange_cut
+
         # Calculate user melange distributions
         user_distributions = []
-        remaining_after_percentages = total_melange
+        remaining_after_percentages = melange_for_players
 
         # First, allocate to percentage users (based on melange, not sand)
         for user_id, percentage in percentage_users:
-            user_melange = int(total_melange * (percentage / 100))
+            user_melange = int(melange_for_players * (percentage / 100))
             user_distributions.append((user_id, user_melange, percentage))
             remaining_after_percentages -= user_melange
 
@@ -117,7 +121,8 @@ async def split(interaction, command_start, total_sand: int, users: str, guild: 
         # Calculate remaining melange that goes to guild
         total_user_melange = sum(melange for melange, _ in unique_distributions.values())
         guild_melange = total_melange - total_user_melange
-        guild_sand = remaining_sand  # Any leftover sand also goes to guild
+        guild_sand_from_melange = int(guild_melange * conversion_rate)
+        guild_sand = guild_sand_from_melange + remaining_sand
 
         # Ensure the initiator exists in the users table
         from utils.database_utils import validate_user_exists
@@ -175,7 +180,15 @@ async def split(interaction, command_start, total_sand: int, users: str, guild: 
             )
 
             # Add deposit record (using equivalent sand amount)
-            await get_database().add_deposit(user_id, display_name, user_sand, expedition_id=expedition_id)
+            await get_database().add_deposit(
+                user_id,
+                display_name,
+                user_sand,
+                deposit_type='group',
+                expedition_id=expedition_id,
+                melange_amount=user_melange,
+                conversion_rate=conversion_rate
+            )
 
             # Update user's melange total if they earned melange
             if user_melange > 0:
