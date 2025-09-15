@@ -95,6 +95,30 @@ class TestLedgerCommand:
             assert not view.previous_button.disabled
 
     @pytest.mark.asyncio
+    async def test_ledger_single_page_disables_buttons(self, mock_interaction):
+        """Test that the ledger view buttons are disabled for a single page."""
+        mock_interaction.created_at = datetime.now()
+        mock_db = AsyncMock()
+        mock_db.get_user_deposits_count.return_value = 5
+        mock_db.get_user_deposits.return_value = [{'sand_amount': 100, 'created_at': datetime.now(), 'type': 'solo', 'melange_amount': 2.0}]
+        mock_db.get_user.return_value = {
+            'user_id': '123',
+            'username': 'TestUser',
+            'total_melange': 100,
+            'paid_melange': 50
+        }
+
+        with patch('commands.ledger.get_database', return_value=mock_db):
+            await ledger(mock_interaction)
+
+        mock_interaction.followup.send.assert_called_once()
+        sent_view = mock_interaction.followup.send.call_args[1]['view']
+        assert isinstance(sent_view, LedgerView)
+        assert sent_view.total_pages == 1
+        assert sent_view.previous_button.disabled
+        assert sent_view.next_button.disabled
+
+    @pytest.mark.asyncio
     async def test_ledger_view_timeout(self):
         """Test that the view buttons are disabled on timeout."""
         view = LedgerView(MagicMock(), {}, 1)
