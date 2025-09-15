@@ -90,6 +90,20 @@ class TestORMDatabase:
         )
         assert expedition_id is not None
 
+        # Test add_expedition_participant
+        participant_id = "987654321"
+        participant_username = "ParticipantUser"
+        await test_database.upsert_user(participant_id, participant_username)
+        await test_database.add_expedition_participant(
+            expedition_id, participant_id, participant_username, 100, 2
+        )
+
+        # Test get_expedition_participants
+        expedition_data = await test_database.get_expedition_participants(expedition_id)
+        assert expedition_data is not None
+        assert len(expedition_data['participants']) == 1
+        assert expedition_data['participants'][0]['user_id'] == participant_id
+
     @pytest.mark.asyncio
     async def test_guild_treasury_operations(self, test_database):
         """Test guild treasury operations."""
