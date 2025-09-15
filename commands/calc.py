@@ -59,4 +59,4 @@ async def calc(interaction, command_start, amount: int, use_followup: bool = Tru
         color=0x3498DB,
     )
 
-    await send_response(interaction, embed=embed, use_followup=use_followup)
+    await send_response(interaction, embed=embed.build(), use_followup=use_followup)
