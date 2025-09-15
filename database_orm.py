@@ -5,7 +5,7 @@ Supports both PostgreSQL and SQLite through DATABASE_URL configuration.
 import os
 import asyncio
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from contextlib import asynccontextmanager
 from typing import Optional, List, Dict, Any
 
@@ -33,8 +33,8 @@ class User(Base):
     username: Mapped[str] = mapped_column(String(100), nullable=False)
     total_melange: Mapped[float] = mapped_column(Float, default=0.0)
     paid_melange: Mapped[float] = mapped_column(Float, default=0.0)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
-    last_updated: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.utcnow())
+    last_updated: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.utcnow(), onupdate=lambda: datetime.utcnow())
 
     # Relationships
     deposits: Mapped[List["Deposit"]] = relationship("Deposit", back_populates="user")
@@ -58,7 +58,7 @@ class Deposit(Base):
     sand_amount: Mapped[int] = mapped_column(Integer, nullable=False)
     type: Mapped[str] = mapped_column(String(20), default="solo")
     expedition_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("expeditions.id"))
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.utcnow())
 
     # Relationships
     user: Mapped["User"] = relationship("User", back_populates="deposits")
@@ -82,7 +82,7 @@ class Expedition(Base):
     total_sand: Mapped[int] = mapped_column(Integer, nullable=False)
     sand_per_melange: Mapped[Optional[int]] = mapped_column(Integer)
     guild_cut_percentage: Mapped[float] = mapped_column(Float, default=10.0)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.utcnow())
 
     # Relationships
     initiator: Mapped["User"] = relationship("User", foreign_keys=[initiator_id])
@@ -120,8 +120,8 @@ class GuildTreasury(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     total_sand: Mapped[int] = mapped_column(Integer, default=0)
     total_melange: Mapped[float] = mapped_column(Float, default=0.0)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
-    last_updated: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.utcnow())
+    last_updated: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.utcnow(), onupdate=lambda: datetime.utcnow())
 
     # Indices
     __table_args__ = (
@@ -143,7 +143,7 @@ class GuildTransaction(Base):
     target_user_id: Mapped[Optional[str]] = mapped_column(String(50))
     target_username: Mapped[Optional[str]] = mapped_column(String(100))
     description: Mapped[Optional[str]] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.utcnow())
 
     # Indices
     __table_args__ = (
@@ -164,7 +164,7 @@ class MelangePayment(Base):
     admin_user_id: Mapped[Optional[str]] = mapped_column(String(50))
     admin_username: Mapped[Optional[str]] = mapped_column(String(100))
     description: Mapped[Optional[str]] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.utcnow())
 
     # Relationships
     user: Mapped["User"] = relationship("User", back_populates="melange_payments")
@@ -184,8 +184,8 @@ class GlobalSetting(Base):
     setting_key: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
     setting_value: Mapped[str] = mapped_column(String(500), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
-    last_updated: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.utcnow())
+    last_updated: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.utcnow(), onupdate=lambda: datetime.utcnow())
 
     # Indices
     __table_args__ = (
@@ -234,16 +234,18 @@ class Database:
 
     @asynccontextmanager
     async def _get_session(self):
-        """Context manager for database sessions with retry logic."""
-        session = None
+        """Context manager for database sessions with retry logic.
+        Retries only session creation failures; exceptions from within the context propagate.
+        """
         last_error = None
 
         for attempt in range(self.max_retries):
             start_time = time.time()
+            session = None
             try:
+                # Attempt to create a session
                 session = self.session_factory()
                 connection_time = time.time() - start_time
-
                 logger.database_operation(
                     operation="session_created",
                     table="session_pool",
@@ -251,18 +253,8 @@ class Database:
                     attempt=attempt + 1,
                     connection_time=f"{connection_time:.3f}s"
                 )
-
-                try:
-                    yield session
-                    return
-                finally:
-                    if session:
-                        try:
-                            await asyncio.wait_for(session.close(), timeout=5.0)
-                        except (asyncio.TimeoutError, Exception) as close_error:
-                            logger.warning(f"Session close timeout/failure: {close_error}")
-
             except Exception as e:
+                # Failed to create session; log and retry
                 last_error = e
                 connection_time = time.time() - start_time
                 logger.database_operation(
@@ -273,18 +265,22 @@ class Database:
                     connection_time=f"{connection_time:.3f}s",
                     error=str(e)
                 )
-
-                if session:
-                    try:
-                        await asyncio.wait_for(session.close(), timeout=2.0)
-                    except Exception:
-                        pass
-                    session = None
-
                 if attempt < self.max_retries - 1:
                     await asyncio.sleep(self.retry_delay * (attempt + 1))
+                    continue
                 else:
                     raise last_error
+
+            try:
+                # Hand control to the caller
+                yield session
+                return
+            finally:
+                if session:
+                    try:
+                        await asyncio.wait_for(session.close(), timeout=5.0)
+                    except (asyncio.TimeoutError, Exception) as close_error:
+                        logger.warning(f"Session close timeout/failure: {close_error}")
 
     async def _log_operation(self, operation: str, table: str, start_time: float, success: bool = True, **kwargs):
         """Log database operation performance metrics"""
@@ -358,7 +354,7 @@ class Database:
                     stmt = sqlite_insert(User).values(
                         user_id=user_id,
                         username=username,
-                        last_updated=datetime.now(timezone.utc)
+                        last_updated=datetime.utcnow()
                     )
                     stmt = stmt.on_conflict_do_update(
                         index_elements=['user_id'],
@@ -372,7 +368,7 @@ class Database:
                     stmt = pg_insert(User).values(
                         user_id=user_id,
                         username=username,
-                        last_updated=datetime.now(timezone.utc)
+                        last_updated=datetime.utcnow()
                     )
                     stmt = stmt.on_conflict_do_update(
                         index_elements=['user_id'],
@@ -521,7 +517,7 @@ class Database:
                 if treasury:
                     treasury.total_sand += sand_amount
                     treasury.total_melange += melange_amount
-                    treasury.last_updated = datetime.now(timezone.utc)
+                    treasury.last_updated = datetime.utcnow()
                 else:
                     treasury = GuildTreasury(
                         total_sand=sand_amount,
@@ -552,7 +548,7 @@ class Database:
                     .where(User.user_id == user_id)
                     .values(
                         total_melange=User.total_melange + melange_amount,
-                        last_updated=datetime.now(timezone.utc)
+                        last_updated=datetime.utcnow()
                     )
                 )
                 await session.commit()
@@ -955,7 +951,7 @@ class Database:
                         index_elements=['setting_key'],
                         set_=dict(
                             setting_value=stmt.excluded.setting_value,
-                            last_updated=datetime.now(timezone.utc)
+                            last_updated=datetime.utcnow()
                         )
                     )
                 else:
@@ -969,7 +965,7 @@ class Database:
                         index_elements=['setting_key'],
                         set_=dict(
                             setting_value=stmt.excluded.setting_value,
-                            last_updated=datetime.now(timezone.utc)
+                            last_updated=datetime.utcnow()
                         )
                     )
 
