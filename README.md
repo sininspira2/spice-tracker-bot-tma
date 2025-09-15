@@ -29,6 +29,10 @@ A Discord bot for **Dune: Awakening** guilds to convert spice sand to melange, m
    ```bash
    git clone https://github.com/your-username/spice-tracker-bot.git
    cd spice-tracker-bot
+   # Using uv (recommended)
+   uv pip install -r requirements.txt
+
+   # Or with pip
    pip install -r requirements.txt
    ```
 
@@ -109,9 +113,11 @@ python bot.py               # Start the bot
 - **`/sand <amount>`** - Convert spice sand to melange (1-10,000). Primary currency conversion at 50:1 ratio
 - **`/refinery`** - View your melange production and payment status (private)
 - **`/ledger`** - View your sand conversion history and melange status (private)
-- **`/leaderboard [limit]`** - Display top spice refiners by melange production (5-25 users)
-- **`/expedition <id>`** - View details of a specific expedition
+- **`/leaderboard [limit]`** - Display top spice refiners by melange production (optionally set a limit)
+- **`/expedition <expedition_id>`** - View details of a specific expedition
 - **`/help`** - Display all available commands (private)
+ - **`/perms`** - Show your permission status and matched roles (private)
+ - **`/water [destination]`** - Request a water delivery (default: "DD base")
 
 ### 🚀 Team Commands
 - **`/split <total_sand> <users> [guild]`** - Split spice sand among expedition members and convert to melange
@@ -121,18 +127,18 @@ python bot.py               # Start the bot
   - **Creates:** Expedition records and tracks melange owed for payout
 
 ### 🏛️ Guild Admin Commands
-- **`/reset confirm:True`** - Reset all refinery statistics (requires confirmation)
-
-### 🏛️ Officer Commands
-- **`/pending`** - View all users with pending melange payments and amounts owed
-- **`/payment <user>`** - Process payment for a specific harvester's deposits
-- **`/payroll`** - Process payments for all unpaid harvesters at once
-- **`/treasury`** - View guild treasury balance and melange reserves
-- **`/guild_withdraw <user> <amount>`** - Withdraw resources from guild treasury to give to a user
-- **`/landsraad <action> [confirm]`** - Manage landsraad bonus (status/enable/disable)
+ - **`/reset confirm:True`** - Reset all refinery statistics (requires confirmation)
+ - **`/pending`** - View all users with pending melange payments and amounts owed
+ - **`/pay <user> [amount]`** - Process payment for a specific harvester (defaults to full pending)
+ - **`/payroll`** - Process payments for all unpaid harvesters at once
+ - **`/guild_withdraw <user> <amount>`** - Withdraw resources from guild treasury to give to a user
+ - **`/landsraad <action> [confirm]`** - Manage landsraad bonus (status/enable/disable)
   - **Status:** Check current conversion rate (50:1 or 37.5:1)
   - **Enable:** Activate landsraad bonus (37.5 sand = 1 melange)
   - **Disable:** Return to normal rate (50 sand = 1 melange)
+
+### 🧾 User/Finance Viewing
+ - **`/treasury`** - View guild treasury balance and melange reserves
 
 ### 🔧 Bot Owner Commands
 - **`/sync`** - Sync slash commands (Bot Owner Only)
@@ -164,7 +170,7 @@ Result (15% guild cut):
 
 ### Payment System
 - **Pending Tracking:** All melange owed to users from deposits and expeditions
-- **Individual Payments:** Process specific user payments with `/payment`
+- **Individual Payments:** Process specific user payments with `/pay`
 - **Bulk Payroll:** Pay all pending melange at once with `/payroll`
 - **Payment History:** Complete audit trail of all melange payments
 
@@ -179,6 +185,8 @@ curl -L https://fly.io/install.sh | sh
 fly auth login
 fly apps create your-spice-bot
 fly secrets set DISCORD_TOKEN=xxx DATABASE_URL=xxx BOT_OWNER_ID=xxx
+# Optional role configuration
+fly secrets set ADMIN_ROLE_IDS=123,456 OFFICER_ROLE_IDS=789 ALLOWED_ROLE_IDS=111,222
 fly deploy
 ```
 
@@ -212,6 +220,10 @@ The bot includes:
 | `BOT_OWNER_ID` | Discord user ID for bot owner commands | ✅ | - |
 | `AUTO_SYNC_COMMANDS` | Auto-sync slash commands on startup | ❌ | `true` |
 | `COMMAND_PERMISSION_OVERRIDES` | Override command permissions (format: `cmd:level`) | ❌ | - |
+| `ADMIN_ROLE_IDS` | Comma-separated admin Discord role IDs | ❌ | - |
+| `OFFICER_ROLE_IDS` | Comma-separated officer Discord role IDs | ❌ | - |
+| `ALLOWED_ROLE_IDS` | Comma-separated roles allowed to use user-level cmds | ❌ | - |
+| `PORT` | Health server port (Fly/containers) | ❌ | `8080` |
 
 ## 🏗️ Technical Architecture
 
@@ -241,7 +253,8 @@ The bot includes:
 ## 🛡️ Permissions
 
 - **👥 Basic Commands:** All guild members can use harvesting and viewing commands
-- **🛡️ Admin Commands:** Discord administrators only (payment, treasury, reset)
+- **🛡️ Admin Commands:** Discord administrators only (pay, payroll, pending, guild_withdraw, reset, landsraad)
+- **👥 User Viewing:** `treasury` is viewable by allowed users
 - **👑 Owner Commands:** Bot owner only (sync, advanced debugging)
 - **🔒 Private Responses:** Personal financial data sent as ephemeral messages
 
