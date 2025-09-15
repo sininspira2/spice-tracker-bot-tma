@@ -124,7 +124,9 @@ async def on_ready():
 # Register commands with the bot's command tree
 def register_commands():
     """Register all commands explicitly with their exact signatures"""
+
     from commands import sand, refinery, leaderboard, split, help, reset, ledger, expedition, pay, payroll, treasury, guild_withdraw, pending, water, landsraad, perms
+
 
     # Sand command (formerly harvest)
     @bot.tree.command(name="sand", description="Convert spice sand into melange (50:1 ratio)")

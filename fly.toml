@@ -4,6 +4,7 @@
 #
 
 #app = 'spice-tracker-bot-wlpasq'
+
 primary_region = 'iad'
 
 [build]
