@@ -126,12 +126,15 @@ async def split(interaction, command_start, total_sand: int, users: str, guild: 
         # For display purposes, calculate the sand equivalent of the melange
         display_guild_sand = int(guild_melange * conversion_rate) + guild_sand
 
+        # Calculate the total sand value of the guild's cut for percentage calculation
+        total_guild_sand_value = (guild_melange * conversion_rate) + guild_sand
+
         # Ensure the initiator exists in the users table
         from utils.database_utils import validate_user_exists
         await validate_user_exists(get_database(), str(interaction.user.id), interaction.user.display_name)
 
         # Create expedition record (guild percentage is now calculated based on actual distribution)
-        actual_guild_percentage = ((guild_melange + guild_sand) / total_sand) * 100 if total_sand > 0 else 0
+        actual_guild_percentage = (total_guild_sand_value / total_sand) * 100 if total_sand > 0 else 0
         expedition_id = await get_database().create_expedition(
             str(interaction.user.id),
             interaction.user.display_name,
