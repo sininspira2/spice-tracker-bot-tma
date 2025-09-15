@@ -121,8 +121,8 @@ async def split(interaction, command_start, total_sand: int, users: str, guild: 
         # Calculate remaining melange that goes to guild
         total_user_melange = sum(melange for melange, _ in unique_distributions.values())
         guild_melange = total_melange - total_user_melange
-        guild_sand_from_melange = int(guild_melange * conversion_rate)
-        guild_sand = guild_sand_from_melange + remaining_sand
+        guild_sand = remaining_sand  # This is the actual sand amount for the treasury.
+        guild_sand_for_display = int(guild_melange * conversion_rate) + remaining_sand
 
         # Ensure the initiator exists in the users table
         from utils.database_utils import validate_user_exists
