@@ -20,6 +20,13 @@ from utils.helpers import get_database, send_response
 
 DEPOSITS_PER_PAGE = 10
 
+def format_melange(amount):
+    """Formats melange amount, removing .00 for whole numbers."""
+    if amount == int(amount):
+        return f"{int(amount):,}"
+    else:
+        return f"{amount:,.2f}"
+
 async def build_ledger_embed(interaction, user, deposits, page, total_pages):
     """Build the embed for the ledger."""
 
@@ -32,11 +39,16 @@ async def build_ledger_embed(interaction, user, deposits, page, total_pages):
             melange_amount = deposit.get('melange_amount')
 
             if melange_amount is not None:
-                melange_str = f"-> **{melange_amount:,.2f} melange**"
+                melange_str = f"-> **{format_melange(melange_amount)} melange**"
             else:
                 melange_str = "(legacy)"
 
-            deposit_type = "🚀 Expedition" if deposit['type'] == 'expedition' else "🏜️ Solo"
+            if deposit['type'] == 'expedition':
+                deposit_type = "🚀 Expedition"
+            elif deposit['type'] == 'group':
+                deposit_type = "👥 Group"
+            else:
+                deposit_type = "🏜️ Solo"
             ledger_text += f"**{deposit['sand_amount']:,} sand** {melange_str} {deposit_type} - {date_str}\n"
 
     total_melange = user.get('total_melange', 0) if user else 0
@@ -44,7 +56,7 @@ async def build_ledger_embed(interaction, user, deposits, page, total_pages):
     pending_melange = total_melange - paid_melange
 
     fields = {
-        "💎 Melange": f"**{total_melange:,.2f}** total | **{paid_melange:,.2f}** paid | **{pending_melange:,.2f}** pending",
+        "💎 Melange": f"**{format_melange(total_melange)}** total | **{format_melange(paid_melange)}** paid | **{format_melange(pending_melange)}** pending",
     }
 
     embed = build_status_embed(
