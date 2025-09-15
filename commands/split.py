@@ -175,7 +175,15 @@ async def split(interaction, command_start, total_sand: int, users: str, guild: 
             )
 
             # Add deposit record (using equivalent sand amount)
-            await get_database().add_deposit(user_id, display_name, user_sand, expedition_id=expedition_id)
+            await get_database().add_deposit(
+                user_id,
+                display_name,
+                user_sand,
+                deposit_type='group',
+                expedition_id=expedition_id,
+                melange_amount=user_melange,
+                conversion_rate=conversion_rate
+            )
 
             # Update user's melange total if they earned melange
             if user_melange > 0:
