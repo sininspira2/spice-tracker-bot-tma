@@ -33,8 +33,8 @@ class TestBasicImports:
 
     def test_database_module_import(self):
         """Test that the database module can be imported."""
-        import database
-        assert hasattr(database, 'Database')
+        import database_orm
+        assert hasattr(database_orm, 'Database')
 
     def test_bot_module_import(self):
         """Test that the bot module can be imported."""
@@ -52,7 +52,7 @@ class TestCommandDiscovery:
         expected_commands = {
             'sand', 'refinery', 'leaderboard',
             'split', 'help', 'reset', 'ledger', 'expedition',
-            'payment', 'payroll', 'treasury', 'guild_withdraw', 'pending', 'water', 'landsraad'
+            'pay', 'payroll', 'treasury', 'guild_withdraw', 'pending', 'water', 'landsraad'
         }
 
         discovered_commands = set(COMMAND_METADATA.keys())
@@ -115,7 +115,7 @@ class TestDatabaseStructure:
 
     def test_database_class_methods(self):
         """Test that the Database class has expected methods."""
-        from database import Database
+        from database_orm import Database
 
         # Check for essential methods
         essential_methods = [
@@ -167,8 +167,7 @@ class TestIntegrationBasics:
                 command_func = getattr(command_module, f'{command_name}_command')
             elif hasattr(command_module, f'{command_name}_details'):
                 command_func = getattr(command_module, f'{command_name}_details')
-            elif hasattr(command_module, 'pay') and command_name == 'payment':  # Special case for payment -> pay
-                command_func = getattr(command_module, 'pay')
+            # No special cases needed - file name matches function name
 
             assert command_func is not None, f"Command function {command_name} not found"
             assert callable(command_func), f"Command function {command_name} is not callable"
@@ -178,10 +177,10 @@ class TestIntegrationBasics:
         # This test will fail if there are circular imports
         import commands
         import utils
-        import database
+        import database_orm
         import bot
 
         assert commands is not None
         assert utils is not None
-        assert database is not None
+        assert database_orm is not None
         assert bot is not None
