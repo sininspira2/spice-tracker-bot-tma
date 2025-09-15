@@ -103,6 +103,7 @@ class ExpeditionParticipant(Base):
     sand_amount: Mapped[int] = mapped_column(Integer, nullable=False)
     melange_amount: Mapped[int] = mapped_column(Integer, nullable=False)
     is_harvester: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.utcnow())
 
     # Relationships
     expedition: Mapped["Expedition"] = relationship("Expedition", back_populates="participants")
@@ -715,7 +716,25 @@ class Database:
     async def add_expedition_participant(self, expedition_id: int, user_id: str, username: str,
                                        sand_amount: int, melange_amount: float, is_harvester: bool = False):
         """Add a participant to an expedition"""
-        raise NotImplementedError("Method needs to be implemented")
+        start_time = time.time()
+        async with self._get_session() as session:
+            try:
+                participant = ExpeditionParticipant(
+                    expedition_id=expedition_id,
+                    user_id=user_id,
+                    username=username,
+                    sand_amount=sand_amount,
+                    melange_amount=melange_amount,
+                    is_harvester=is_harvester
+                )
+                session.add(participant)
+                await session.commit()
+                await self._log_operation("insert", "expedition_participants", start_time, success=True,
+                                        expedition_id=expedition_id, user_id=user_id)
+            except Exception as e:
+                await self._log_operation("insert", "expedition_participants", start_time, success=False,
+                                        expedition_id=expedition_id, user_id=user_id, error=str(e))
+                raise e
 
     async def add_expedition_deposit(self, user_id: str, username: str, sand_amount: int, expedition_id: int):
         """Add a deposit record for an expedition participant"""
