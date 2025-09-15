@@ -33,7 +33,7 @@ class User(Base):
     username: Mapped[str] = mapped_column(String(100), nullable=False)
     total_melange: Mapped[float] = mapped_column(Float, default=0.0)
     paid_melange: Mapped[float] = mapped_column(Float, default=0.0)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.utcnow())
+    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, default=lambda: datetime.utcnow())
     last_updated: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.utcnow(), onupdate=lambda: datetime.utcnow())
 
     # Relationships
@@ -103,7 +103,7 @@ class ExpeditionParticipant(Base):
     sand_amount: Mapped[int] = mapped_column(Integer, nullable=False)
     melange_amount: Mapped[int] = mapped_column(Integer, nullable=False)
     is_harvester: Mapped[bool] = mapped_column(Boolean, default=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.utcnow())
+    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, default=lambda: datetime.utcnow())
 
     # Relationships
     expedition: Mapped["Expedition"] = relationship("Expedition", back_populates="participants")
@@ -714,7 +714,7 @@ class Database:
     # These can be implemented as needed
 
     async def add_expedition_participant(self, expedition_id: int, user_id: str, username: str,
-                                       sand_amount: int, melange_amount: float, is_harvester: bool = False):
+                                       sand_amount: int, melange_amount: int, is_harvester: bool = False):
         """Add a participant to an expedition"""
         start_time = time.time()
         async with self._get_session() as session:
