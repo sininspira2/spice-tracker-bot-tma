@@ -81,13 +81,17 @@ async def split(interaction, command_start, total_sand: int, users: str, guild: 
         from utils.helpers import get_sand_per_melange_with_bonus
         conversion_rate = await get_sand_per_melange_with_bonus()
 
+        # Calculate guild cut first
+        guild_melange_cut = int(total_melange * (guild / 100))
+        melange_for_players = total_melange - guild_melange_cut
+
         # Calculate user melange distributions
         user_distributions = []
-        remaining_after_percentages = total_melange
+        remaining_after_percentages = melange_for_players
 
         # First, allocate to percentage users (based on melange, not sand)
         for user_id, percentage in percentage_users:
-            user_melange = int(total_melange * (percentage / 100))
+            user_melange = int(melange_for_players * (percentage / 100))
             user_distributions.append((user_id, user_melange, percentage))
             remaining_after_percentages -= user_melange
 
