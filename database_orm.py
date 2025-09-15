@@ -204,23 +204,11 @@ class Database:
         # Normalize URL to ensure async drivers are used
         self.database_url = self._normalize_database_url(self.database_url)
 
-        # Create async engine (tune connect args for asyncpg/PgBouncer)
-        connect_args = {}
-        try:
-            parsed_for_engine = make_url(self.database_url)
-            if parsed_for_engine.drivername == 'postgresql+asyncpg':
-                # Disable prepared statements for PgBouncer compatibility
-                connect_args["statement_cache_size"] = 0
-                # Some environments use this alternate key
-                connect_args["prepared_statement_cache_size"] = 0
-        except Exception:
-            pass
-
+        # Create async engine
         self.engine = create_async_engine(
             self.database_url,
             echo=False,  # Set to True for SQL debugging
-            future=True,
-            connect_args=connect_args or None
+            future=True
         )
 
         # Create session factory
@@ -253,12 +241,6 @@ class Database:
             # Normalize postgres schemes
             if drivername in {"postgres", "postgresql", "postgresql+psycopg2", "postgres+psycopg2"}:
                 parsed = parsed.set(drivername="postgresql+asyncpg")
-                # Ensure sslmode=require for common managed Postgres providers
-                if parsed.drivername.startswith('postgresql'):
-                    query = dict(parsed.query)
-                    if 'sslmode' not in query:
-                        query['sslmode'] = 'require'
-                    parsed = parsed.set(query=query)
                 return str(parsed)
 
             # Normalize sqlite scheme
