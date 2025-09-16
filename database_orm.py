@@ -360,34 +360,20 @@ class Database:
 
     async def _upsert_user(self, session: AsyncSession, user_id: str, username: str):
         """Creates or updates a user within an existing session."""
-        if self.is_sqlite:
-            # SQLite upsert
-            stmt = sqlite_insert(User).values(
-                user_id=user_id,
-                username=username,
-                last_updated=datetime.utcnow()
+        insert_func = sqlite_insert if self.is_sqlite else pg_insert
+
+        stmt = insert_func(User).values(
+            user_id=user_id,
+            username=username,
+            last_updated=datetime.utcnow()
+        )
+        stmt = stmt.on_conflict_do_update(
+            index_elements=['user_id'],
+            set_=dict(
+                username=stmt.excluded.username,
+                last_updated=stmt.excluded.last_updated
             )
-            stmt = stmt.on_conflict_do_update(
-                index_elements=['user_id'],
-                set_=dict(
-                    username=stmt.excluded.username,
-                    last_updated=stmt.excluded.last_updated
-                )
-            )
-        else:
-            # PostgreSQL upsert
-            stmt = pg_insert(User).values(
-                user_id=user_id,
-                username=username,
-                last_updated=datetime.utcnow()
-            )
-            stmt = stmt.on_conflict_do_update(
-                index_elements=['user_id'],
-                set_=dict(
-                    username=stmt.excluded.username,
-                    last_updated=stmt.excluded.last_updated
-                )
-            )
+        )
         await session.execute(stmt)
 
     async def upsert_user(self, user_id: str, username: str):
@@ -1042,35 +1028,20 @@ class Database:
         start_time = time.time()
         try:
             async with self.transaction() as session:
-                if self.is_sqlite:
-                    # SQLite upsert
-                    stmt = sqlite_insert(GlobalSetting).values(
-                        setting_key='landsraad_bonus_active',
-                        setting_value=str(active).lower(),
-                        description='Whether the landsraad bonus is active (37.5 sand = 1 melange instead of 50)'
-                    )
-                    stmt = stmt.on_conflict_do_update(
-                        index_elements=['setting_key'],
-                        set_=dict(
-                            setting_value=stmt.excluded.setting_value,
-                            last_updated=datetime.utcnow()
-                        )
-                    )
-                else:
-                    # PostgreSQL upsert
-                    stmt = pg_insert(GlobalSetting).values(
-                        setting_key='landsraad_bonus_active',
-                        setting_value=str(active).lower(),
-                        description='Whether the landsraad bonus is active (37.5 sand = 1 melange instead of 50)'
-                    )
-                    stmt = stmt.on_conflict_do_update(
-                        index_elements=['setting_key'],
-                        set_=dict(
-                            setting_value=stmt.excluded.setting_value,
-                            last_updated=datetime.utcnow()
-                        )
-                    )
+                insert_func = sqlite_insert if self.is_sqlite else pg_insert
 
+                stmt = insert_func(GlobalSetting).values(
+                    setting_key='landsraad_bonus_active',
+                    setting_value=str(active).lower(),
+                    description='Whether the landsraad bonus is active (37.5 sand = 1 melange instead of 50)'
+                )
+                stmt = stmt.on_conflict_do_update(
+                    index_elements=['setting_key'],
+                    set_=dict(
+                        setting_value=stmt.excluded.setting_value,
+                        last_updated=datetime.utcnow()
+                    )
+                )
                 await session.execute(stmt)
 
             await self._log_operation("upsert", "global_settings", start_time, success=True,
