@@ -214,12 +214,14 @@ class TestDatabaseSchemaCompatibility:
 
         # Mock user object with expected attributes
         user_mock = Mock()
-        user_mock.user_id = '123456789'
-        user_mock.username = 'TestUser'
-        user_mock.total_melange = 100
-        user_mock.paid_melange = 50
-        user_mock.created_at = '2024-01-01T00:00:00Z'
-        user_mock.last_updated = '2024-01-01T00:00:00Z'
+        user_mock.to_dict.return_value = {
+            'user_id': '123456789',
+            'username': 'TestUser',
+            'total_melange': 100,
+            'paid_melange': 50,
+            'created_at': '2024-01-01T00:00:00Z',
+            'last_updated': '2024-01-01T00:00:00Z'
+        }
 
         # Mock the result object
         result_mock = Mock()
@@ -245,13 +247,17 @@ class TestDatabaseSchemaCompatibility:
 
         # Mock deposit object with expected attributes
         deposit_mock = Mock()
-        deposit_mock.id = 1
-        deposit_mock.user_id = '123456789'
-        deposit_mock.username = 'TestUser'
-        deposit_mock.sand_amount = 1000
-        deposit_mock.type = 'solo'
-        deposit_mock.expedition_id = None
-        deposit_mock.created_at = '2024-01-01T00:00:00Z'
+        deposit_mock.to_dict.return_value = {
+            'id': 1,
+            'user_id': '123456789',
+            'username': 'TestUser',
+            'sand_amount': 1000,
+            'type': 'solo',
+            'expedition_id': None,
+            'melange_amount': None,
+            'conversion_rate': None,
+            'created_at': '2024-01-01T00:00:00Z'
+        }
 
         # Mock the result object for deposits
         deposits_result_mock = Mock()

@@ -21,7 +21,9 @@ from utils.logger import logger
 
 class Base(DeclarativeBase):
     """Base class for all database models."""
-    pass
+    def to_dict(self) -> Dict[str, Any]:
+        """Converts the model instance to a dictionary."""
+        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
 
 
 class User(Base):
@@ -284,6 +286,18 @@ class Database:
                     except (asyncio.TimeoutError, Exception) as close_error:
                         logger.warning(f"Session close timeout/failure: {close_error}")
 
+    @asynccontextmanager
+    async def transaction(self):
+        """Context manager for atomic database transactions."""
+        async with self._get_session() as session:
+            try:
+                yield session
+                await session.commit()
+            except Exception as e:
+                await session.rollback()
+                logger.error(f"Transaction failed, rolling back: {e}")
+                raise
+
     async def _log_operation(self, operation: str, table: str, start_time: float, success: bool = True, **kwargs):
         """Log database operation performance metrics"""
         execution_time = time.time() - start_time
@@ -329,16 +343,8 @@ class Database:
                 user = result.scalar_one_or_none()
 
                 if user:
-                    result_dict = {
-                        'user_id': user.user_id,
-                        'username': user.username,
-                        'total_melange': user.total_melange,
-                        'paid_melange': user.paid_melange,
-                        'created_at': user.created_at,
-                        'last_updated': user.last_updated
-                    }
                     await self._log_operation("select", "users", start_time, success=True, user_id=user_id, found=True)
-                    return result_dict
+                    return user.to_dict()
                 else:
                     await self._log_operation("select", "users", start_time, success=True, user_id=user_id, found=False)
                     return None
@@ -346,55 +352,42 @@ class Database:
                 await self._log_operation("select", "users", start_time, success=False, user_id=user_id, error=str(e))
                 raise e
 
+    async def _upsert_user(self, session: AsyncSession, user_id: str, username: str):
+        """Creates or updates a user within an existing session."""
+        insert_func = sqlite_insert if self.is_sqlite else pg_insert
+
+        stmt = insert_func(User).values(
+            user_id=user_id,
+            username=username,
+            last_updated=datetime.utcnow()
+        )
+        stmt = stmt.on_conflict_do_update(
+            index_elements=['user_id'],
+            set_=dict(
+                username=stmt.excluded.username,
+                last_updated=stmt.excluded.last_updated
+            )
+        )
+        await session.execute(stmt)
+
     async def upsert_user(self, user_id: str, username: str):
         """Create or update user"""
         start_time = time.time()
-        async with self._get_session() as session:
-            try:
-                if self.is_sqlite:
-                    # SQLite upsert
-                    stmt = sqlite_insert(User).values(
-                        user_id=user_id,
-                        username=username,
-                        last_updated=datetime.utcnow()
-                    )
-                    stmt = stmt.on_conflict_do_update(
-                        index_elements=['user_id'],
-                        set_=dict(
-                            username=stmt.excluded.username,
-                            last_updated=stmt.excluded.last_updated
-                        )
-                    )
-                else:
-                    # PostgreSQL upsert
-                    stmt = pg_insert(User).values(
-                        user_id=user_id,
-                        username=username,
-                        last_updated=datetime.utcnow()
-                    )
-                    stmt = stmt.on_conflict_do_update(
-                        index_elements=['user_id'],
-                        set_=dict(
-                            username=stmt.excluded.username,
-                            last_updated=stmt.excluded.last_updated
-                        )
-                    )
-
-                await session.execute(stmt)
-                await session.commit()
-
-                await self._log_operation("upsert", "users", start_time, success=True, user_id=user_id, username=username)
-            except Exception as e:
-                await self._log_operation("upsert", "users", start_time, success=False, user_id=user_id, username=username, error=str(e))
-                raise e
+        try:
+            async with self.transaction() as session:
+                await self._upsert_user(session, user_id, username)
+            await self._log_operation("upsert", "users", start_time, success=True, user_id=user_id, username=username)
+        except Exception as e:
+            await self._log_operation("upsert", "users", start_time, success=False, user_id=user_id, username=username, error=str(e))
+            raise e
 
     async def add_deposit(self, user_id: str, username: str, sand_amount: int, deposit_type: str = 'solo', expedition_id: Optional[int] = None, melange_amount: Optional[float] = None, conversion_rate: Optional[float] = None):
         """Add a new sand deposit for a user"""
         start_time = time.time()
-        async with self._get_session() as session:
-            try:
+        try:
+            async with self.transaction() as session:
                 # Ensure user exists
-                await self.upsert_user(user_id, username)
+                await self._upsert_user(session, user_id, username)
 
                 # Add deposit record
                 deposit = Deposit(
@@ -407,14 +400,13 @@ class Database:
                     conversion_rate=conversion_rate
                 )
                 session.add(deposit)
-                await session.commit()
 
-                await self._log_operation("insert", "deposits", start_time, success=True,
-                                        user_id=user_id, sand_amount=sand_amount, deposit_type=deposit_type, expedition_id=expedition_id)
-            except Exception as e:
-                await self._log_operation("insert", "deposits", start_time, success=False,
-                                        user_id=user_id, sand_amount=sand_amount, deposit_type=deposit_type, expedition_id=expedition_id, error=str(e))
-                raise e
+            await self._log_operation("insert", "deposits", start_time, success=True,
+                                    user_id=user_id, sand_amount=sand_amount, deposit_type=deposit_type, expedition_id=expedition_id)
+        except Exception as e:
+            await self._log_operation("insert", "deposits", start_time, success=False,
+                                    user_id=user_id, sand_amount=sand_amount, deposit_type=deposit_type, expedition_id=expedition_id, error=str(e))
+            raise e
 
     async def get_user_deposits(self, user_id: str, page: int = 1, per_page: int = 10) -> List[Dict[str, Any]]:
         """Get a paginated list of deposits for a user."""
@@ -431,20 +423,7 @@ class Database:
                 )
                 result = await session.execute(query)
                 deposits = result.scalars().all()
-
-                deposit_list = []
-                for deposit in deposits:
-                    deposit_list.append({
-                        'id': deposit.id,
-                        'user_id': deposit.user_id,
-                        'username': deposit.username,
-                        'sand_amount': deposit.sand_amount,
-                        'melange_amount': deposit.melange_amount,
-                        'conversion_rate': deposit.conversion_rate,
-                        'type': deposit.type,
-                        'expedition_id': deposit.expedition_id,
-                        'created_at': deposit.created_at
-                    })
+                deposit_list = [d.to_dict() for d in deposits]
 
                 await self._log_operation("select", "deposits", start_time, success=True,
                                         user_id=user_id, result_count=len(deposit_list))
@@ -472,8 +451,8 @@ class Database:
                               sand_per_melange: Optional[int] = None, guild_cut_percentage: float = 10.0) -> int:
         """Create a new expedition record"""
         start_time = time.time()
-        async with self._get_session() as session:
-            try:
+        try:
+            async with self.transaction() as session:
                 expedition = Expedition(
                     initiator_id=initiator_id,
                     initiator_username=initiator_username,
@@ -482,58 +461,48 @@ class Database:
                     guild_cut_percentage=guild_cut_percentage
                 )
                 session.add(expedition)
-                await session.commit()
+                await session.flush()  # Use flush to get the ID before commit
                 await session.refresh(expedition)
+                expedition_id = expedition.id
 
-                await self._log_operation("insert", "expeditions", start_time, success=True,
-                                        initiator_id=initiator_id, total_sand=total_sand, expedition_id=expedition.id, guild_cut_percentage=guild_cut_percentage)
-                return expedition.id
-            except Exception as e:
-                await self._log_operation("insert", "expeditions", start_time, success=False,
-                                        initiator_id=initiator_id, total_sand=total_sand, error=str(e))
-                raise e
+            await self._log_operation("insert", "expeditions", start_time, success=True,
+                                    initiator_id=initiator_id, total_sand=total_sand, expedition_id=expedition_id, guild_cut_percentage=guild_cut_percentage)
+            return expedition_id
+        except Exception as e:
+            await self._log_operation("insert", "expeditions", start_time, success=False,
+                                    initiator_id=initiator_id, total_sand=total_sand, error=str(e))
+            raise e
 
     async def get_guild_treasury(self) -> Dict[str, Any]:
         """Get guild treasury information"""
         start_time = time.time()
-        async with self._get_session() as session:
-            try:
+        try:
+            async with self.transaction() as session:
                 result = await session.execute(
                     select(GuildTreasury).order_by(GuildTreasury.id.desc()).limit(1)
                 )
                 treasury = result.scalar_one_or_none()
 
-                if treasury:
-                    treasury_dict = {
-                        'total_sand': treasury.total_sand,
-                        'total_melange': treasury.total_melange,
-                        'created_at': treasury.created_at,
-                        'last_updated': treasury.last_updated
-                    }
-                else:
+                if not treasury:
                     # Create initial treasury record if none exists
                     treasury = GuildTreasury()
                     session.add(treasury)
-                    await session.commit()
+                    await session.flush()
                     await session.refresh(treasury)
-                    treasury_dict = {
-                        'total_sand': 0,
-                        'total_melange': 0.0,
-                        'created_at': treasury.created_at,
-                        'last_updated': treasury.last_updated
-                    }
 
-                await self._log_operation("select", "guild_treasury", start_time, success=True)
-                return treasury_dict
-            except Exception as e:
-                await self._log_operation("select", "guild_treasury", start_time, success=False, error=str(e))
-                raise e
+                treasury_dict = treasury.to_dict()
+
+            await self._log_operation("select", "guild_treasury", start_time, success=True)
+            return treasury_dict
+        except Exception as e:
+            await self._log_operation("select", "guild_treasury", start_time, success=False, error=str(e))
+            raise e
 
     async def update_guild_treasury(self, sand_amount: int, melange_amount: float = 0):
         """Add sand and melange to guild treasury"""
         start_time = time.time()
-        async with self._get_session() as session:
-            try:
+        try:
+            async with self.transaction() as session:
                 # Get or create treasury record
                 result = await session.execute(
                     select(GuildTreasury).order_by(GuildTreasury.id.desc()).limit(1)
@@ -551,15 +520,13 @@ class Database:
                     )
                     session.add(treasury)
 
-                await session.commit()
-
-                await self._log_operation("update", "guild_treasury", start_time, success=True,
-                                        sand_amount=sand_amount, melange_amount=melange_amount)
-                return True
-            except Exception as e:
-                await self._log_operation("update", "guild_treasury", start_time, success=False,
-                                        sand_amount=sand_amount, melange_amount=melange_amount, error=str(e))
-                raise e
+            await self._log_operation("update", "guild_treasury", start_time, success=True,
+                                    sand_amount=sand_amount, melange_amount=melange_amount)
+            return True
+        except Exception as e:
+            await self._log_operation("update", "guild_treasury", start_time, success=False,
+                                    sand_amount=sand_amount, melange_amount=melange_amount, error=str(e))
+            raise e
 
     # Add other methods as needed...
     # For brevity, I'll add a few more key methods
@@ -567,8 +534,8 @@ class Database:
     async def update_user_melange(self, user_id: str, melange_amount: float):
         """Update user melange amount"""
         start_time = time.time()
-        async with self._get_session() as session:
-            try:
+        try:
+            async with self.transaction() as session:
                 await session.execute(
                     update(User)
                     .where(User.user_id == user_id)
@@ -577,14 +544,12 @@ class Database:
                         last_updated=datetime.utcnow()
                     )
                 )
-                await session.commit()
-
-                await self._log_operation("update", "users", start_time, success=True,
-                                        user_id=user_id, melange_amount=melange_amount)
-            except Exception as e:
-                await self._log_operation("update", "users", start_time, success=False,
-                                        user_id=user_id, melange_amount=melange_amount, error=str(e))
-                raise e
+            await self._log_operation("update", "users", start_time, success=True,
+                                    user_id=user_id, melange_amount=melange_amount)
+        except Exception as e:
+            await self._log_operation("update", "users", start_time, success=False,
+                                    user_id=user_id, melange_amount=melange_amount, error=str(e))
+            raise e
 
     async def get_leaderboard(self, limit: int = 10) -> List[Dict[str, Any]]:
         """Get leaderboard data from users table"""
@@ -592,31 +557,26 @@ class Database:
         async with self._get_session() as session:
             try:
                 result = await session.execute(
-                    select(User.username, User.total_melange)
+                    select(User)
                     .order_by(User.total_melange.desc(), User.username.asc())
                     .limit(limit)
                 )
+                users = result.scalars().all()
+                leaderboard = [u.to_dict() for u in users]
 
-                leaderboard = []
-                for row in result:
-                    leaderboard.append({
-                        'username': row.username,
-                        'total_melange': row.total_melange
-                    })
-
-                await self._log_operation("select_join", "users", start_time, success=True,
+                await self._log_operation("select", "users", start_time, success=True,
                                         limit=limit, result_count=len(leaderboard))
                 return leaderboard
             except Exception as e:
-                await self._log_operation("select_join", "users", start_time, success=False,
+                await self._log_operation("select", "users", start_time, success=False,
                                         limit=limit, error=str(e))
                 raise e
 
     async def reset_all_stats(self):
         """Reset all user statistics and deposits"""
         start_time = time.time()
-        async with self._get_session() as session:
-            try:
+        try:
+            async with self.transaction() as session:
                 # Delete in correct order to respect foreign key constraints
                 await session.execute(delete(MelangePayment))
                 await session.execute(delete(GuildTransaction))
@@ -627,14 +587,12 @@ class Database:
                 await session.execute(delete(GuildTreasury))
                 await session.execute(delete(GlobalSetting))
 
-                await session.commit()
-
-                await self._log_operation("delete_all", "all_tables", start_time, success=True)
-                return True
-            except Exception as e:
-                await self._log_operation("delete_all", "all_tables", start_time, success=False,
-                                        error=str(e))
-                raise e
+            await self._log_operation("delete_all", "all_tables", start_time, success=True)
+            return True
+        except Exception as e:
+            await self._log_operation("delete_all", "all_tables", start_time, success=False,
+                                    error=str(e))
+            raise e
 
     # Add compatibility methods for existing code
     async def get_user_stats(self, user_id: str) -> Optional[Dict[str, Any]]:
@@ -708,6 +666,39 @@ class Database:
                                         user_id=user_id, error=str(e))
                 raise e
 
+    async def get_guild_transactions(self, expedition_id: int) -> List[Dict[str, Any]]:
+        """Get all transactions for a specific expedition."""
+        start_time = time.time()
+        async with self._get_session() as session:
+            try:
+                result = await session.execute(
+                    select(GuildTransaction).where(GuildTransaction.expedition_id == expedition_id)
+                )
+                transactions = result.scalars().all()
+                transaction_list = [t.to_dict() for t in transactions]
+                await self._log_operation("select", "guild_transactions", start_time, success=True,
+                                        expedition_id=expedition_id, count=len(transaction_list))
+                return transaction_list
+            except Exception as e:
+                await self._log_operation("select", "guild_transactions", start_time, success=False,
+                                        expedition_id=expedition_id, error=str(e))
+                raise e
+
+    async def get_all_expeditions(self) -> List[Dict[str, Any]]:
+        """Get all expeditions."""
+        start_time = time.time()
+        async with self._get_session() as session:
+            try:
+                result = await session.execute(select(Expedition))
+                expeditions = result.scalars().all()
+                expedition_list = [e.to_dict() for e in expeditions]
+                await self._log_operation("select", "expeditions", start_time, success=True,
+                                        count=len(expedition_list))
+                return expedition_list
+            except Exception as e:
+                await self._log_operation("select", "expeditions", start_time, success=False, error=str(e))
+                raise e
+
     # Add more methods as needed for full compatibility...
     # For now, I'll add placeholder methods that raise NotImplementedError
     # These can be implemented as needed
@@ -716,8 +707,8 @@ class Database:
                                        sand_amount: int, melange_amount: int, is_harvester: bool = False):
         """Add a participant to an expedition"""
         start_time = time.time()
-        async with self._get_session() as session:
-            try:
+        try:
+            async with self.transaction() as session:
                 participant = ExpeditionParticipant(
                     expedition_id=expedition_id,
                     user_id=user_id,
@@ -727,19 +718,18 @@ class Database:
                     is_harvester=is_harvester
                 )
                 session.add(participant)
-                await session.commit()
-                await self._log_operation("insert", "expedition_participants", start_time, success=True,
-                                        expedition_id=expedition_id, user_id=user_id)
-            except Exception as e:
-                await self._log_operation("insert", "expedition_participants", start_time, success=False,
-                                        expedition_id=expedition_id, user_id=user_id, error=str(e))
-                raise e
+            await self._log_operation("insert", "expedition_participants", start_time, success=True,
+                                    expedition_id=expedition_id, user_id=user_id)
+        except Exception as e:
+            await self._log_operation("insert", "expedition_participants", start_time, success=False,
+                                    expedition_id=expedition_id, user_id=user_id, error=str(e))
+            raise e
 
     async def add_expedition_deposit(self, user_id: str, username: str, sand_amount: int, expedition_id: int):
         """Add a deposit record for an expedition participant"""
         start_time = time.time()
-        async with self._get_session() as session:
-            try:
+        try:
+            async with self.transaction() as session:
                 # Create the deposit record
                 deposit = Deposit(
                     user_id=user_id,
@@ -749,6 +739,9 @@ class Database:
                     expedition_id=expedition_id
                 )
                 session.add(deposit)
+                await session.flush() # To get deposit id
+                deposit_id = deposit.id
+
 
                 # Update user's total melange
                 result = await session.execute(
@@ -763,15 +756,14 @@ class Database:
                     melange_amount = int(sand_amount / conversion_rate)
                     user.total_melange += melange_amount
 
-                await session.commit()
-                await self._log_operation("insert", "deposits", start_time, success=True,
-                                        user_id=user_id, sand_amount=sand_amount, expedition_id=expedition_id)
-                return deposit.id
+            await self._log_operation("insert", "deposits", start_time, success=True,
+                                    user_id=user_id, sand_amount=sand_amount, expedition_id=expedition_id)
+            return deposit_id
 
-            except Exception as e:
-                await self._log_operation("insert", "deposits", start_time, success=False,
-                                        user_id=user_id, error=str(e))
-                raise e
+        except Exception as e:
+            await self._log_operation("insert", "deposits", start_time, success=False,
+                                    user_id=user_id, error=str(e))
+            raise e
 
     async def get_expedition_participants(self, expedition_id: int):
         """Get all participants for a specific expedition with expedition details"""
@@ -797,27 +789,8 @@ class Database:
                 )
                 participants = participants_result.scalars().all()
 
-                # Convert to dictionaries
-                expedition_data = {
-                    'id': expedition.id,
-                    'initiator_id': expedition.initiator_id,
-                    'initiator_username': expedition.initiator_username,
-                    'total_sand': expedition.total_sand,
-                    'sand_per_melange': expedition.sand_per_melange,
-                    'guild_cut_percentage': expedition.guild_cut_percentage,
-                    'created_at': expedition.created_at
-                }
-
-                participants_data = []
-                for participant in participants:
-                    participants_data.append({
-                        'id': participant.id,
-                        'user_id': participant.user_id,
-                        'username': participant.username,
-                        'sand_amount': participant.sand_amount,
-                        'melange_amount': participant.melange_amount,
-                        'is_harvester': participant.is_harvester
-                    })
+                expedition_data = expedition.to_dict()
+                participants_data = [p.to_dict() for p in participants]
 
                 await self._log_operation("select", "expedition_participants", start_time, success=True,
                                         expedition_id=expedition_id, count=len(participants_data))
@@ -840,8 +813,8 @@ class Database:
                              admin_user_id: Optional[str] = None, admin_username: Optional[str] = None):
         """Pay melange to a user and record the payment"""
         start_time = time.time()
-        async with self._get_session() as session:
-            try:
+        try:
+            async with self.transaction() as session:
                 # Get the user
                 result = await session.execute(
                     select(User).where(User.user_id == user_id)
@@ -866,28 +839,24 @@ class Database:
                     description=f"Payment of {melange_amount} melange"
                 )
                 session.add(payment)
-
-                await session.commit()
-                await self._log_operation("update", "users", start_time, success=True,
-                                        user_id=user_id, melange_amount=melange_amount)
-                return melange_amount
-
-            except Exception as e:
-                await self._log_operation("update", "users", start_time, success=False,
-                                        user_id=user_id, error=str(e))
-                raise e
+            await self._log_operation("update", "users", start_time, success=True,
+                                    user_id=user_id, melange_amount=melange_amount)
+            return melange_amount
+        except Exception as e:
+            await self._log_operation("update", "users", start_time, success=False,
+                                    user_id=user_id, error=str(e))
+            raise e
 
     async def pay_all_pending_melange(self, admin_user_id: Optional[str] = None, admin_username: Optional[str] = None):
         """Pay all users their pending melange"""
         start_time = time.time()
-        async with self._get_session() as session:
-            try:
+        try:
+            count = 0
+            total_paid = 0
+            async with self.transaction() as session:
                 # Get all users
                 result = await session.execute(select(User))
                 users = result.scalars().all()
-
-                count = 0
-                total_paid = 0
 
                 for user in users:
                     pending = user.total_melange - user.paid_melange
@@ -909,15 +878,14 @@ class Database:
                         count += 1
                         total_paid += pending
 
-                await session.commit()
-                await self._log_operation("update", "users", start_time, success=True,
-                                        count=count, total_paid=total_paid)
-                return count
+            await self._log_operation("update", "users", start_time, success=True,
+                                    count=count, total_paid=total_paid)
+            return count
 
-            except Exception as e:
-                await self._log_operation("update", "users", start_time, success=False,
-                                        error=str(e))
-                raise e
+        except Exception as e:
+            await self._log_operation("update", "users", start_time, success=False,
+                                    error=str(e))
+            raise e
 
     async def get_all_users_with_pending_melange(self):
         """Get all users with pending melange payments"""
@@ -931,15 +899,9 @@ class Database:
                 for user in users:
                     pending = user.total_melange - user.paid_melange
                     if pending > 0:
-                        pending_users.append({
-                            'user_id': user.user_id,
-                            'username': user.username,
-                            'total_melange': user.total_melange,
-                            'paid_melange': user.paid_melange,
-                            'pending_melange': pending,
-                            'created_at': user.created_at,
-                            'last_updated': user.last_updated
-                        })
+                        user_dict = user.to_dict()
+                        user_dict['pending_melange'] = pending
+                        pending_users.append(user_dict)
 
                 await self._log_operation("select", "users", start_time, success=True,
                                         count=len(pending_users))
@@ -981,47 +943,58 @@ class Database:
     async def set_landsraad_bonus_status(self, active: bool) -> bool:
         """Set the landsraad bonus status"""
         start_time = time.time()
-        async with self._get_session() as session:
-            try:
-                if self.is_sqlite:
-                    # SQLite upsert
-                    stmt = sqlite_insert(GlobalSetting).values(
-                        setting_key='landsraad_bonus_active',
-                        setting_value=str(active).lower(),
-                        description='Whether the landsraad bonus is active (37.5 sand = 1 melange instead of 50)'
-                    )
-                    stmt = stmt.on_conflict_do_update(
-                        index_elements=['setting_key'],
-                        set_=dict(
-                            setting_value=stmt.excluded.setting_value,
-                            last_updated=datetime.utcnow()
-                        )
-                    )
-                else:
-                    # PostgreSQL upsert
-                    stmt = pg_insert(GlobalSetting).values(
-                        setting_key='landsraad_bonus_active',
-                        setting_value=str(active).lower(),
-                        description='Whether the landsraad bonus is active (37.5 sand = 1 melange instead of 50)'
-                    )
-                    stmt = stmt.on_conflict_do_update(
-                        index_elements=['setting_key'],
-                        set_=dict(
-                            setting_value=stmt.excluded.setting_value,
-                            last_updated=datetime.utcnow()
-                        )
-                    )
+        try:
+            async with self.transaction() as session:
+                insert_func = sqlite_insert if self.is_sqlite else pg_insert
 
+                stmt = insert_func(GlobalSetting).values(
+                    setting_key='landsraad_bonus_active',
+                    setting_value=str(active).lower(),
+                    description='Whether the landsraad bonus is active (37.5 sand = 1 melange instead of 50)'
+                )
+                stmt = stmt.on_conflict_do_update(
+                    index_elements=['setting_key'],
+                    set_=dict(
+                        setting_value=stmt.excluded.setting_value,
+                        last_updated=datetime.utcnow()
+                    )
+                )
                 await session.execute(stmt)
-                await session.commit()
 
-                await self._log_operation("upsert", "global_settings", start_time, success=True,
-                                        result_count=1)
-                return True
-            except Exception as e:
-                await self._log_operation("upsert", "global_settings", start_time, success=False,
-                                        error=str(e))
-                raise e
+            await self._log_operation("upsert", "global_settings", start_time, success=True,
+                                    result_count=1)
+            return True
+        except Exception as e:
+            await self._log_operation("upsert", "global_settings", start_time, success=False,
+                                    error=str(e))
+            raise e
+
+    async def add_guild_transaction(self, transaction_type: str, sand_amount: int, melange_amount: int,
+                                  expedition_id: Optional[int], admin_user_id: str, admin_username: str,
+                                  target_user_id: Optional[str] = None, target_username: Optional[str] = None,
+                                  description: Optional[str] = None):
+        """Add a guild transaction record."""
+        start_time = time.time()
+        try:
+            async with self.transaction() as session:
+                transaction = GuildTransaction(
+                    transaction_type=transaction_type,
+                    sand_amount=sand_amount,
+                    melange_amount=melange_amount,
+                    expedition_id=expedition_id,
+                    admin_user_id=admin_user_id,
+                    admin_username=admin_username,
+                    target_user_id=target_user_id,
+                    target_username=target_username,
+                    description=description
+                )
+                session.add(transaction)
+            await self._log_operation("insert", "guild_transactions", start_time, success=True,
+                                    type=transaction_type, admin=admin_user_id)
+        except Exception as e:
+            await self._log_operation("insert", "guild_transactions", start_time, success=False,
+                                    type=transaction_type, admin=admin_user_id, error=str(e))
+            raise e
 
     async def guild_withdraw(self, admin_user_id: str, admin_username: str, target_user_id: str,
                            target_username: str, sand_amount: int):
