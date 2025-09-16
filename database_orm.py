@@ -58,6 +58,8 @@ class Deposit(Base):
     sand_amount: Mapped[int] = mapped_column(Integer, nullable=False)
     type: Mapped[str] = mapped_column(String(20), default="solo")
     expedition_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("expeditions.id"))
+    melange_amount: Mapped[Optional[float]] = mapped_column(Float)
+    conversion_rate: Mapped[Optional[float]] = mapped_column(Float)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.utcnow())
 
     # Relationships
@@ -386,7 +388,7 @@ class Database:
                 await self._log_operation("upsert", "users", start_time, success=False, user_id=user_id, username=username, error=str(e))
                 raise e
 
-    async def add_deposit(self, user_id: str, username: str, sand_amount: int, deposit_type: str = 'solo', expedition_id: Optional[int] = None):
+    async def add_deposit(self, user_id: str, username: str, sand_amount: int, deposit_type: str = 'solo', expedition_id: Optional[int] = None, melange_amount: Optional[float] = None, conversion_rate: Optional[float] = None):
         """Add a new sand deposit for a user"""
         start_time = time.time()
         async with self._get_session() as session:
@@ -400,7 +402,9 @@ class Database:
                     username=username,
                     sand_amount=sand_amount,
                     type=deposit_type,
-                    expedition_id=expedition_id
+                    expedition_id=expedition_id,
+                    melange_amount=melange_amount,
+                    conversion_rate=conversion_rate
                 )
                 session.add(deposit)
                 await session.commit()
@@ -412,14 +416,20 @@ class Database:
                                         user_id=user_id, sand_amount=sand_amount, deposit_type=deposit_type, expedition_id=expedition_id, error=str(e))
                 raise e
 
-    async def get_user_deposits(self, user_id: str) -> List[Dict[str, Any]]:
-        """Get all deposits for a user"""
+    async def get_user_deposits(self, user_id: str, page: int = 1, per_page: int = 10) -> List[Dict[str, Any]]:
+        """Get a paginated list of deposits for a user."""
         start_time = time.time()
         async with self._get_session() as session:
             try:
-                result = await session.execute(
-                    select(Deposit).where(Deposit.user_id == user_id).order_by(Deposit.created_at.desc())
+                offset = (page - 1) * per_page
+                query = (
+                    select(Deposit)
+                    .where(Deposit.user_id == user_id)
+                    .order_by(Deposit.created_at.desc())
+                    .offset(offset)
+                    .limit(per_page)
                 )
+                result = await session.execute(query)
                 deposits = result.scalars().all()
 
                 deposit_list = []
@@ -429,6 +439,8 @@ class Database:
                         'user_id': deposit.user_id,
                         'username': deposit.username,
                         'sand_amount': deposit.sand_amount,
+                        'melange_amount': deposit.melange_amount,
+                        'conversion_rate': deposit.conversion_rate,
                         'type': deposit.type,
                         'expedition_id': deposit.expedition_id,
                         'created_at': deposit.created_at
@@ -440,6 +452,20 @@ class Database:
             except Exception as e:
                 await self._log_operation("select", "deposits", start_time, success=False,
                                         user_id=user_id, error=str(e))
+                raise e
+
+    async def get_user_deposits_count(self, user_id: str) -> int:
+        """Get the total number of deposits for a user."""
+        start_time = time.time()
+        async with self._get_session() as session:
+            try:
+                query = select(func.count()).select_from(Deposit).where(Deposit.user_id == user_id)
+                result = await session.execute(query)
+                count = result.scalar_one()
+                await self._log_operation("count", "deposits", start_time, success=True, user_id=user_id, count=count)
+                return count
+            except Exception as e:
+                await self._log_operation("count", "deposits", start_time, success=False, user_id=user_id, error=str(e))
                 raise e
 
     async def create_expedition(self, initiator_id: str, initiator_username: str, total_sand: int,
@@ -687,9 +713,27 @@ class Database:
     # These can be implemented as needed
 
     async def add_expedition_participant(self, expedition_id: int, user_id: str, username: str,
-                                       sand_amount: int, melange_amount: float, is_harvester: bool = False):
+                                       sand_amount: int, melange_amount: int, is_harvester: bool = False):
         """Add a participant to an expedition"""
-        raise NotImplementedError("Method needs to be implemented")
+        start_time = time.time()
+        async with self._get_session() as session:
+            try:
+                participant = ExpeditionParticipant(
+                    expedition_id=expedition_id,
+                    user_id=user_id,
+                    username=username,
+                    sand_amount=sand_amount,
+                    melange_amount=melange_amount,
+                    is_harvester=is_harvester
+                )
+                session.add(participant)
+                await session.commit()
+                await self._log_operation("insert", "expedition_participants", start_time, success=True,
+                                        expedition_id=expedition_id, user_id=user_id)
+            except Exception as e:
+                await self._log_operation("insert", "expedition_participants", start_time, success=False,
+                                        expedition_id=expedition_id, user_id=user_id, error=str(e))
+                raise e
 
     async def add_expedition_deposit(self, user_id: str, username: str, sand_amount: int, expedition_id: int):
         """Add a deposit record for an expedition participant"""
@@ -749,7 +793,7 @@ class Database:
                 participants_result = await session.execute(
                     select(ExpeditionParticipant)
                     .where(ExpeditionParticipant.expedition_id == expedition_id)
-                    .order_by(ExpeditionParticipant.created_at)
+                    .order_by(ExpeditionParticipant.id)
                 )
                 participants = participants_result.scalars().all()
 
@@ -772,8 +816,7 @@ class Database:
                         'username': participant.username,
                         'sand_amount': participant.sand_amount,
                         'melange_amount': participant.melange_amount,
-                        'is_harvester': participant.is_harvester,
-                        'created_at': participant.created_at
+                        'is_harvester': participant.is_harvester
                     })
 
                 await self._log_operation("select", "expedition_participants", start_time, success=True,
