@@ -880,7 +880,7 @@ class Database:
 
             await self._log_operation("update", "users", start_time, success=True,
                                     count=count, total_paid=total_paid)
-            return count
+            return {'total_paid': total_paid, 'users_paid': count}
 
         except Exception as e:
             await self._log_operation("update", "users", start_time, success=False,
