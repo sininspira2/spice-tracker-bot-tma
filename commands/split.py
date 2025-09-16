@@ -153,6 +153,17 @@ async def split(interaction, command_start, total_sand: int, users: str, guild: 
         if guild_melange > 0 or guild_sand > 0:
             await get_database().update_guild_treasury(guild_sand, guild_melange)
 
+            # Add guild transaction record for the guild cut
+            await get_database().add_guild_transaction(
+                transaction_type='guild_cut',
+                sand_amount=guild_sand,
+                melange_amount=guild_melange,
+                expedition_id=expedition_id,
+                admin_user_id=str(interaction.user.id),
+                admin_username=interaction.user.display_name,
+                description=f"Expedition #{expedition_id} guild cut"
+            )
+
         # Process all participants
         participant_details = []
 
@@ -195,6 +206,19 @@ async def split(interaction, command_start, total_sand: int, users: str, guild: 
                 expedition_id=expedition_id,
                 melange_amount=user_melange,
                 conversion_rate=conversion_rate
+            )
+
+            # Add guild transaction record for the user deposit
+            await get_database().add_guild_transaction(
+                transaction_type='deposit',
+                sand_amount=user_sand,
+                melange_amount=user_melange,
+                expedition_id=expedition_id,
+                admin_user_id=str(interaction.user.id),
+                admin_username=interaction.user.display_name,
+                target_user_id=user_id,
+                target_username=display_name,
+                description=f"Expedition #{expedition_id} split deposit"
             )
 
             # Update user's melange total if they earned melange
