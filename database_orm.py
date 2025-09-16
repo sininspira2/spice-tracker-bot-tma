@@ -997,9 +997,68 @@ class Database:
             raise e
 
     async def guild_withdraw(self, admin_user_id: str, admin_username: str, target_user_id: str,
-                           target_username: str, sand_amount: int):
-        """Withdraw sand from guild treasury and give to user"""
-        raise NotImplementedError("Method needs to be implemented")
+                           target_username: str, melange_amount: int):
+        """Withdraw melange from guild treasury and give to user"""
+        start_time = time.time()
+        try:
+            async with self.transaction() as session:
+                # 1. Get guild treasury
+                result = await session.execute(
+                    select(GuildTreasury).order_by(GuildTreasury.id.desc()).limit(1)
+                )
+                treasury = result.scalar_one_or_none()
+
+                if not treasury or treasury.total_melange < melange_amount:
+                    raise ValueError("Insufficient guild treasury funds.")
+
+                # 2. Get user
+                result = await session.execute(
+                    select(User).where(User.user_id == target_user_id)
+                )
+                user = result.scalar_one_or_none()
+
+                if not user:
+                    # Create user if not exists
+                    await self._upsert_user(session, target_user_id, target_username)
+                    result = await session.execute(
+                        select(User).where(User.user_id == target_user_id)
+                    )
+                    user = result.scalar_one()
+
+                # 3. Update balances
+                treasury.total_melange -= melange_amount
+                user.total_melange += melange_amount
+
+                # 4. Log guild transaction
+                guild_tx = GuildTransaction(
+                    transaction_type="guild_withdraw",
+                    sand_amount=0,
+                    melange_amount=melange_amount,
+                    admin_user_id=admin_user_id,
+                    admin_username=admin_username,
+                    target_user_id=target_user_id,
+                    target_username=target_username,
+                    description=f"Admin {admin_username} withdrew {melange_amount} melange for {target_username}"
+                )
+                session.add(guild_tx)
+
+                # 5. Log deposit for user
+                deposit = Deposit(
+                    user_id=target_user_id,
+                    username=target_username,
+                    sand_amount=0,
+                    melange_amount=melange_amount,
+                    type="Guild"
+                )
+                session.add(deposit)
+
+            await self._log_operation("guild_withdraw", "guild_treasury, users, deposits, guild_transactions", start_time, success=True,
+                                    admin_user_id=admin_user_id, target_user_id=target_user_id, melange_amount=melange_amount)
+            return True
+        except Exception as e:
+            await self._log_operation("guild_withdraw", "guild_treasury, users, deposits, guild_transactions", start_time, success=False,
+                                    admin_user_id=admin_user_id, target_user_id=target_user_id, melange_amount=melange_amount, error=str(e))
+            raise e
 
     # Compatibility aliases
     async def get_top_refiners(self, limit: int = 10):
