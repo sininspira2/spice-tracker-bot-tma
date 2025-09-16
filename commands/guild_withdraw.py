@@ -7,8 +7,8 @@ COMMAND_METADATA = {
     'aliases': [],  # ['gwithdraw']
     'description': "Withdraw melange from guild treasury to give to a user (Admin/Officer only)",
     'params': {
-        'user': "User to give melange to",
-        'amount': "Amount of melange to withdraw from guild treasury"
+        'user': "The user whose ledger to credit melange",
+        'amount': "Amount of melange to credit from guild treasury"
     },
     'permission_level': 'admin_or_officer'
 }
