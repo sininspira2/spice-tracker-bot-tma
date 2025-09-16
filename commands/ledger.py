@@ -32,7 +32,7 @@ async def build_ledger_embed(interaction, user, deposits, page, total_pages):
             melange_amount = deposit.get('melange_amount')
 
             if melange_amount is not None:
-                melange_str = f"-> **{format_melange(melange_amount)} melange**"
+                melange_str = f"**{format_melange(melange_amount)} melange**"
             else:
                 melange_str = "(legacy)"
 
@@ -48,7 +48,7 @@ async def build_ledger_embed(interaction, user, deposits, page, total_pages):
             if deposit['type'] == 'Guild':
                 ledger_text += f"{melange_str} {deposit_type} - {date_str}\n"
             else:
-                ledger_text += f"**{deposit['sand_amount']:,} sand** {melange_str} {deposit_type} - {date_str}\n"
+                ledger_text += f"**{deposit['sand_amount']:,} sand** -> {melange_str} {deposit_type} - {date_str}\n"
 
     total_melange = user.get('total_melange', 0) if user else 0
     paid_melange = user.get('paid_melange', 0) if user else 0
