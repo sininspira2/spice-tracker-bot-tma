@@ -43,12 +43,14 @@ class TestDatabaseColumnErrors:
 
         # Mock user object with expected attributes
         user_mock = Mock()
-        user_mock.user_id = '123456789'
-        user_mock.username = 'TestUser'
-        user_mock.total_melange = 100
-        user_mock.paid_melange = 50
-        user_mock.created_at = '2024-01-01T00:00:00Z'
-        user_mock.last_updated = '2024-01-01T00:00:00Z'
+        user_mock.to_dict.return_value = {
+            'user_id': '123456789',
+            'username': 'TestUser',
+            'total_melange': 100,
+            'paid_melange': 50,
+            'created_at': '2024-01-01T00:00:00Z',
+            'last_updated': '2024-01-01T00:00:00Z'
+        }
 
         # Mock the result object
         result_mock = Mock()

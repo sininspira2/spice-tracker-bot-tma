@@ -21,7 +21,9 @@ from utils.logger import logger
 
 class Base(DeclarativeBase):
     """Base class for all database models."""
-    pass
+    def to_dict(self) -> Dict[str, Any]:
+        """Converts the model instance to a dictionary."""
+        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
 
 
 class User(Base):
@@ -341,16 +343,8 @@ class Database:
                 user = result.scalar_one_or_none()
 
                 if user:
-                    result_dict = {
-                        'user_id': user.user_id,
-                        'username': user.username,
-                        'total_melange': user.total_melange,
-                        'paid_melange': user.paid_melange,
-                        'created_at': user.created_at,
-                        'last_updated': user.last_updated
-                    }
                     await self._log_operation("select", "users", start_time, success=True, user_id=user_id, found=True)
-                    return result_dict
+                    return user.to_dict()
                 else:
                     await self._log_operation("select", "users", start_time, success=True, user_id=user_id, found=False)
                     return None
@@ -429,20 +423,7 @@ class Database:
                 )
                 result = await session.execute(query)
                 deposits = result.scalars().all()
-
-                deposit_list = []
-                for deposit in deposits:
-                    deposit_list.append({
-                        'id': deposit.id,
-                        'user_id': deposit.user_id,
-                        'username': deposit.username,
-                        'sand_amount': deposit.sand_amount,
-                        'melange_amount': deposit.melange_amount,
-                        'conversion_rate': deposit.conversion_rate,
-                        'type': deposit.type,
-                        'expedition_id': deposit.expedition_id,
-                        'created_at': deposit.created_at
-                    })
+                deposit_list = [d.to_dict() for d in deposits]
 
                 await self._log_operation("select", "deposits", start_time, success=True,
                                         user_id=user_id, result_count=len(deposit_list))
@@ -502,25 +483,15 @@ class Database:
                 )
                 treasury = result.scalar_one_or_none()
 
-                if treasury:
-                    treasury_dict = {
-                        'total_sand': treasury.total_sand,
-                        'total_melange': treasury.total_melange,
-                        'created_at': treasury.created_at,
-                        'last_updated': treasury.last_updated
-                    }
-                else:
+                if not treasury:
                     # Create initial treasury record if none exists
                     treasury = GuildTreasury()
                     session.add(treasury)
                     await session.flush()
                     await session.refresh(treasury)
-                    treasury_dict = {
-                        'total_sand': 0,
-                        'total_melange': 0.0,
-                        'created_at': treasury.created_at,
-                        'last_updated': treasury.last_updated
-                    }
+
+                treasury_dict = treasury.to_dict()
+
             await self._log_operation("select", "guild_treasury", start_time, success=True)
             return treasury_dict
         except Exception as e:
@@ -586,23 +557,18 @@ class Database:
         async with self._get_session() as session:
             try:
                 result = await session.execute(
-                    select(User.username, User.total_melange)
+                    select(User)
                     .order_by(User.total_melange.desc(), User.username.asc())
                     .limit(limit)
                 )
+                users = result.scalars().all()
+                leaderboard = [u.to_dict() for u in users]
 
-                leaderboard = []
-                for row in result:
-                    leaderboard.append({
-                        'username': row.username,
-                        'total_melange': row.total_melange
-                    })
-
-                await self._log_operation("select_join", "users", start_time, success=True,
+                await self._log_operation("select", "users", start_time, success=True,
                                         limit=limit, result_count=len(leaderboard))
                 return leaderboard
             except Exception as e:
-                await self._log_operation("select_join", "users", start_time, success=False,
+                await self._log_operation("select", "users", start_time, success=False,
                                         limit=limit, error=str(e))
                 raise e
 
@@ -709,21 +675,7 @@ class Database:
                     select(GuildTransaction).where(GuildTransaction.expedition_id == expedition_id)
                 )
                 transactions = result.scalars().all()
-                transaction_list = []
-                for t in transactions:
-                    transaction_list.append({
-                        'id': t.id,
-                        'transaction_type': t.transaction_type,
-                        'sand_amount': t.sand_amount,
-                        'melange_amount': t.melange_amount,
-                        'expedition_id': t.expedition_id,
-                        'admin_user_id': t.admin_user_id,
-                        'admin_username': t.admin_username,
-                        'target_user_id': t.target_user_id,
-                        'target_username': t.target_username,
-                        'description': t.description,
-                        'created_at': t.created_at,
-                    })
+                transaction_list = [t.to_dict() for t in transactions]
                 await self._log_operation("select", "guild_transactions", start_time, success=True,
                                         expedition_id=expedition_id, count=len(transaction_list))
                 return transaction_list
@@ -739,17 +691,7 @@ class Database:
             try:
                 result = await session.execute(select(Expedition))
                 expeditions = result.scalars().all()
-                expedition_list = []
-                for e in expeditions:
-                    expedition_list.append({
-                        'id': e.id,
-                        'initiator_id': e.initiator_id,
-                        'initiator_username': e.initiator_username,
-                        'total_sand': e.total_sand,
-                        'sand_per_melange': e.sand_per_melange,
-                        'guild_cut_percentage': e.guild_cut_percentage,
-                        'created_at': e.created_at,
-                    })
+                expedition_list = [e.to_dict() for e in expeditions]
                 await self._log_operation("select", "expeditions", start_time, success=True,
                                         count=len(expedition_list))
                 return expedition_list
@@ -847,27 +789,8 @@ class Database:
                 )
                 participants = participants_result.scalars().all()
 
-                # Convert to dictionaries
-                expedition_data = {
-                    'id': expedition.id,
-                    'initiator_id': expedition.initiator_id,
-                    'initiator_username': expedition.initiator_username,
-                    'total_sand': expedition.total_sand,
-                    'sand_per_melange': expedition.sand_per_melange,
-                    'guild_cut_percentage': expedition.guild_cut_percentage,
-                    'created_at': expedition.created_at
-                }
-
-                participants_data = []
-                for participant in participants:
-                    participants_data.append({
-                        'id': participant.id,
-                        'user_id': participant.user_id,
-                        'username': participant.username,
-                        'sand_amount': participant.sand_amount,
-                        'melange_amount': participant.melange_amount,
-                        'is_harvester': participant.is_harvester
-                    })
+                expedition_data = expedition.to_dict()
+                participants_data = [p.to_dict() for p in participants]
 
                 await self._log_operation("select", "expedition_participants", start_time, success=True,
                                         expedition_id=expedition_id, count=len(participants_data))
@@ -976,15 +899,9 @@ class Database:
                 for user in users:
                     pending = user.total_melange - user.paid_melange
                     if pending > 0:
-                        pending_users.append({
-                            'user_id': user.user_id,
-                            'username': user.username,
-                            'total_melange': user.total_melange,
-                            'paid_melange': user.paid_melange,
-                            'pending_melange': pending,
-                            'created_at': user.created_at,
-                            'last_updated': user.last_updated
-                        })
+                        user_dict = user.to_dict()
+                        user_dict['pending_melange'] = pending
+                        pending_users.append(user_dict)
 
                 await self._log_operation("select", "users", start_time, success=True,
                                         count=len(pending_users))
