@@ -18,7 +18,7 @@ import discord
 from utils.database_utils import timed_database_operation
 from utils.embed_utils import build_status_embed
 from utils.command_utils import log_command_metrics
-from utils.helpers import get_database, send_response
+from utils.helpers import get_database, send_response, format_melange
 from utils.base_command import admin_command
 from utils.logger import logger
 
@@ -43,9 +43,9 @@ async def guild_withdraw(interaction, command_start, user: discord.Member, amoun
         if current_melange < amount:
             await send_response(interaction,
                 f"❌ Insufficient guild treasury funds.\n\n"
-                f"**Available:** {current_melange:,.2f} melange\n"
-                f"**Requested:** {amount:,.2f} melange\n"
-                f"**Shortfall:** {amount - current_melange:,.2f} melange",
+                f"**Available:** {format_melange(current_melange)} melange\n"
+                f"**Requested:** {format_melange(amount)} melange\n"
+                f"**Shortfall:** {format_melange(amount - current_melange)} melange",
                 use_followup=use_followup, ephemeral=True)
             return
 
@@ -65,13 +65,13 @@ async def guild_withdraw(interaction, command_start, user: discord.Member, amoun
 
         # Build response embed
         fields = {
-            "💸 Transaction": f"**Recipient:** {user.display_name} | **Amount:** {amount:,.2f} melange | **Admin:** {interaction.user.display_name}",
-            "🏛️ Treasury": f"**Previous:** {current_melange:,.2f} | **New:** {updated_treasury.get('total_melange', 0):,.2f} | **Available:** {updated_treasury.get('total_melange', 0):,.2f}"
+            "💸 Transaction": f"**Recipient:** {user.display_name} | **Amount:** {format_melange(amount)} melange | **Admin:** {interaction.user.display_name}",
+            "🏛️ Treasury": f"**Previous:** {format_melange(current_melange)} | **New:** {format_melange(updated_treasury.get('total_melange', 0))} | **Available:** {format_melange(updated_treasury.get('total_melange', 0))}"
         }
 
         embed = build_status_embed(
             title="✅ Guild Withdrawal Completed",
-            description=f"💰 **{amount:,.2f} melange** transferred from guild treasury to **{user.display_name}**",
+            description=f"💰 **{format_melange(amount)} melange** transferred from guild treasury to **{user.display_name}**",
             color=0x00FF00,
             fields=fields,
             timestamp=interaction.created_at
@@ -102,7 +102,7 @@ async def guild_withdraw(interaction, command_start, user: discord.Member, amoun
         )
 
         # Log the withdrawal for audit
-        logger.info(f"Guild withdrawal: {amount:,.2f} melange from treasury to {user.display_name} ({user.id}) by {interaction.user.display_name} ({interaction.user.id})")
+        logger.info(f"Guild withdrawal: {format_melange(amount)} melange from treasury to {user.display_name} ({user.id}) by {interaction.user.display_name} ({interaction.user.id})")
 
     except ValueError as ve:
         # Handle insufficient funds or other validation errors
