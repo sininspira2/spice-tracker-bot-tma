@@ -83,28 +83,36 @@ async def split(interaction, command_start, total_sand: int, users: str, guild: 
 
         # Calculate user melange distributions
         user_distributions = []
+        is_all_percentage = percentage_users and not equal_split_users
 
-        # Calculate shares for percentage users from the total melange
-        melange_remaining_for_split = total_melange
-        for user_id, percentage in percentage_users:
-            user_melange = int(total_melange * (percentage / 100))
-            user_distributions.append((user_id, user_melange, percentage))
-            melange_remaining_for_split -= user_melange
+        if is_all_percentage:
+            # --- All Percentage Mode ---
+            # Guild cut is the remainder. The 'guild' param is ignored.
+            for user_id, percentage in percentage_users:
+                user_melange = int(total_melange * (percentage / 100))
+                user_distributions.append((user_id, user_melange, percentage))
+        else:
+            # --- Equal or Mixed Mode ---
+            # Guild cut is taken from the total first.
+            guild_melange_cut = int(total_melange * (guild / 100))
+            melange_for_players = total_melange - guild_melange_cut
 
-        # The rest of the logic applies to the remainder.
-        # Take guild cut from this remainder.
-        guild_cut_of_remainder = int(melange_remaining_for_split * (guild / 100))
+            # Calculate shares for percentage users from the total melange
+            melange_given_to_percentage_users = 0
+            for user_id, percentage in percentage_users:
+                user_melange = int(total_melange * (percentage / 100))
+                user_distributions.append((user_id, user_melange, percentage))
+                melange_given_to_percentage_users += user_melange
 
-        # The amount to be split equally is the remainder after the percentage users
-        # and after the guild cut on that remainder.
-        melange_for_equal_split = melange_remaining_for_split - guild_cut_of_remainder
+            # The amount for equal split is what's left from the player pool
+            melange_for_equal_split = melange_for_players - melange_given_to_percentage_users
 
-        if equal_split_users:
-            equal_share = melange_for_equal_split // len(equal_split_users)
-            for user_id in equal_split_users:
-                user_melange = equal_share
-                equal_percentage = (user_melange / total_melange) * 100 if total_melange > 0 else 0
-                user_distributions.append((user_id, user_melange, equal_percentage))
+            if equal_split_users:
+                equal_share = melange_for_equal_split // len(equal_split_users)
+                for user_id in equal_split_users:
+                    user_melange = equal_share
+                    equal_percentage = (user_melange / total_melange) * 100 if total_melange > 0 else 0
+                    user_distributions.append((user_id, user_melange, equal_percentage))
 
         # Remove duplicates and validate we have users
         unique_distributions = {}
