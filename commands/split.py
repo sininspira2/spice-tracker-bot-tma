@@ -81,24 +81,26 @@ async def split(interaction, command_start, total_sand: int, users: str, guild: 
         from utils.helpers import get_sand_per_melange_with_bonus
         conversion_rate = await get_sand_per_melange_with_bonus()
 
-        # Calculate guild cut first
-        guild_melange_cut = int(total_melange * (guild / 100))
-        melange_for_players = total_melange - guild_melange_cut
-
         # Calculate user melange distributions
         user_distributions = []
-        remaining_after_percentages = melange_for_players
 
-        # First, allocate to percentage users (based on melange, not sand)
+        # Calculate shares for percentage users from the total melange
+        melange_remaining_for_split = total_melange
         for user_id, percentage in percentage_users:
-            user_melange = int(melange_for_players * (percentage / 100))
+            user_melange = int(total_melange * (percentage / 100))
             user_distributions.append((user_id, user_melange, percentage))
-            remaining_after_percentages -= user_melange
+            melange_remaining_for_split -= user_melange
 
-        # Then, split remaining melange equally among non-percentage users
+        # The rest of the logic applies to the remainder.
+        # Take guild cut from this remainder.
+        guild_cut_of_remainder = int(melange_remaining_for_split * (guild / 100))
+
+        # The amount to be split equally is the remainder after the percentage users
+        # and after the guild cut on that remainder.
+        melange_for_equal_split = melange_remaining_for_split - guild_cut_of_remainder
+
         if equal_split_users:
-            equal_share = remaining_after_percentages // len(equal_split_users)
-
+            equal_share = melange_for_equal_split // len(equal_split_users)
             for user_id in equal_split_users:
                 user_melange = equal_share
                 equal_percentage = (user_melange / total_melange) * 100 if total_melange > 0 else 0
