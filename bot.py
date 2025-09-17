@@ -238,10 +238,10 @@ def register_commands():
         await treasury(interaction)
 
     # Guild Withdraw command
-    @bot.tree.command(name=cmd_name("guild_withdraw"), description="Withdraw sand from guild treasury to give to a user (Admin only)")
+    @bot.tree.command(name=cmd_name("guild_withdraw"), description="Withdraw melange from guild treasury to give to a user (Admin only)")
     @app_commands.describe(
-        user="User to give sand to",
-        amount="Amount of sand to withdraw from guild treasury"
+        user="The user whose ledger to credit melange",
+        amount="Amount of melange to credit from guild treasury"
     )
     async def guild_withdraw_cmd(interaction: discord.Interaction, user: discord.Member, amount: int):  # noqa: F841
         await guild_withdraw(interaction, user, amount)

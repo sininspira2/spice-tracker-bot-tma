@@ -16,16 +16,9 @@ from utils.database_utils import timed_database_operation, validate_user_exists
 from utils.embed_utils import build_status_embed
 from utils.command_utils import log_command_metrics
 from utils.base_command import command
-from utils.helpers import get_database, send_response
+from utils.helpers import get_database, send_response, format_melange
 
 DEPOSITS_PER_PAGE = 10
-
-def format_melange(amount):
-    """Formats melange amount, removing .00 for whole numbers."""
-    if amount == int(amount):
-        return f"{int(amount):,}"
-    else:
-        return f"{amount:,.2f}"
 
 async def build_ledger_embed(interaction, user, deposits, page, total_pages):
     """Build the embed for the ledger."""
@@ -39,7 +32,7 @@ async def build_ledger_embed(interaction, user, deposits, page, total_pages):
             melange_amount = deposit.get('melange_amount')
 
             if melange_amount is not None:
-                melange_str = f"-> **{format_melange(melange_amount)} melange**"
+                melange_str = f"**{format_melange(melange_amount)} melange**"
             else:
                 melange_str = "(legacy)"
 
@@ -47,9 +40,15 @@ async def build_ledger_embed(interaction, user, deposits, page, total_pages):
                 deposit_type = "🚀 Expedition"
             elif deposit['type'] == 'group':
                 deposit_type = "👥 Group"
+            elif deposit['type'] == 'Guild':
+                deposit_type = "🏛️ Guild"
             else:
                 deposit_type = "🏜️ Solo"
-            ledger_text += f"**{deposit['sand_amount']:,} sand** {melange_str} {deposit_type} - {date_str}\n"
+
+            if deposit['type'] == 'Guild':
+                ledger_text += f"{melange_str} {deposit_type} - {date_str}\n"
+            else:
+                ledger_text += f"**{deposit['sand_amount']:,} sand** -> {melange_str} {deposit_type} - {date_str}\n"
 
     total_melange = user.get('total_melange', 0) if user else 0
     paid_melange = user.get('paid_melange', 0) if user else 0

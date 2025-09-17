@@ -172,3 +172,11 @@ def build_admin_officer_role_mentions() -> str:
     except Exception as e:
         logger.warning(f"Failed to build admin/officer role mentions: {e}")
         return ""
+
+
+def format_melange(amount: float) -> str:
+    """Formats melange amount, removing .00 for whole numbers."""
+    if amount == int(amount):
+        return f"{int(amount):,}"
+    else:
+        return f"{amount:,.2f}"
