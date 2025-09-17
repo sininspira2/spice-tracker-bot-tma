@@ -107,6 +107,10 @@ async def split(interaction, command_start, total_sand: int, users: str, guild: 
             # The amount for equal split is what's left from the player pool
             melange_for_equal_split = melange_for_players - melange_given_to_percentage_users
 
+            if melange_for_equal_split < 0:
+                await send_response(interaction, f"❌ Invalid split: The sum of the guild cut ({guild}%) and user percentages ({total_percentage}%) exceeds 100%.", use_followup=use_followup, ephemeral=True)
+                return
+
             if equal_split_users:
                 equal_share = melange_for_equal_split // len(equal_split_users)
                 for user_id in equal_split_users:
