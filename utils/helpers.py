@@ -5,7 +5,7 @@ Helper functions used across multiple commands.
 import os
 from typing import List
 from database_orm import Database
-
+from utils.logger import logger
 # Initialize database (lazy initialization)
 database = None
 
@@ -30,7 +30,6 @@ _landsraad_bonus_active = False # Default value
 async def initialize_bonus_status():
     """Called once when the bot starts up."""
     global _landsraad_bonus_active
-    from utils.logger import logger
     try:
         db = get_database()
         status = await db.get_landsraad_bonus_status()
@@ -48,7 +47,6 @@ def update_landsraad_bonus_status(new_status: bool):
     """Updates the in-memory cache."""
     global _landsraad_bonus_active
     _landsraad_bonus_active = new_status
-    from utils.logger import logger
     logger.info(f"Landsraad bonus status updated in cache: {new_status}")
 
 
