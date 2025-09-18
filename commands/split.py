@@ -37,10 +37,19 @@ async def split(interaction, command_start, total_sand: int, users: str, guild: 
             await send_response(interaction, "❌ Guild cut percentage must be between 0 and 100.", use_followup=use_followup, ephemeral=True)
             return
 
-        # Validate user_cut if provided
-        if user_cut is not None and not 0 <= user_cut <= 100:
-            await send_response(interaction, "❌ User cut percentage must be between 0 and 100.", use_followup=use_followup, ephemeral=True)
-            return
+        # Validate user_cut if provided, and handle related logic
+        if user_cut is not None:
+            if not 0 <= user_cut <= 100:
+                await send_response(interaction, "❌ User cut percentage must be between 0 and 100.", use_followup=use_followup, ephemeral=True)
+                return
+
+            # Check if the guild cut was explicitly set to a non-default value
+            import inspect
+            sig = inspect.signature(split)
+            default_guild_cut = sig.parameters['guild'].default
+
+            if guild != default_guild_cut:
+                await send_response(interaction, f"⚠️ Note: When `user_cut` is used, the guild cut is automatically calculated as the remainder. Your specified guild cut of {guild}% will be ignored.", use_followup=use_followup, ephemeral=True)
 
         # Parse users string for mentions and percentages
         percentage_users = []
@@ -67,10 +76,6 @@ async def split(interaction, command_start, total_sand: int, users: str, guild: 
             if any(percentage_str for _, percentage_str in matches):
                 await send_response(interaction, "❌ You cannot provide individual percentages when using `user_cut`.", use_followup=use_followup, ephemeral=True)
                 return
-
-            # Add a warning if guild is explicitly set when user_cut is used
-            if guild != 10: # Assuming 10 is the default guild cut
-                await send_response(interaction, f"⚠️ Note: When `user_cut` is used, the guild cut is automatically calculated as the remainder. Your specified guild cut of {guild}% will be ignored.", use_followup=use_followup, ephemeral=True)
 
             percentage_users = [(user_id, user_cut) for user_id, _ in matches]
             total_percentage = len(matches) * user_cut

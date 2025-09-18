@@ -202,14 +202,20 @@ class TestSplitCommand:
     async def test_split_command_with_user_cut_and_guild_warning(self, mock_interaction, test_database):
         """Test that a warning is shown when user_cut and a non-default guild cut are provided."""
         from commands.split import split as split_command
+        import inspect
         mock_interaction = setup_split_mock_interaction(mock_interaction)
+
+        # Get the default guild cut from the function signature
+        sig = inspect.signature(split_command)
+        default_guild_cut = sig.parameters['guild'].default
+        non_default_guild_cut = default_guild_cut + 10
 
         with patch('commands.split.get_database', return_value=test_database):
             await split_command(
                 interaction=mock_interaction,
                 total_sand=1000,
                 users="<@123> <@456>",
-                guild=20,
+                guild=non_default_guild_cut,
                 user_cut=20,
                 use_followup=True
             )
@@ -217,7 +223,7 @@ class TestSplitCommand:
             assert mock_interaction.followup.send.called, "Split command with user_cut and guild cut did not send a followup response"
             # The first call should be the warning
             first_call_kwargs = mock_interaction.followup.send.call_args_list[0].kwargs
-            assert "Your specified guild cut of 20% will be ignored" in first_call_kwargs.get('content', '')
+            assert f"Your specified guild cut of {non_default_guild_cut}% will be ignored" in first_call_kwargs.get('content', '')
 
     @pytest.mark.asyncio
     async def test_commands_with_invalid_inputs(self, mock_interaction, test_database):
