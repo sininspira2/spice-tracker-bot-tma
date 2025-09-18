@@ -60,6 +60,64 @@ class TestCommandResponsiveness:
                 pytest.fail(f"Command {function_name} failed with error: {e}")
 
     @pytest.mark.asyncio
+    async def test_split_command_with_user_cut(self, mock_interaction, test_database):
+        """Test the split command with the new user_cut parameter."""
+        from commands.split import split as split_command
+        from unittest.mock import Mock, AsyncMock
+        import discord
+        import datetime
+
+        # Configure the mock interaction
+        mock_interaction.created_at = datetime.datetime.now(datetime.timezone.utc)
+        async def mock_fetch_member(user_id):
+            mock_user = Mock(spec=discord.Member)
+            mock_user.id = int(user_id)
+            mock_user.display_name = f"TestUser{user_id}"
+            mock_user.mention = f"<@{user_id}>"
+            return mock_user
+
+        mock_interaction.guild.fetch_member = AsyncMock(side_effect=mock_fetch_member)
+        mock_interaction.client.fetch_user = AsyncMock(side_effect=mock_fetch_member)
+        mock_interaction.response.is_done.return_value = True
+
+        # Patch get_database to use the test database
+        with patch('commands.split.get_database', return_value=test_database):
+            # Test case: split 1000 sand with 2 users, each getting a 20% cut
+            await split_command(
+                interaction=mock_interaction,
+                total_sand=1000,
+                users="<@123> <@456>",
+                guild=10,
+                user_cut=20,
+                use_followup=True
+            )
+
+            # Verify that a response was sent via followup
+            assert mock_interaction.followup.send.called, "Split command with user_cut did not send a followup response"
+
+    @pytest.mark.asyncio
+    async def test_split_command_with_invalid_user_cut(self, mock_interaction, test_database):
+        """Test the split command with an invalid user_cut parameter."""
+        from commands.split import split as split_command
+
+        # Patch get_database to use the test database
+        with patch('commands.split.get_database', return_value=test_database):
+            # Test case: split 1000 sand with an invalid user_cut
+            await split_command(
+                interaction=mock_interaction,
+                total_sand=1000,
+                users="<@123> <@456>",
+                guild=10,
+                user_cut=110,
+                use_followup=True
+            )
+
+            # Verify that an error message was sent
+            assert mock_interaction.followup.send.called, "Split command with invalid user_cut did not send a followup response"
+            kwargs = mock_interaction.followup.send.call_args.kwargs
+            assert "User cut percentage must be between 0 and 100" in kwargs['content']
+
+    @pytest.mark.asyncio
     async def test_commands_with_invalid_inputs(self, mock_interaction, test_database):
         """Test that commands handle invalid inputs gracefully."""
         # Test edge cases for commands that take parameters

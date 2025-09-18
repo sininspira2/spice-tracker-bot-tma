@@ -5,11 +5,12 @@ Split command for dividing harvested spice sand among expedition members with gu
 # Command metadata
 COMMAND_METADATA = {
     'aliases': [],
-    'description': "Split spice sand among expedition members and convert to melange with guild cut",
+    'description': "Split spice sand among expedition members and convert to melange with guild cut.",
     'params': {
-        'total_sand': "Total spice sand collected to split",
-        'users': "Users and percentages: '@user1 50 @user2 @user3' (users without % split equally)",
-        'guild': "Guild cut percentage (default: 10)"
+        'total_sand': "Total spice sand collected to split.",
+        'users': "Users to include in the split (e.g., '@user1 @user2').",
+        'guild': "Guild cut percentage (default: 10).",
+        'user_cut': "Optional: Assign a uniform percentage to all users (e.g., 20 for 20%)."
     },
     'permission_level': 'user'
 }
@@ -23,7 +24,7 @@ from utils.logger import logger
 
 
 @command('split')
-async def split(interaction, command_start, total_sand: int, users: str, guild: int = 10, use_followup: bool = True):
+async def split(interaction, command_start, total_sand: int, users: str, guild: int = 10, user_cut: int = None, use_followup: bool = True):
     """Split spice sand among expedition members and convert to melange with guild cut"""
 
     try:
@@ -36,14 +37,16 @@ async def split(interaction, command_start, total_sand: int, users: str, guild: 
             await send_response(interaction, "❌ Guild cut percentage must be between 0 and 100.", use_followup=use_followup, ephemeral=True)
             return
 
+        # Validate user_cut if provided
+        if user_cut is not None and not 0 <= user_cut <= 100:
+            await send_response(interaction, "❌ User cut percentage must be between 0 and 100.", use_followup=use_followup, ephemeral=True)
+            return
+
         # Parse users string for mentions and percentages
-        # Format: "@user1 50 @user2 @user3 25" etc.
-        user_data = []
         percentage_users = []
         equal_split_users = []
 
-        # Extract user mentions and optional percentages
-        # Pattern: @user_id optionally followed by a number
+        # Pattern to extract user IDs and optional percentages
         pattern = r'<@!?(\d+)>\s*(\d+)?'
         matches = re.findall(pattern, users)
 
@@ -53,21 +56,35 @@ async def split(interaction, command_start, total_sand: int, users: str, guild: 
                 "**Examples:**\n"
                 "• Equal split: `/split total_sand:1000 users:\"@user1 @user2\"`\n"
                 "• Percentage split: `/split total_sand:1000 users:\"@leader 60 @member1 @member2\"`\n"
-                "• Mixed: `/split total_sand:1000 users:\"@leader 40 @member1 @member2\" guild:5`",
+                "• Uniform cut: `/split total_sand:1000 users:\"@user1 @user2\" user_cut:20`",
                 use_followup=use_followup, ephemeral=True)
             return
 
-        total_percentage = 0
-        for user_id, percentage_str in matches:
-            if percentage_str:  # User has a percentage
-                percentage = int(percentage_str)
-                if not 0 <= percentage <= 100:
-                    await send_response(interaction, f"❌ Percentage {percentage} is invalid. Must be between 0-100.", use_followup=use_followup, ephemeral=True)
+        # Check for conflicts: individual percentages are not allowed with user_cut
+        if user_cut is not None:
+            for _, percentage_str in matches:
+                if percentage_str:
+                    await send_response(interaction, "❌ You cannot provide individual percentages when using `user_cut`.", use_followup=use_followup, ephemeral=True)
                     return
-                percentage_users.append((user_id, percentage))
-                total_percentage += percentage
-            else:  # User will get equal split
-                equal_split_users.append(user_id)
+
+        total_percentage = 0
+        if user_cut is not None:
+            # If user_cut is specified, all users get this percentage
+            for user_id, _ in matches:
+                percentage_users.append((user_id, user_cut))
+            total_percentage = len(matches) * user_cut
+        else:
+            # Original logic for parsing individual or equal splits
+            for user_id, percentage_str in matches:
+                if percentage_str:
+                    percentage = int(percentage_str)
+                    if not 0 <= percentage <= 100:
+                        await send_response(interaction, f"❌ Percentage {percentage} is invalid. Must be between 0-100.", use_followup=use_followup, ephemeral=True)
+                        return
+                    percentage_users.append((user_id, percentage))
+                    total_percentage += percentage
+                else:
+                    equal_split_users.append(user_id)
 
         # Validate percentages don't exceed 100%
         if total_percentage > 100:
