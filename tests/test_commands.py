@@ -95,27 +95,28 @@ class TestCommandResponsiveness:
             # Verify that a response was sent via followup
             assert mock_interaction.followup.send.called, "Split command with user_cut did not send a followup response"
 
+
     @pytest.mark.asyncio
-    async def test_split_command_with_invalid_user_cut(self, mock_interaction, test_database):
-        """Test the split command with an invalid user_cut parameter."""
+    async def test_split_command_with_conflicting_user_cut(self, mock_interaction, test_database):
+        """Test the split command with a conflicting user_cut and individual percentages."""
         from commands.split import split as split_command
 
         # Patch get_database to use the test database
         with patch('commands.split.get_database', return_value=test_database):
-            # Test case: split 1000 sand with an invalid user_cut
+            # Test case: split 1000 sand with a conflicting user_cut and individual percentages
             await split_command(
                 interaction=mock_interaction,
                 total_sand=1000,
-                users="<@123> <@456>",
+                users="<@123> 30",
                 guild=10,
-                user_cut=110,
+                user_cut=20,
                 use_followup=True
             )
 
             # Verify that an error message was sent
-            assert mock_interaction.followup.send.called, "Split command with invalid user_cut did not send a followup response"
+            assert mock_interaction.followup.send.called, "Split command with conflicting user_cut did not send a followup response"
             kwargs = mock_interaction.followup.send.call_args.kwargs
-            assert "User cut percentage must be between 0 and 100" in kwargs['content']
+            assert "You cannot provide individual percentages when using `user_cut`" in kwargs['content']
 
     @pytest.mark.asyncio
     async def test_commands_with_invalid_inputs(self, mock_interaction, test_database):
