@@ -24,21 +24,39 @@ def get_sand_per_melange() -> int:
     """Get the spice sand to melange conversion rate (hardcoded constant) - DEPRECATED"""
     return SAND_PER_MELANGE_NORMAL
 
-async def get_sand_per_melange_with_bonus() -> float:
-    """Get the current sand to melange conversion rate, considering landsraad bonus"""
+# A global variable to cache the bonus status
+_landsraad_bonus_active = False # Default value
+
+async def initialize_bonus_status():
+    """Called once when the bot starts up."""
+    global _landsraad_bonus_active
+    from utils.logger import logger
     try:
         db = get_database()
-        is_active = await db.get_landsraad_bonus_status()
-
-        # Explicitly check for True to handle any edge cases
-        if is_active is True:
-            return SAND_PER_MELANGE_LANDSRAAD
-        else:
-            return float(SAND_PER_MELANGE_NORMAL)
+        status = await db.get_landsraad_bonus_status()
+        _landsraad_bonus_active = status if status is not None else False
+        logger.info(f"Initial Landsraad bonus status loaded: {_landsraad_bonus_active}")
     except Exception as e:
-        from utils.logger import logger
-        logger.error(f"Error checking landsraad bonus status: {e}")
-        # Default to normal rate if there's an error
+        _landsraad_bonus_active = False
+        logger.error(f"Error initializing landsraad bonus status: {e}")
+
+def is_landsraad_bonus_active():
+    """Reads the bonus status from the in-memory cache."""
+    return _landsraad_bonus_active
+
+def update_landsraad_bonus_status(new_status: bool):
+    """Updates the in-memory cache."""
+    global _landsraad_bonus_active
+    _landsraad_bonus_active = new_status
+    from utils.logger import logger
+    logger.info(f"Landsraad bonus status updated in cache: {new_status}")
+
+
+async def get_sand_per_melange_with_bonus() -> float:
+    """Get the current sand to melange conversion rate, considering landsraad bonus"""
+    if is_landsraad_bonus_active():
+        return SAND_PER_MELANGE_LANDSRAAD
+    else:
         return float(SAND_PER_MELANGE_NORMAL)
 
 async def convert_sand_to_melange(sand_amount: int) -> tuple[int, int]:
