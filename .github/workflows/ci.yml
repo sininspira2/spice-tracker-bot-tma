@@ -2,7 +2,7 @@ name: CI Pipeline
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main-testing ]
   pull_request:
 
 jobs:
@@ -174,7 +174,7 @@ jobs:
     needs: [test, security, dependency-check]
     if: >-
       github.event_name == 'push' &&
-      github.ref == 'refs/heads/main' &&
+      github.ref == 'refs/heads/main-testing' &&
       needs.test.result == 'success' &&
       needs.security.result == 'success' &&
       needs.dependency-check.result == 'success'
