@@ -60,18 +60,15 @@ async def split(interaction, command_start, total_sand: int, users: str, guild: 
                 use_followup=use_followup, ephemeral=True)
             return
 
-        # Check for conflicts: individual percentages are not allowed with user_cut
-        if user_cut is not None:
-            for _, percentage_str in matches:
-                if percentage_str:
-                    await send_response(interaction, "❌ You cannot provide individual percentages when using `user_cut`.", use_followup=use_followup, ephemeral=True)
-                    return
-
+        # Process users based on whether user_cut is provided
         total_percentage = 0
         if user_cut is not None:
-            # If user_cut is specified, all users get this percentage
-            for user_id, _ in matches:
-                percentage_users.append((user_id, user_cut))
+            # With user_cut, no individual percentages are allowed.
+            if any(percentage_str for _, percentage_str in matches):
+                await send_response(interaction, "❌ You cannot provide individual percentages when using `user_cut`.", use_followup=use_followup, ephemeral=True)
+                return
+
+            percentage_users = [(user_id, user_cut) for user_id, _ in matches]
             total_percentage = len(matches) * user_cut
         else:
             # Original logic for parsing individual or equal splits
