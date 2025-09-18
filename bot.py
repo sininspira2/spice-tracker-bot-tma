@@ -62,6 +62,10 @@ async def on_ready():
             db_init_time = time.time() - db_init_start
             logger.bot_event("Database connection verified", db_init_time=f"{db_init_time:.3f}s")
 
+            # Initialize landsraad bonus status cache
+            from utils.helpers import initialize_bonus_status
+            await initialize_bonus_status()
+
         except Exception as error:
             db_init_time = time.time() - db_init_start
             logger.bot_event(f"Database connection failed: {error}", db_init_time=f"{db_init_time:.3f}s")

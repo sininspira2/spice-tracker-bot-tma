@@ -4,7 +4,7 @@ Tests for landsraad bonus functionality using real database.
 
 import pytest
 from unittest.mock import AsyncMock, patch
-from utils.helpers import convert_sand_to_melange, get_sand_per_melange_with_bonus
+from utils.helpers import convert_sand_to_melange, get_sand_per_melange_with_bonus, initialize_bonus_status, is_landsraad_bonus_active, update_landsraad_bonus_status
 from database_orm import Database
 
 
@@ -46,46 +46,38 @@ class TestLandsraadBonus:
     @pytest.mark.asyncio
     async def test_get_sand_per_melange_with_bonus_active(self):
         """Test getting conversion rate when landsraad bonus is active."""
-        with patch('utils.helpers.get_database') as mock_get_db:
-            mock_db = AsyncMock()
-            mock_db.get_landsraad_bonus_status.return_value = True  # Active
-            mock_get_db.return_value = mock_db
-
+        with patch('utils.helpers.is_landsraad_bonus_active', return_value=True):
             rate = await get_sand_per_melange_with_bonus()
             assert rate == 37.5
 
     @pytest.mark.asyncio
     async def test_get_sand_per_melange_with_bonus_inactive(self):
         """Test getting conversion rate when landsraad bonus is inactive."""
-        with patch('utils.helpers.get_database') as mock_get_db:
-            mock_db = AsyncMock()
-            mock_db.get_landsraad_bonus_status.return_value = False  # Inactive
-            mock_get_db.return_value = mock_db
-
+        with patch('utils.helpers.is_landsraad_bonus_active', return_value=False):
             rate = await get_sand_per_melange_with_bonus()
             assert rate == 50.0
 
     @pytest.mark.asyncio
-    async def test_get_sand_per_melange_with_bonus_error_fallback(self):
-        """Test fallback to normal rate when database error occurs."""
+    async def test_initialize_bonus_status_error_fallback(self):
+        """Test fallback to False when database error occurs during initialization."""
         with patch('utils.helpers.get_database') as mock_get_db:
             mock_db = AsyncMock()
             mock_db.get_landsraad_bonus_status.side_effect = Exception("Database error")
             mock_get_db.return_value = mock_db
 
-            rate = await get_sand_per_melange_with_bonus()
-            assert rate == 50.0
+            await initialize_bonus_status()
+            assert is_landsraad_bonus_active() is False
 
     @pytest.mark.asyncio
-    async def test_get_sand_per_melange_with_bonus_none_result(self):
-        """Test handling when database returns None."""
+    async def test_initialize_bonus_status_none_result(self):
+        """Test handling when database returns None during initialization."""
         with patch('utils.helpers.get_database') as mock_get_db:
             mock_db = AsyncMock()
             mock_db.get_landsraad_bonus_status.return_value = None
             mock_get_db.return_value = mock_db
 
-            rate = await get_sand_per_melange_with_bonus()
-            assert rate == 50.0
+            await initialize_bonus_status()
+            assert is_landsraad_bonus_active() is False
 
 
 class TestDatabaseLandsraadBonus:
@@ -110,34 +102,33 @@ class TestDatabaseLandsraadBonus:
         status = await test_database.get_landsraad_bonus_status()
         assert status is False
 
+
     @pytest.mark.asyncio
-    async def test_landsraad_bonus_conversion_rates(self, test_database):
-        """Test that landsraad bonus affects conversion rates correctly."""
-        # Set landsraad bonus to active
+    async def test_landsraad_bonus_conversion_rates_with_cache(self, test_database):
+        """Test that landsraad bonus affects conversion rates correctly with caching."""
+        # Set landsraad bonus to active and update cache
         await test_database.set_landsraad_bonus_status(True)
+        update_landsraad_bonus_status(True)
 
         # Test conversion with landsraad bonus active
-        with patch('utils.helpers.get_database', return_value=test_database):
-            rate = await get_sand_per_melange_with_bonus()
-            assert rate == 37.5
+        rate = await get_sand_per_melange_with_bonus()
+        assert rate == 37.5
 
-            # Test conversion calculation
-            melange, remaining = await convert_sand_to_melange(250)
-            assert melange == 6  # 250 / 37.5 = 6.67, truncated to 6
-            assert remaining == 25  # 250 - (6 * 37.5) = 25
+        melange, remaining = await convert_sand_to_melange(250)
+        assert melange == 6
+        assert remaining == 25
 
-        # Set landsraad bonus to inactive
+        # Set landsraad bonus to inactive and update cache
         await test_database.set_landsraad_bonus_status(False)
+        update_landsraad_bonus_status(False)
 
         # Test conversion with landsraad bonus inactive
-        with patch('utils.helpers.get_database', return_value=test_database):
-            rate = await get_sand_per_melange_with_bonus()
-            assert rate == 50.0
+        rate = await get_sand_per_melange_with_bonus()
+        assert rate == 50.0
 
-            # Test conversion calculation
-            melange, remaining = await convert_sand_to_melange(250)
-            assert melange == 5  # 250 / 50 = 5
-            assert remaining == 0  # 250 - (5 * 50) = 0
+        melange, remaining = await convert_sand_to_melange(250)
+        assert melange == 5
+        assert remaining == 0
 
     @pytest.mark.asyncio
     async def test_get_landsraad_bonus_status_active(self):

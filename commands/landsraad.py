@@ -17,7 +17,7 @@ import time
 from utils.database_utils import timed_database_operation
 from utils.embed_utils import build_status_embed
 from utils.command_utils import log_command_metrics
-from utils.helpers import get_database, get_sand_per_melange_with_bonus, send_response
+from utils.helpers import get_database, get_sand_per_melange_with_bonus, send_response, update_landsraad_bonus_status
 from utils.base_command import command
 from utils.logger import logger
 
@@ -97,6 +97,8 @@ async def landsraad(interaction, command_start, action: str, confirm: bool = Fal
                 get_database().set_landsraad_bonus_status,
                 new_status
             )
+            # Update the cache
+            update_landsraad_bonus_status(new_status)
 
             # Get updated conversion rate
             conversion_rate = await get_sand_per_melange_with_bonus()
