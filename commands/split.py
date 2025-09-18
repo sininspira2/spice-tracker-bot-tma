@@ -44,7 +44,7 @@ async def split(interaction, command_start, total_sand: int, users: str, guild: 
                 return
 
             # Check if the guild cut exists or is not 0
-            # I know right now it will always trigger because of "10" being passed as a default param, but once the guild cut moves from a hardcoded to a variable it can check if the variable
+            # I know right now it will always trigger because of "10" being passed as a default param, but once the guild cut moves from a hardcoded to a variable it can check the variable
             if guild is not None and guild != 0:
                 await send_response(interaction, f"⚠️ Note: When `user_cut` is used, the guild cut is automatically calculated as the remainder. Your specified guild cut of {guild}% will be ignored.", use_followup=use_followup, ephemeral=True)
 
