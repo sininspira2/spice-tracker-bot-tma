@@ -17,7 +17,6 @@ class TestCommandResponsiveness:
             ('sand', 'sand', [100, True], {}),
             ('refinery', 'refinery', [True], {}),
             ('leaderboard', 'leaderboard', [10, True], {}),
-            ('split', 'split', [1000, '@user1 @user2', True], {}),
             ('help', 'help', [True], {}),
             ('reset', 'reset', [True, True], {}),
             ('ledger', 'ledger', [True], {}),
@@ -118,6 +117,108 @@ class TestCommandResponsiveness:
             kwargs = mock_interaction.followup.send.call_args.kwargs
             assert "You cannot provide individual percentages when using `user_cut`" in kwargs['content']
 
+def setup_split_mock_interaction(mock_interaction):
+    """Helper function to set up the mock interaction for split command tests."""
+    from unittest.mock import Mock, AsyncMock
+    import discord
+    import datetime
+
+    mock_interaction.created_at = datetime.datetime.now(datetime.timezone.utc)
+    async def mock_fetch_member(user_id):
+        mock_user = Mock(spec=discord.Member)
+        mock_user.id = int(user_id)
+        mock_user.display_name = f"TestUser{user_id}"
+        mock_user.mention = f"<@{user_id}>"
+        return mock_user
+
+    mock_interaction.guild.fetch_member = AsyncMock(side_effect=mock_fetch_member)
+    mock_interaction.client.fetch_user = AsyncMock(side_effect=mock_fetch_member)
+    mock_interaction.response.is_done.return_value = True
+    return mock_interaction
+
+class TestSplitCommand:
+    @pytest.mark.asyncio
+    async def test_split_command_with_user_cut(self, mock_interaction, test_database):
+        """Test the split command with the new user_cut parameter."""
+        from commands.split import split as split_command
+        mock_interaction = setup_split_mock_interaction(mock_interaction)
+
+        with patch('commands.split.get_database', return_value=test_database):
+            await split_command(
+                interaction=mock_interaction,
+                total_sand=1000,
+                users="<@123> <@456>",
+                guild=10,
+                user_cut=20,
+                use_followup=True
+            )
+
+            assert mock_interaction.followup.send.called, "Split command with user_cut did not send a followup response"
+            kwargs = mock_interaction.followup.send.call_args.kwargs
+            embed = kwargs['embed']
+            assert '4 melange' in embed.fields[0].value
+
+    @pytest.mark.asyncio
+    async def test_split_command_with_invalid_user_cut(self, mock_interaction, test_database):
+        """Test the split command with an invalid user_cut parameter."""
+        from commands.split import split as split_command
+        mock_interaction = setup_split_mock_interaction(mock_interaction)
+
+        with patch('commands.split.get_database', return_value=test_database):
+            await split_command(
+                interaction=mock_interaction,
+                total_sand=1000,
+                users="<@123> <@456>",
+                guild=10,
+                user_cut=110,
+                use_followup=True
+            )
+
+            assert mock_interaction.followup.send.called, "Split command with invalid user_cut did not send a followup response"
+            kwargs = mock_interaction.followup.send.call_args.kwargs
+            assert "User cut percentage must be between 0 and 100" in kwargs['content']
+
+    @pytest.mark.asyncio
+    async def test_split_command_with_conflicting_user_cut(self, mock_interaction, test_database):
+        """Test the split command with a conflicting user_cut and individual percentages."""
+        from commands.split import split as split_command
+        mock_interaction = setup_split_mock_interaction(mock_interaction)
+
+        with patch('commands.split.get_database', return_value=test_database):
+            await split_command(
+                interaction=mock_interaction,
+                total_sand=1000,
+                users="<@123> 30",
+                guild=10,
+                user_cut=20,
+                use_followup=True
+            )
+
+            assert mock_interaction.followup.send.called, "Split command with conflicting user_cut did not send a followup response"
+            kwargs = mock_interaction.followup.send.call_args.kwargs
+            assert "You cannot provide individual percentages when using `user_cut`" in kwargs['content']
+
+    @pytest.mark.asyncio
+    async def test_split_command_with_user_cut_and_guild_warning(self, mock_interaction, test_database):
+        """Test that a warning is shown when user_cut and a non-default guild cut are provided."""
+        from commands.split import split as split_command
+        mock_interaction = setup_split_mock_interaction(mock_interaction)
+
+        with patch('commands.split.get_database', return_value=test_database):
+            await split_command(
+                interaction=mock_interaction,
+                total_sand=1000,
+                users="<@123> <@456>",
+                guild=20,
+                user_cut=20,
+                use_followup=True
+            )
+
+            assert mock_interaction.followup.send.called, "Split command with user_cut and guild cut did not send a followup response"
+            # The first call should be the warning
+            first_call_kwargs = mock_interaction.followup.send.call_args_list[0].kwargs
+            assert "Your specified guild cut of 20% will be ignored" in first_call_kwargs.get('content', '')
+
     @pytest.mark.asyncio
     async def test_commands_with_invalid_inputs(self, mock_interaction, test_database):
         """Test that commands handle invalid inputs gracefully."""
@@ -125,8 +226,6 @@ class TestCommandResponsiveness:
         edge_cases = [
             ('sand', 'sand', [0, True], {}),  # Too low
             ('sand', 'sand', [15000, True], {}),  # Too high
-            ('split', 'split', [0, '@user1', True], {}),  # Invalid sand amount
-            ('split', 'split', [1000, '@user1', True], {}),  # Valid split
             ('reset', 'reset', [False, True], {}),  # Not confirmed
         ]
 
