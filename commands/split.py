@@ -88,12 +88,13 @@ async def split(interaction, command_start, total_sand: int, users: str, guild: 
         # If percentages are specified, they determine the guild cut. Warn if it differs from the input 'guild' value.
         if is_all_percentage:
             if total_percentage + guild != 100:
-                expected_user_sum = 100 - guild
-                await send_response(interaction, f"⚠️ Note: User cut percentages added up to {total_percentage}%, not the expected {expected_user_sum}%. The specified guild cut of {guild}% will be ignored, and the remainder will be used.", use_followup=use_followup, ephemeral=True)
+                warning_message = f"⚠️ Note: User percentages ({total_percentage}%) and the specified guild cut ({guild}%) do not sum to 100%. The guild cut will be adjusted to be the remainder."
+                await send_response(interaction, warning_message, use_followup=use_followup, ephemeral=True)
         elif percentage_users and total_percentage + guild > 100:
             original_guild_cut = guild
             guild = 100 - total_percentage
-            await send_response(interaction, f"⚠️ Note: User percentages ({total_percentage}%) and guild cut ({original_guild_cut}%) exceeded 100%. The guild cut has been adjusted to {guild}%.", use_followup=use_followup, ephemeral=True)
+            warning_message = f"⚠️ Note: User percentages ({total_percentage}%) and the specified guild cut ({original_guild_cut}%) do not sum to 100%. The guild cut will be adjusted to be the remainder."
+            await send_response(interaction, warning_message, use_followup=use_followup, ephemeral=True)
 
         # Convert total sand to melange
         total_melange, remaining_sand = await convert_sand_to_melange(total_sand)
