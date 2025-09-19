@@ -223,7 +223,10 @@ class TestSplitCommand:
             assert mock_interaction.followup.send.called, "Split command with user_cut and guild cut did not send a followup response"
             # The first call should be the warning
             first_call_kwargs = mock_interaction.followup.send.call_args_list[0].kwargs
-            assert f"Your specified guild cut of {non_default_guild_cut}% will be ignored" in first_call_kwargs.get('content', '')
+            expected_total_user_cut = 20 * 2
+            expected_user_sum = 100 - non_default_guild_cut
+            expected_warning = f"User cut percentages added up to {expected_total_user_cut}%, not the expected {expected_user_sum}%"
+            assert expected_warning in first_call_kwargs.get('content', '')
 
     @pytest.mark.asyncio
     async def test_commands_with_invalid_inputs(self, mock_interaction, test_database):
