@@ -19,7 +19,7 @@ import re
 import traceback
 import discord
 from utils.base_command import command
-from utils.helpers import get_database, convert_sand_to_melange, send_response
+from utils.helpers import get_database, convert_sand_to_melange, send_response, get_sand_per_melange_with_bonus
 from utils.logger import logger
 
 
@@ -98,7 +98,6 @@ async def split(interaction, command_start, total_sand: int, users: str, guild: 
 
         # Convert total sand to melange
         total_melange, remaining_sand = await convert_sand_to_melange(total_sand)
-        from utils.helpers import get_sand_per_melange_with_bonus
         conversion_rate = await get_sand_per_melange_with_bonus()
 
         # Calculate user melange distributions
