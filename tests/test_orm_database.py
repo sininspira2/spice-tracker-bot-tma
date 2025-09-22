@@ -28,8 +28,8 @@ class TestORMDatabase:
         assert user is not None
         assert user['user_id'] == user_id
         assert user['username'] == username
-        assert user['total_melange'] == 0.0
-        assert user['paid_melange'] == 0.0
+        assert user['total_melange'] == 0
+        assert user['paid_melange'] == 0
 
     @pytest.mark.asyncio
     async def test_deposit_operations(self, test_database):
@@ -55,7 +55,7 @@ class TestORMDatabase:
         """Test melange operations."""
         user_id = "123456789"
         username = "TestUser"
-        melange_amount = 10.5
+        melange_amount = 10
 
         # Ensure user exists
         await test_database.upsert_user(user_id, username)
@@ -70,7 +70,7 @@ class TestORMDatabase:
         # Test get_user_pending_melange
         pending = await test_database.get_user_pending_melange(user_id)
         assert pending['total_melange'] == melange_amount
-        assert pending['paid_melange'] == 0.0
+        assert pending['paid_melange'] == 0
         assert pending['pending_melange'] == melange_amount
 
     @pytest.mark.asyncio
@@ -108,14 +108,14 @@ class TestORMDatabase:
     async def test_guild_treasury_operations(self, test_database):
         """Test guild treasury operations."""
         sand_amount = 10000
-        melange_amount = 200.5
+        melange_amount = 200
 
         # Test get_guild_treasury (should create initial record)
         treasury = await test_database.get_guild_treasury()
         assert treasury['total_sand'] == 0
-        assert treasury['total_melange'] == 0.0
+        assert treasury['total_melange'] == 0
 
-        # Test update_guild_treasury
+        # Test update_guild_treasry
         await test_database.update_guild_treasury(sand_amount, melange_amount)
 
         # Verify update
@@ -128,9 +128,9 @@ class TestORMDatabase:
         """Test leaderboard operations."""
         # Create multiple users with different melange amounts
         users_data = [
-            ("user1", "UserOne", 100.0),
-            ("user2", "UserTwo", 50.0),
-            ("user3", "UserThree", 75.0)
+            ("user1", "UserOne", 100),
+            ("user2", "UserTwo", 50),
+            ("user3", "UserThree", 75)
         ]
 
         for user_id, username, melange in users_data:
@@ -142,9 +142,9 @@ class TestORMDatabase:
         assert len(leaderboard) == 3
 
         # Should be sorted by melange amount descending
-        assert leaderboard[0]['total_melange'] == 100.0
-        assert leaderboard[1]['total_melange'] == 75.0
-        assert leaderboard[2]['total_melange'] == 50.0
+        assert leaderboard[0]['total_melange'] == 100
+        assert leaderboard[1]['total_melange'] == 75
+        assert leaderboard[2]['total_melange'] == 50
 
     @pytest.mark.asyncio
     async def test_database_cleanup(self, test_database):
@@ -180,12 +180,12 @@ class TestORMDatabase:
 
         # Ensure user exists
         await test_database.upsert_user(user_id, username)
-        await test_database.update_user_melange(user_id, 25.0)
+        await test_database.update_user_melange(user_id, 25)
 
         # Test get_user_stats
         stats = await test_database.get_user_stats(user_id)
         assert stats is not None
-        assert stats['total_melange'] == 25.0
+        assert stats['total_melange'] == 25
         assert 'timing' in stats
 
     @pytest.mark.asyncio
@@ -215,7 +215,7 @@ class TestPaginatedDepositOperations:
         username = "PaginationUser"
         await test_database.upsert_user(user_id, username)
         for i in range(25):
-            await test_database.add_deposit(user_id, username, 100 + i, melange_amount=2.0, conversion_rate=50.0)
+            await test_database.add_deposit(user_id, username, 100 + i, melange_amount=2, conversion_rate=50.0)
         return user_id
 
     @pytest.mark.asyncio
