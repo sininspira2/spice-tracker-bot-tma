@@ -62,9 +62,9 @@ async def on_ready():
             db_init_time = time.time() - db_init_start
             logger.bot_event("Database connection verified", db_init_time=f"{db_init_time:.3f}s")
 
-            # Initialize landsraad bonus status cache
-            from utils.helpers import initialize_bonus_status
-            await initialize_bonus_status()
+            # Initialize global settings cache
+            from utils.helpers import initialize_global_settings
+            await initialize_global_settings()
 
         except Exception as error:
             db_init_time = time.time() - db_init_start
@@ -191,10 +191,10 @@ def register_commands():
     @app_commands.describe(
         total_sand="Total spice sand to split and convert",
         users="Users to include in the split (e.g., '@user1 @user2')",
-        guild="Guild cut percentage (default: 10)",
-        user_cut="Optional: Assign a uniform percentage to all users (e.g., 20 for 20%)"
+        guild="Guild cut percentage (overrides global default).",
+        user_cut="Optional: Assign a uniform percentage to all users (overrides global default)."
     )
-    async def split_cmd(interaction: discord.Interaction, total_sand: int, users: str, guild: int = 10, user_cut: int = None):  # noqa: F841
+    async def split_cmd(interaction: discord.Interaction, total_sand: int, users: str, guild: Optional[int] = None, user_cut: Optional[int] = None):  # noqa: F841
         await split(interaction, total_sand, users, guild, user_cut)
 
     # Help command
