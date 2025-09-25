@@ -996,13 +996,16 @@ class Database:
                     setting_value=setting_value,
                     description=description
                 )
+                update_data = {
+                    'setting_value': stmt.excluded.setting_value,
+                    'last_updated': datetime.utcnow()
+                }
+                if description is not None:
+                    update_data['description'] = stmt.excluded.description
+
                 stmt = stmt.on_conflict_do_update(
                     index_elements=['setting_key'],
-                    set_=dict(
-                        setting_value=stmt.excluded.setting_value,
-                        description=stmt.excluded.description,
-                        last_updated=datetime.utcnow()
-                    )
+                    set_=update_data
                 )
                 await session.execute(stmt)
             await self._log_operation("upsert", "global_settings", start_time, success=True, key=setting_key)

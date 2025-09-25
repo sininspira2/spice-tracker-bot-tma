@@ -199,7 +199,7 @@ class Settings(app_commands.Group):
         else:
             # Set new value
             try:
-                setting_value = str(value) if value != 0 else "10"
+                setting_value = str(value) if value != 0 else ""
                 await db.set_global_setting('guild_cut', setting_value, 'Default guild cut for /split command')
                 update_guild_cut(value)
 

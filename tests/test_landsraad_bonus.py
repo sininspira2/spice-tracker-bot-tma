@@ -32,6 +32,22 @@ class TestLandsraadBonus:
             assert remaining == 25
 
     @pytest.mark.asyncio
+    async def test_convert_sand_to_melange_exact_conversion(self):
+        """Test exact conversion with landsraad bonus rate."""
+        with patch('utils.helpers.get_sand_per_melange_with_bonus', return_value=37.5):
+            melange, remaining = await convert_sand_to_melange(75)  # 2 * 37.5
+            assert melange == 2
+            assert remaining == 0
+
+    @pytest.mark.asyncio
+    async def test_convert_sand_to_melange_small_amount(self):
+        """Test conversion with amount less than conversion rate."""
+        with patch('utils.helpers.get_sand_per_melange_with_bonus', return_value=37.5):
+            melange, remaining = await convert_sand_to_melange(30)
+            assert melange == 0
+            assert remaining == 30
+
+    @pytest.mark.asyncio
     async def test_get_sand_per_melange_with_bonus_active(self):
         """Test getting conversion rate when landsraad bonus is active."""
         with patch('utils.helpers.is_landsraad_bonus_active', return_value=True):
@@ -50,7 +66,7 @@ class TestLandsraadBonus:
         """Test fallback to False when database error occurs during initialization."""
         with patch('utils.helpers.get_database') as mock_get_db:
             mock_db = AsyncMock()
-            mock_db.get_global_setting.side_effect = Exception("Database error")
+            mock_db.get_all_global_settings.side_effect = Exception("Database error")
             mock_get_db.return_value = mock_db
 
             await initialize_global_settings()
@@ -61,7 +77,7 @@ class TestLandsraadBonus:
         """Test handling when database returns None during initialization."""
         with patch('utils.helpers.get_database') as mock_get_db:
             mock_db = AsyncMock()
-            mock_db.get_global_setting.return_value = None
+            mock_db.get_all_global_settings.return_value = {}
             mock_get_db.return_value = mock_db
 
             await initialize_global_settings()
