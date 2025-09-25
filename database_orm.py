@@ -920,55 +920,6 @@ class Database:
         """Get all unpaid deposits across all users"""
         raise NotImplementedError("Method needs to be implemented")
 
-    async def get_landsraad_bonus_status(self) -> bool:
-        """Get the current landsraad bonus status"""
-        start_time = time.time()
-        async with self._get_session() as session:
-            try:
-                result = await session.execute(
-                    select(GlobalSetting.setting_value)
-                    .where(GlobalSetting.setting_key == 'landsraad_bonus_active')
-                )
-                setting = result.scalar_one_or_none()
-
-                await self._log_operation("select", "global_settings", start_time, success=True,
-                                        result_count=1)
-                return setting and setting.lower() == 'true'
-            except Exception as e:
-                await self._log_operation("select", "global_settings", start_time, success=False,
-                                        error=str(e))
-                # Default to False if there's an error
-                return False
-
-    async def set_landsraad_bonus_status(self, active: bool) -> bool:
-        """Set the landsraad bonus status"""
-        start_time = time.time()
-        try:
-            async with self.transaction() as session:
-                insert_func = sqlite_insert if self.is_sqlite else pg_insert
-
-                stmt = insert_func(GlobalSetting).values(
-                    setting_key='landsraad_bonus_active',
-                    setting_value=str(active).lower(),
-                    description='Whether the landsraad bonus is active (37.5 sand = 1 melange instead of 50)'
-                )
-                stmt = stmt.on_conflict_do_update(
-                    index_elements=['setting_key'],
-                    set_=dict(
-                        setting_value=stmt.excluded.setting_value,
-                        last_updated=datetime.utcnow()
-                    )
-                )
-                await session.execute(stmt)
-
-            await self._log_operation("upsert", "global_settings", start_time, success=True,
-                                    result_count=1)
-            return True
-        except Exception as e:
-            await self._log_operation("upsert", "global_settings", start_time, success=False,
-                                    error=str(e))
-            raise e
-
     async def get_global_setting(self, setting_key: str) -> Optional[str]:
         """Get a global setting value by key."""
         start_time = time.time()
