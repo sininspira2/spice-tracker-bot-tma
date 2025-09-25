@@ -33,8 +33,8 @@ class User(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
     username: Mapped[str] = mapped_column(String(100), nullable=False)
-    total_melange: Mapped[float] = mapped_column(Float, default=0.0)
-    paid_melange: Mapped[float] = mapped_column(Float, default=0.0)
+    total_melange: Mapped[int] = mapped_column(Integer, default=0)
+    paid_melange: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.utcnow())
     last_updated: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.utcnow(), onupdate=lambda: datetime.utcnow())
 
@@ -60,7 +60,7 @@ class Deposit(Base):
     sand_amount: Mapped[int] = mapped_column(Integer, nullable=False)
     type: Mapped[str] = mapped_column(String(20), default="solo")
     expedition_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("expeditions.id"))
-    melange_amount: Mapped[Optional[float]] = mapped_column(Float)
+    melange_amount: Mapped[Optional[int]] = mapped_column(Integer)
     conversion_rate: Mapped[Optional[float]] = mapped_column(Float)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.utcnow())
 
@@ -123,7 +123,7 @@ class GuildTreasury(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     total_sand: Mapped[int] = mapped_column(Integer, default=0)
-    total_melange: Mapped[float] = mapped_column(Float, default=0.0)
+    total_melange: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.utcnow())
     last_updated: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.utcnow(), onupdate=lambda: datetime.utcnow())
 
@@ -381,7 +381,7 @@ class Database:
             await self._log_operation("upsert", "users", start_time, success=False, user_id=user_id, username=username, error=str(e))
             raise e
 
-    async def add_deposit(self, user_id: str, username: str, sand_amount: int, deposit_type: str = 'solo', expedition_id: Optional[int] = None, melange_amount: Optional[float] = None, conversion_rate: Optional[float] = None):
+    async def add_deposit(self, user_id: str, username: str, sand_amount: int, deposit_type: str = 'solo', expedition_id: Optional[int] = None, melange_amount: Optional[int] = None, conversion_rate: Optional[float] = None):
         """Add a new sand deposit for a user"""
         start_time = time.time()
         try:
@@ -498,7 +498,7 @@ class Database:
             await self._log_operation("select", "guild_treasury", start_time, success=False, error=str(e))
             raise e
 
-    async def update_guild_treasury(self, sand_amount: int, melange_amount: float = 0):
+    async def update_guild_treasury(self, sand_amount: int, melange_amount: int = 0):
         """Add sand and melange to guild treasury"""
         start_time = time.time()
         try:
@@ -531,7 +531,7 @@ class Database:
     # Add other methods as needed...
     # For brevity, I'll add a few more key methods
 
-    async def update_user_melange(self, user_id: str, melange_amount: float):
+    async def update_user_melange(self, user_id: str, melange_amount: int):
         """Update user melange amount"""
         start_time = time.time()
         try:
@@ -643,7 +643,7 @@ class Database:
                                         user_id=user_id, error=str(e))
                 raise e
 
-    async def get_user_pending_melange(self, user_id: str) -> Dict[str, float]:
+    async def get_user_pending_melange(self, user_id: str) -> Dict[str, int]:
         """Get pending melange amount for a user"""
         start_time = time.time()
         async with self._get_session() as session:
@@ -656,7 +656,7 @@ class Database:
                         'pending_melange': user['total_melange'] - user['paid_melange']
                     }
                 else:
-                    result = {'total_melange': 0.0, 'paid_melange': 0.0, 'pending_melange': 0.0}
+                    result = {'total_melange': 0, 'paid_melange': 0, 'pending_melange': 0}
 
                 await self._log_operation("select", "users", start_time, success=True,
                                         user_id=user_id, pending_melange=result['pending_melange'])
@@ -809,7 +809,7 @@ class Database:
         """Get expedition deposits for a specific user"""
         raise NotImplementedError("Method needs to be implemented")
 
-    async def pay_user_melange(self, user_id: str, username: str, melange_amount: float,
+    async def pay_user_melange(self, user_id: str, username: str, melange_amount: int,
                              admin_user_id: Optional[str] = None, admin_username: Optional[str] = None):
         """Pay melange to a user and record the payment"""
         start_time = time.time()
