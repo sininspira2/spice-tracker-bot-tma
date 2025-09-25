@@ -1011,6 +1011,21 @@ class Database:
             await self._log_operation("upsert", "global_settings", start_time, success=False, key=setting_key, error=str(e))
             raise e
 
+    async def get_all_global_settings(self) -> Dict[str, str]:
+        """Get all global settings as a dictionary."""
+        start_time = time.time()
+        async with self._get_session() as session:
+            try:
+                result = await session.execute(
+                    select(GlobalSetting.setting_key, GlobalSetting.setting_value)
+                )
+                settings = {key: value for key, value in result}
+                await self._log_operation("select_all", "global_settings", start_time, success=True, count=len(settings))
+                return settings
+            except Exception as e:
+                await self._log_operation("select_all", "global_settings", start_time, success=False, error=str(e))
+                return {}
+
     async def add_guild_transaction(self, transaction_type: str, sand_amount: int, melange_amount: int,
                                   expedition_id: Optional[int], admin_user_id: str, admin_username: str,
                                   target_user_id: Optional[str] = None, target_username: Optional[str] = None,

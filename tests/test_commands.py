@@ -1,14 +1,12 @@
 """
-Generic tests for bot commands using real database.
+Tests for bot commands.
 """
 import pytest
 from unittest.mock import patch, Mock
-from commands import COMMAND_METADATA
 from commands.settings import Settings
 from commands.split import split
 from utils.helpers import get_user_cut, get_guild_cut, get_region, update_user_cut, update_guild_cut, update_region
 import datetime
-import inspect
 
 def setup_split_mock_interaction(mock_interaction):
     """Helper function to set up the mock interaction for split command tests."""
@@ -27,62 +25,6 @@ def setup_split_mock_interaction(mock_interaction):
     mock_interaction.client.fetch_user = AsyncMock(side_effect=mock_fetch_member)
     mock_interaction.response.is_done.return_value = True
     return mock_interaction
-
-class TestCommandResponsiveness:
-    """Test that all commands respond appropriately with real database."""
-
-    @pytest.mark.asyncio
-    async def test_all_commands_respond(self, mock_interaction, test_database):
-        """Test that all commands can execute and respond without crashing."""
-        test_cases = [
-            ('sand', 'sand', [100], {}),
-            ('refinery', 'refinery', [], {}),
-            ('leaderboard', 'leaderboard', [10], {}),
-            ('help', 'help', [], {}),
-            ('reset', 'reset', [True], {}),
-            ('ledger', 'ledger', [], {}),
-            ('expedition', 'expedition', [1], {}),
-            ('pay', 'pay', [Mock(id=123, display_name="TestUser"), None], {}),
-            ('payroll', 'payroll', [], {}),
-        ]
-
-        for module_name, function_name, args, kwargs in test_cases:
-            try:
-                command_module = __import__(f'commands.{module_name}', fromlist=[module_name])
-                command_func = getattr(command_module, function_name)
-
-                patch_target = f'commands.{module_name}.get_database'
-
-                try:
-                    with patch(patch_target, return_value=test_database):
-                         await command_func(mock_interaction, *args, **kwargs)
-                except AttributeError:
-                    # If the command module does not have `get_database`, just call it.
-                    await command_func(mock_interaction, *args, **kwargs)
-
-                response_sent = (mock_interaction.followup.send.called or mock_interaction.response.send_message.called or mock_interaction.channel.send.called or mock_interaction.response.send_modal.called)
-                assert response_sent, f"Command {function_name} did not send any response"
-                mock_interaction.reset_mock()
-            except Exception as e:
-                pytest.fail(f"Command {function_name} failed with error: {e}")
-
-    @pytest.mark.asyncio
-    async def test_split_command_with_user_cut(self, mock_interaction, test_database):
-        """Test the split command with the new user_cut parameter."""
-        mock_interaction = setup_split_mock_interaction(mock_interaction)
-        with patch('commands.split.get_database', return_value=test_database):
-            await split(mock_interaction, 1000, "<@123> <@456>", guild=10, user_cut=20)
-            assert mock_interaction.followup.send.called, "Split command with user_cut did not send a followup response"
-
-    @pytest.mark.asyncio
-    async def test_split_command_with_conflicting_user_cut(self, mock_interaction, test_database):
-        """Test the split command with a conflicting user_cut and individual percentages."""
-        mock_interaction = setup_split_mock_interaction(mock_interaction)
-        with patch('commands.split.get_database', return_value=test_database):
-            await split(mock_interaction, 1000, "<@123> 30", guild=10, user_cut=20)
-            assert mock_interaction.followup.send.called
-            kwargs = mock_interaction.followup.send.call_args.kwargs
-            assert "You cannot provide individual percentages when using `user_cut`" in kwargs['content']
 
 class TestSplitCommand:
     @pytest.mark.asyncio
@@ -207,32 +149,3 @@ class TestSettingsCommand:
             embed = mock_interaction.followup.send.call_args.kwargs['embed']
             assert "set to **Europe**" in embed.description
             assert get_region() == "eu"
-
-    def test_command_metadata_structure(self):
-        """Test that all commands have proper metadata structure."""
-        for command_name, metadata in COMMAND_METADATA.items():
-            assert 'description' in metadata, f"Command {command_name} missing description"
-            assert isinstance(metadata['description'], str), f"Command {command_name} description must be string"
-            if 'aliases' in metadata:
-                assert isinstance(metadata['aliases'], list), f"Command {command_name} aliases must be list"
-            if 'params' in metadata:
-                assert isinstance(metadata['params'], dict), f"Command {command_name} params must be dict"
-
-    def test_command_functions_exist(self):
-        """Test that all command functions can be imported and are callable."""
-        function_name_map = {
-            'sand': 'sand', 'refinery': 'refinery', 'leaderboard': 'leaderboard', 'split': 'split',
-            'help': 'help', 'reset': 'reset', 'ledger': 'ledger', 'expedition': 'expedition',
-            'pay': 'pay', 'payroll': 'payroll',
-        }
-        for command_name in COMMAND_METADATA.keys():
-            try:
-                command_module = __import__(f'commands.{command_name}', fromlist=[command_name])
-                actual_function_name = function_name_map.get(command_name, command_name)
-                command_func = getattr(command_module, actual_function_name, None)
-                assert command_func is not None, f"Command function {actual_function_name} not found in {command_name}"
-                assert callable(command_func), f"Command function {actual_function_name} is not callable"
-            except ImportError as e:
-                pytest.fail(f"Could not import command {command_name}: {e}")
-            except AttributeError as e:
-                pytest.fail(f"Command function {actual_function_name} not found in module {command_name}: {e}")

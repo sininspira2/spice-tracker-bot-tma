@@ -36,14 +36,15 @@ async def initialize_global_settings():
     logger.info("Initializing global settings from database...")
     try:
         db = get_database()
+        settings = await db.get_all_global_settings()
 
         # Landsraad Bonus
-        landsraad_status_str = await db.get_global_setting('landsraad_bonus_active')
+        landsraad_status_str = settings.get('landsraad_bonus_active')
         _landsraad_bonus_active = landsraad_status_str is not None and landsraad_status_str.lower() == 'true'
         logger.info(f"Initial Landsraad bonus status loaded: {_landsraad_bonus_active}")
 
         # User Cut
-        user_cut_val = await db.get_global_setting('user_cut')
+        user_cut_val = settings.get('user_cut')
         if user_cut_val and user_cut_val.isdigit() and int(user_cut_val) != 0:
             _user_cut = int(user_cut_val)
         else:
@@ -51,7 +52,7 @@ async def initialize_global_settings():
         logger.info(f"Initial user_cut loaded: {_user_cut}")
 
         # Guild Cut
-        guild_cut_val = await db.get_global_setting('guild_cut')
+        guild_cut_val = settings.get('guild_cut')
         if guild_cut_val and guild_cut_val.isdigit() and int(guild_cut_val) != 0:
             _guild_cut = int(guild_cut_val)
         else:
@@ -59,7 +60,7 @@ async def initialize_global_settings():
         logger.info(f"Initial guild_cut loaded: {_guild_cut}")
 
         # Region
-        region_val = await db.get_global_setting('region')
+        region_val = settings.get('region')
         _region = region_val if region_val else None
         logger.info(f"Initial region loaded: {_region}")
 
