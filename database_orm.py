@@ -969,6 +969,66 @@ class Database:
                                     error=str(e))
             raise e
 
+    async def get_global_setting(self, setting_key: str) -> Optional[str]:
+        """Get a global setting value by key."""
+        start_time = time.time()
+        async with self._get_session() as session:
+            try:
+                result = await session.execute(
+                    select(GlobalSetting.setting_value)
+                    .where(GlobalSetting.setting_key == setting_key)
+                )
+                setting = result.scalar_one_or_none()
+                await self._log_operation("select", "global_settings", start_time, success=True, key=setting_key)
+                return setting
+            except Exception as e:
+                await self._log_operation("select", "global_settings", start_time, success=False, key=setting_key, error=str(e))
+                return None
+
+    async def set_global_setting(self, setting_key: str, setting_value: str, description: Optional[str] = None):
+        """Set a global setting."""
+        start_time = time.time()
+        try:
+            async with self.transaction() as session:
+                insert_func = sqlite_insert if self.is_sqlite else pg_insert
+                stmt = insert_func(GlobalSetting).values(
+                    setting_key=setting_key,
+                    setting_value=setting_value,
+                    description=description
+                )
+                update_data = {
+                    'setting_value': stmt.excluded.setting_value,
+                    'last_updated': datetime.utcnow()
+                }
+                if description is not None:
+                    update_data['description'] = description
+
+                stmt = stmt.on_conflict_do_update(
+                    index_elements=['setting_key'],
+                    set_=update_data
+                )
+                await session.execute(stmt)
+            await self._log_operation("upsert", "global_settings", start_time, success=True, key=setting_key)
+            return True
+        except Exception as e:
+            await self._log_operation("upsert", "global_settings", start_time, success=False, key=setting_key, error=str(e))
+            raise e
+
+    async def get_all_global_settings(self) -> Dict[str, str]:
+        """Get all global settings as a dictionary."""
+        start_time = time.time()
+        async with self._get_session() as session:
+            try:
+                result = await session.execute(
+                    select(GlobalSetting.setting_key, GlobalSetting.setting_value)
+                )
+                settings = {key: value for key, value in result}
+                await self._log_operation("select_all", "global_settings", start_time, success=True, count=len(settings))
+                return settings
+            except Exception as e:
+                await self._log_operation("select_all", "global_settings", start_time, success=False, error=str(e))
+                return {}
+
     async def add_guild_transaction(self, transaction_type: str, sand_amount: int, melange_amount: int,
                                   expedition_id: Optional[int], admin_user_id: str, admin_username: str,
                                   target_user_id: Optional[str] = None, target_username: Optional[str] = None,
