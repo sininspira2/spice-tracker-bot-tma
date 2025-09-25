@@ -10,7 +10,14 @@ from typing import Literal
 from utils.database_utils import timed_database_operation
 from utils.embed_utils import build_status_embed
 from utils.command_utils import log_command_metrics
-from utils.helpers import get_database, get_sand_per_melange_with_bonus, send_response as original_send_response, update_landsraad_bonus_status
+from utils.helpers import (
+    get_database, get_sand_per_melange_with_bonus,
+    send_response as original_send_response,
+    update_landsraad_bonus_status,
+    update_user_cut, get_user_cut,
+    update_guild_cut, get_guild_cut,
+    update_region, get_region
+)
 from utils.logger import logger
 from utils.permissions import check_permission
 
@@ -42,11 +49,15 @@ class Settings(app_commands.Group):
             return
 
         try:
+            db = get_database()
             if action == 'status':
-                is_active, get_status_time = await timed_database_operation(
-                    "get_landsraad_bonus_status",
-                    get_database().get_landsraad_bonus_status
+                landsraad_status_str, get_status_time = await timed_database_operation(
+                    "get_global_setting",
+                    db.get_global_setting,
+                    'landsraad_bonus_active'
                 )
+                is_active = landsraad_status_str and landsraad_status_str.lower() == 'true'
+
                 conversion_rate = await get_sand_per_melange_with_bonus()
                 status_text = "🟢 **ACTIVE**" if is_active else "🔴 **INACTIVE**"
                 rate_text = f"{conversion_rate} sand = 1 melange"
@@ -83,9 +94,11 @@ class Settings(app_commands.Group):
 
                 new_status = action == 'enable'
                 _, set_status_time = await timed_database_operation(
-                    "set_landsraad_bonus_status",
-                    get_database().set_landsraad_bonus_status,
-                    new_status
+                    "set_global_setting",
+                    db.set_global_setting,
+                    'landsraad_bonus_active',
+                    str(new_status).lower(),
+                    'Whether the landsraad bonus is active (37.5 sand = 1 melange instead of 50)'
                 )
                 update_landsraad_bonus_status(new_status)
                 conversion_rate = await get_sand_per_melange_with_bonus()
@@ -118,3 +131,145 @@ class Settings(app_commands.Group):
                         action=action,
                         total_time=f"{time.time() - command_start:.3f}s")
             await self.send_response(interaction, f"❌ An error occurred while managing landsraad bonus: {error}", ephemeral=True)
+
+    @app_commands.command(name="user_cut", description="Set or view the default user cut percentage for /split.")
+    @app_commands.describe(value="The default percentage for each user in a split (0 to unset).")
+    async def user_cut(self, interaction: discord.Interaction, value: app_commands.Range[int, 0, 100] = None):
+        """Set or view the default user cut for /split."""
+        command_start = time.time()
+        await interaction.response.defer(ephemeral=True)
+
+        if not check_permission(interaction, 'admin_or_officer'):
+            await self.send_response(interaction, "❌ You do not have permission to use this command.", ephemeral=True)
+            return
+
+        db = get_database()
+
+        if value is None:
+            # View current setting
+            current_value = get_user_cut()
+            status_text = f"{current_value}%" if current_value is not None else "Not set (optional in /split)"
+            embed = build_status_embed(
+                title="⚙️ Default User Cut",
+                description=f"Current default user cut is **{status_text}**.",
+                color=0x3498DB
+            )
+            await self.send_response(interaction, embed=embed.build())
+        else:
+            # Set new value
+            try:
+                setting_value = str(value) if value != 0 else ""
+                await db.set_global_setting('user_cut', setting_value, 'Default user cut for /split command')
+                update_user_cut(value)
+
+                status_text = f"{value}%" if value != 0 else "Unset"
+                embed = build_status_embed(
+                    title="✅ Default User Cut Updated",
+                    description=f"Default user cut has been set to **{status_text}**.",
+                    color=0x00FF00
+                )
+                await self.send_response(interaction, embed=embed.build())
+                log_command_metrics("Settings UserCut", str(interaction.user.id), interaction.user.display_name, time.time() - command_start, new_value=value)
+            except Exception as e:
+                logger.error(f"Error setting user_cut: {e}", user_id=str(interaction.user.id))
+                await self.send_response(interaction, f"❌ An error occurred: {e}", ephemeral=True)
+
+    @app_commands.command(name="guild_cut", description="Set or view the default guild cut percentage for /split.")
+    @app_commands.describe(value="The default percentage for the guild in a split (0 for default 10%).")
+    async def guild_cut(self, interaction: discord.Interaction, value: app_commands.Range[int, 0, 100] = None):
+        """Set or view the default guild cut for /split."""
+        command_start = time.time()
+        await interaction.response.defer(ephemeral=True)
+
+        if not check_permission(interaction, 'admin_or_officer'):
+            await self.send_response(interaction, "❌ You do not have permission to use this command.", ephemeral=True)
+            return
+
+        db = get_database()
+
+        if value is None:
+            # View current setting
+            current_value = get_guild_cut()
+            embed = build_status_embed(
+                title="⚙️ Default Guild Cut",
+                description=f"Current default guild cut is **{current_value}%**.",
+                color=0x3498DB
+            )
+            await self.send_response(interaction, embed=embed.build())
+        else:
+            # Set new value
+            try:
+                setting_value = str(value) if value != 0 else ""
+                await db.set_global_setting('guild_cut', setting_value, 'Default guild cut for /split command')
+                update_guild_cut(value)
+
+                new_val_display = value if value != 0 else 10
+                description = f"Default guild cut has been set to **{new_val_display}%**."
+                fields = None
+                if value == 0:
+                    fields = {"ℹ️ Note": "A value of 0 unsets the global default, reverting to the bot's default of 10%."}
+
+                embed = build_status_embed(
+                    title="✅ Default Guild Cut Updated",
+                    description=description,
+                    color=0x00FF00,
+                    fields=fields
+                )
+                await self.send_response(interaction, embed=embed.build())
+                log_command_metrics("Settings GuildCut", str(interaction.user.id), interaction.user.display_name, time.time() - command_start, new_value=new_val_display)
+            except Exception as e:
+                logger.error(f"Error setting guild_cut: {e}", user_id=str(interaction.user.id))
+                await self.send_response(interaction, f"❌ An error occurred: {e}", ephemeral=True)
+
+    @app_commands.command(name="region", description="Set or view the guild's primary region.")
+    @app_commands.describe(region="The primary operational region.")
+    @app_commands.choices(region=[
+        app_commands.Choice(name="North America", value="na"),
+        app_commands.Choice(name="Europe", value="eu"),
+        app_commands.Choice(name="South America", value="sa"),
+        app_commands.Choice(name="Asia", value="as"),
+        app_commands.Choice(name="Oceania", value="oc"),
+    ])
+    async def region(self, interaction: discord.Interaction, region: app_commands.Choice[str] = None):
+        """Set or view the guild's region."""
+        command_start = time.time()
+        await interaction.response.defer(ephemeral=True)
+
+        if not check_permission(interaction, 'admin_or_officer'):
+            await self.send_response(interaction, "❌ You do not have permission to use this command.", ephemeral=True)
+            return
+
+        db = get_database()
+
+        # Mapping for display
+        region_map = {
+            "na": "North America", "eu": "Europe", "sa": "South America",
+            "as": "Asia", "oc": "Oceania"
+        }
+
+        if region is None:
+            # View current setting
+            current_value_code = get_region()
+            current_value_name = region_map.get(current_value_code, "Not set")
+            embed = build_status_embed(
+                title="🌍 Guild Region",
+                description=f"Current guild region is **{current_value_name}**.",
+                color=0x3498DB
+            )
+            await self.send_response(interaction, embed=embed.build())
+        else:
+            # Set new value
+            try:
+                await db.set_global_setting('region', region.value, 'Primary guild region')
+                update_region(region.value)
+
+                embed = build_status_embed(
+                    title="✅ Guild Region Updated",
+                    description=f"Guild region has been set to **{region.name}**.",
+                    color=0x00FF00
+                )
+                await self.send_response(interaction, embed=embed.build())
+                log_command_metrics("Settings Region", str(interaction.user.id), interaction.user.display_name, time.time() - command_start, new_value=region.value)
+            except Exception as e:
+                logger.error(f"Error setting region: {e}", user_id=str(interaction.user.id))
+                await self.send_response(interaction, f"❌ An error occurred: {e}", ephemeral=True)
