@@ -204,10 +204,16 @@ class Settings(app_commands.Group):
                 update_guild_cut(value)
 
                 new_val_display = value if value != 0 else 10
+                description = f"Default guild cut has been set to **{new_val_display}%**."
+                fields = None
+                if value == 0:
+                    fields = {"ℹ️ Note": "A value of 0 unsets the global default, reverting to the bot's default of 10%."}
+
                 embed = build_status_embed(
                     title="✅ Default Guild Cut Updated",
-                    description=f"Default guild cut has been set to **{new_val_display}%**.",
-                    color=0x00FF00
+                    description=description,
+                    color=0x00FF00,
+                    fields=fields
                 )
                 await self.send_response(interaction, embed=embed.build())
                 log_command_metrics("Settings GuildCut", str(interaction.user.id), interaction.user.display_name, time.time() - command_start, new_value=new_val_display)
