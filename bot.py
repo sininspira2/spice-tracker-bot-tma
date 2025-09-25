@@ -129,7 +129,8 @@ async def on_ready():
 # Register commands with the bot's command tree
 def register_commands():
     """Register all commands explicitly with their exact signatures"""
-    from commands import sand, refinery, leaderboard, split, help, reset, ledger, expedition, pay, payroll, treasury, guild_withdraw, pending, water, landsraad, perms, calc
+    from commands import sand, refinery, leaderboard, split, help, reset, ledger, expedition, pay, payroll, treasury, guild_withdraw, pending, water, perms, calc
+    from commands.settings import Settings
 
     # Helper to allow env-based command renaming/prefixing
     # CMD_PREFIX: optional string prefix added to every command name
@@ -262,14 +263,8 @@ def register_commands():
     async def water_cmd(interaction: discord.Interaction, destination: str = "DD base"):  # noqa: F841
         await water(interaction, destination)
 
-    # Landsraad command
-    @bot.tree.command(name=cmd_name("landsraad"), description="Manage the landsraad bonus for melange conversion")
-    @app_commands.describe(
-        action="Action to perform: 'status', 'enable', 'disable'",
-        confirm="Confirmation required for enable/disable actions"
-    )
-    async def landsraad_cmd(interaction: discord.Interaction, action: str, confirm: bool = False):  # noqa: F841
-        await landsraad(interaction, action, confirm)
+    # Settings command group
+    bot.tree.add_command(Settings(bot))
 
     # Sync command (slash command version)
     @bot.tree.command(name=cmd_name("sync"), description="Sync slash commands (Bot Owner Only)")
