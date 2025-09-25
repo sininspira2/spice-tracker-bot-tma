@@ -4,6 +4,7 @@ Settings command group for managing bot settings.
 import time
 import discord
 from discord import app_commands
+from typing import Literal
 
 # Import utility modules
 from utils.database_utils import timed_database_operation
@@ -31,18 +32,13 @@ class Settings(app_commands.Group):
         action="Action to perform: 'status', 'enable', 'disable'",
         confirm="Confirmation required for enable/disable actions"
     )
-    async def landsraad(self, interaction: discord.Interaction, action: str, confirm: bool = False):
+    async def landsraad(self, interaction: discord.Interaction, action: Literal['status', 'enable', 'disable'], confirm: bool = False):
         """Manage the landsraad bonus for melange conversion"""
         command_start = time.time()
         await interaction.response.defer(ephemeral=True)
 
         if not check_permission(interaction, 'admin_or_officer'):
             await self.send_response(interaction, "❌ You do not have permission to use this command.", ephemeral=True)
-            return
-
-        valid_actions = ['status', 'enable', 'disable']
-        if action not in valid_actions:
-            await self.send_response(interaction, f"❌ Invalid action. Use one of: {', '.join(valid_actions)}", ephemeral=True)
             return
 
         try:
