@@ -4,7 +4,7 @@ Settings command group for managing bot settings.
 import time
 import discord
 from discord import app_commands
-from typing import Literal
+from typing import Literal, Optional, Any, Callable, Dict
 
 # Import utility modules
 from utils.database_utils import timed_database_operation
@@ -132,10 +132,25 @@ class Settings(app_commands.Group):
                         total_time=f"{time.time() - command_start:.3f}s")
             await self.send_response(interaction, f"❌ An error occurred while managing landsraad bonus: {error}", ephemeral=True)
 
-    @app_commands.command(name="user_cut", description="Set or view the default user cut percentage for /split.")
-    @app_commands.describe(value="The default percentage for each user in a split (0 to unset).")
-    async def user_cut(self, interaction: discord.Interaction, value: app_commands.Range[int, 0, 100] = None):
-        """Set or view the default user cut for /split."""
+    async def _handle_setting(
+        self,
+        interaction: discord.Interaction,
+        value: Optional[Any],
+        *,
+        setting_key: str,
+        db_description: str,
+        get_func: Callable[[], Any],
+        update_func: Callable[[Any], None],
+        view_title: str,
+        view_description_formatter: Callable[[Any], str],
+        set_title: str,
+        set_description_formatter: Callable[[Any], str],
+        value_for_db: Callable[[Any], str],
+        value_for_update: Callable[[Any], Any],
+        log_name: str,
+        set_embed_fields: Optional[Callable[[Any], Optional[Dict[str, str]]]] = None,
+    ):
+        """Generic handler for viewing or setting a global setting."""
         command_start = time.time()
         await interaction.response.defer(ephemeral=True)
 
@@ -146,80 +161,76 @@ class Settings(app_commands.Group):
         db = get_database()
 
         if value is None:
-            # View current setting
-            current_value = get_user_cut()
-            status_text = f"{current_value}%" if current_value is not None else "Not set (optional in /split)"
-            embed = build_status_embed(
-                title="⚙️ Default User Cut",
-                description=f"Current default user cut is **{status_text}**.",
-                color=0x3498DB
-            )
+            # View logic
+            current_value = get_func()
+            description = view_description_formatter(current_value)
+            embed = build_status_embed(title=view_title, description=description, color=0x3498DB)
             await self.send_response(interaction, embed=embed.build())
         else:
-            # Set new value
+            # Set logic
             try:
-                setting_value = str(value) if value != 0 else ""
-                await db.set_global_setting('user_cut', setting_value, 'Default user cut for /split command')
-                update_user_cut(value)
+                db_val = value_for_db(value)
+                update_val = value_for_update(value)
 
-                status_text = f"{value}%" if value != 0 else "Unset"
+                await db.set_global_setting(setting_key, db_val, db_description)
+                update_func(update_val)
+
+                description = set_description_formatter(value)
+                fields = set_embed_fields(value) if set_embed_fields else None
                 embed = build_status_embed(
-                    title="✅ Default User Cut Updated",
-                    description=f"Default user cut has been set to **{status_text}**.",
-                    color=0x00FF00
-                )
-                await self.send_response(interaction, embed=embed.build())
-                log_command_metrics("Settings UserCut", str(interaction.user.id), interaction.user.display_name, time.time() - command_start, new_value=value)
-            except Exception as e:
-                logger.error(f"Error setting user_cut: {e}", user_id=str(interaction.user.id))
-                await self.send_response(interaction, f"❌ An error occurred: {e}", ephemeral=True)
-
-    @app_commands.command(name="guild_cut", description="Set or view the default guild cut percentage for /split.")
-    @app_commands.describe(value="The default percentage for the guild in a split (0 for default 10%).")
-    async def guild_cut(self, interaction: discord.Interaction, value: app_commands.Range[int, 0, 100] = None):
-        """Set or view the default guild cut for /split."""
-        command_start = time.time()
-        await interaction.response.defer(ephemeral=True)
-
-        if not check_permission(interaction, 'admin_or_officer'):
-            await self.send_response(interaction, "❌ You do not have permission to use this command.", ephemeral=True)
-            return
-
-        db = get_database()
-
-        if value is None:
-            # View current setting
-            current_value = get_guild_cut()
-            embed = build_status_embed(
-                title="⚙️ Default Guild Cut",
-                description=f"Current default guild cut is **{current_value}%**.",
-                color=0x3498DB
-            )
-            await self.send_response(interaction, embed=embed.build())
-        else:
-            # Set new value
-            try:
-                setting_value = str(value) if value != 0 else ""
-                await db.set_global_setting('guild_cut', setting_value, 'Default guild cut for /split command')
-                update_guild_cut(value)
-
-                new_val_display = value if value != 0 else 10
-                description = f"Default guild cut has been set to **{new_val_display}%**."
-                fields = None
-                if value == 0:
-                    fields = {"ℹ️ Note": "A value of 0 unsets the global default, reverting to the bot's default of 10%."}
-
-                embed = build_status_embed(
-                    title="✅ Default Guild Cut Updated",
+                    title=set_title,
                     description=description,
                     color=0x00FF00,
                     fields=fields
                 )
                 await self.send_response(interaction, embed=embed.build())
-                log_command_metrics("Settings GuildCut", str(interaction.user.id), interaction.user.display_name, time.time() - command_start, new_value=new_val_display)
+
+                log_command_metrics(f"Settings {log_name}", str(interaction.user.id), interaction.user.display_name, time.time() - command_start, new_value=update_val)
+
             except Exception as e:
-                logger.error(f"Error setting guild_cut: {e}", user_id=str(interaction.user.id))
+                logger.error(f"Error setting {setting_key}: {e}", user_id=str(interaction.user.id))
                 await self.send_response(interaction, f"❌ An error occurred: {e}", ephemeral=True)
+
+    @app_commands.command(name="user_cut", description="Set or view the default user cut percentage for /split.")
+    @app_commands.describe(value="The default percentage for each user in a split (0 to unset).")
+    async def user_cut(self, interaction: discord.Interaction, value: app_commands.Range[int, 0, 100] = None):
+        """Set or view the default user cut for /split."""
+        await self._handle_setting(
+            interaction,
+            value,
+            setting_key='user_cut',
+            db_description='Default user cut for /split command',
+            get_func=get_user_cut,
+            update_func=update_user_cut,
+            view_title="⚙️ Default User Cut",
+            view_description_formatter=lambda v: f"Current default user cut is **{v}%**." if v is not None else "Current default user cut is **Not set (optional in /split)**.",
+            set_title="✅ Default User Cut Updated",
+            set_description_formatter=lambda v: f"Default user cut has been set to **{'Unset' if v == 0 else f'{v}%'}**.",
+            value_for_db=lambda v: str(v) if v != 0 else "",
+            value_for_update=lambda v: v,
+            log_name="UserCut"
+        )
+
+    @app_commands.command(name="guild_cut", description="Set or view the default guild cut percentage for /split.")
+    @app_commands.describe(value="The default percentage for the guild in a split (0 for default 10%).")
+    async def guild_cut(self, interaction: discord.Interaction, value: app_commands.Range[int, 0, 100] = None):
+        """Set or view the default guild cut for /split."""
+        await self._handle_setting(
+            interaction,
+            value,
+            setting_key='guild_cut',
+            db_description='Default guild cut for /split command',
+            get_func=get_guild_cut,
+            update_func=update_guild_cut,
+            view_title="⚙️ Default Guild Cut",
+            view_description_formatter=lambda v: f"Current default guild cut is **{v}%**.",
+            set_title="✅ Default Guild Cut Updated",
+            set_description_formatter=lambda v: f"Default guild cut has been set to **{v if v != 0 else 10}%**.",
+            value_for_db=lambda v: str(v) if v != 0 else "",
+            value_for_update=lambda v: v,
+            log_name="GuildCut",
+            set_embed_fields=lambda v: {"ℹ️ Note": "A value of 0 unsets the global default, reverting to the bot's default of 10%."} if v == 0 else None
+        )
 
     @app_commands.command(name="region", description="Set or view the guild's primary region.")
     @app_commands.describe(region="The primary operational region.")
@@ -232,44 +243,22 @@ class Settings(app_commands.Group):
     ])
     async def region(self, interaction: discord.Interaction, region: app_commands.Choice[str] = None):
         """Set or view the guild's region."""
-        command_start = time.time()
-        await interaction.response.defer(ephemeral=True)
-
-        if not check_permission(interaction, 'admin_or_officer'):
-            await self.send_response(interaction, "❌ You do not have permission to use this command.", ephemeral=True)
-            return
-
-        db = get_database()
-
-        # Mapping for display
         region_map = {
             "na": "North America", "eu": "Europe", "sa": "South America",
             "as": "Asia", "oc": "Oceania"
         }
-
-        if region is None:
-            # View current setting
-            current_value_code = get_region()
-            current_value_name = region_map.get(current_value_code, "Not set")
-            embed = build_status_embed(
-                title="🌍 Guild Region",
-                description=f"Current guild region is **{current_value_name}**.",
-                color=0x3498DB
-            )
-            await self.send_response(interaction, embed=embed.build())
-        else:
-            # Set new value
-            try:
-                await db.set_global_setting('region', region.value, 'Primary guild region')
-                update_region(region.value)
-
-                embed = build_status_embed(
-                    title="✅ Guild Region Updated",
-                    description=f"Guild region has been set to **{region.name}**.",
-                    color=0x00FF00
-                )
-                await self.send_response(interaction, embed=embed.build())
-                log_command_metrics("Settings Region", str(interaction.user.id), interaction.user.display_name, time.time() - command_start, new_value=region.value)
-            except Exception as e:
-                logger.error(f"Error setting region: {e}", user_id=str(interaction.user.id))
-                await self.send_response(interaction, f"❌ An error occurred: {e}", ephemeral=True)
+        await self._handle_setting(
+            interaction,
+            region,
+            setting_key='region',
+            db_description='Primary guild region',
+            get_func=get_region,
+            update_func=update_region,
+            view_title="🌍 Guild Region",
+            view_description_formatter=lambda v: f"Current guild region is **{region_map.get(v, 'Not set')}**.",
+            set_title="✅ Guild Region Updated",
+            set_description_formatter=lambda v: f"Guild region has been set to **{v.name}**.",
+            value_for_db=lambda v: v.value,
+            value_for_update=lambda v: v.value,
+            log_name="Region"
+        )
