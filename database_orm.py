@@ -1001,7 +1001,7 @@ class Database:
                     'last_updated': datetime.utcnow()
                 }
                 if description is not None:
-                    update_data['description'] = stmt.excluded.description
+                    update_data['description'] = description
 
                 stmt = stmt.on_conflict_do_update(
                     index_elements=['setting_key'],
