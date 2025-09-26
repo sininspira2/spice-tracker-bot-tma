@@ -151,17 +151,20 @@ class TestSettingsCommand:
         with patch('commands.settings.check_permission', return_value=True), \
              patch('commands.settings.get_database', return_value=test_database):
             update_user_cut(None)
+            mock_interaction.response.is_done = Mock(return_value=True)
             await settings_command_group.user_cut.callback(settings_command_group, mock_interaction, value=None)
             embed = mock_interaction.followup.send.call_args.kwargs['embed']
             assert "Not set" in embed.description
             mock_interaction.reset_mock()
 
+            mock_interaction.response.is_done = Mock(return_value=True)
             await settings_command_group.user_cut.callback(settings_command_group, mock_interaction, value=15)
             embed = mock_interaction.followup.send.call_args.kwargs['embed']
             assert "set to **15%**" in embed.description
             assert get_user_cut() == 15
             mock_interaction.reset_mock()
 
+            mock_interaction.response.is_done = Mock(return_value=True)
             await settings_command_group.user_cut.callback(settings_command_group, mock_interaction, value=0)
             embed = mock_interaction.followup.send.call_args.kwargs['embed']
             assert "set to **Unset**" in embed.description
@@ -173,17 +176,20 @@ class TestSettingsCommand:
         with patch('commands.settings.check_permission', return_value=True), \
              patch('commands.settings.get_database', return_value=test_database):
             update_guild_cut(None)
+            mock_interaction.response.is_done = Mock(return_value=True)
             await settings_command_group.guild_cut.callback(settings_command_group, mock_interaction, value=None)
             embed = mock_interaction.followup.send.call_args.kwargs['embed']
             assert "is **10%**" in embed.description
             mock_interaction.reset_mock()
 
+            mock_interaction.response.is_done = Mock(return_value=True)
             await settings_command_group.guild_cut.callback(settings_command_group, mock_interaction, value=25)
             embed = mock_interaction.followup.send.call_args.kwargs['embed']
             assert "set to **25%**" in embed.description
             assert get_guild_cut() == 25
             mock_interaction.reset_mock()
 
+            mock_interaction.response.is_done = Mock(return_value=True)
             await settings_command_group.guild_cut.callback(settings_command_group, mock_interaction, value=0)
             embed = mock_interaction.followup.send.call_args.kwargs['embed']
             assert "set to **10%**" in embed.description
@@ -195,6 +201,7 @@ class TestSettingsCommand:
         with patch('commands.settings.check_permission', return_value=True), \
              patch('commands.settings.get_database', return_value=test_database):
             update_region(None)
+            mock_interaction.response.is_done = Mock(return_value=True)
             await settings_command_group.region.callback(settings_command_group, mock_interaction, region=None)
             embed = mock_interaction.followup.send.call_args.kwargs['embed']
             assert "is **Not set**" in embed.description
@@ -203,6 +210,7 @@ class TestSettingsCommand:
             mock_choice = Mock()
             mock_choice.name = "Europe"
             mock_choice.value = "eu"
+            mock_interaction.response.is_done = Mock(return_value=True)
             await settings_command_group.region.callback(settings_command_group, mock_interaction, region=mock_choice)
             embed = mock_interaction.followup.send.call_args.kwargs['embed']
             assert "set to **Europe**" in embed.description

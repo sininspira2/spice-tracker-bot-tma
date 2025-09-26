@@ -3,14 +3,10 @@ Tests for landsraad bonus functionality using real database.
 """
 
 import pytest
+import pytest_asyncio
 from unittest.mock import AsyncMock, patch
 from utils.helpers import convert_sand_to_melange, get_sand_per_melange_with_bonus, initialize_global_settings, is_landsraad_bonus_active, update_landsraad_bonus_status
 from database_orm import Database
-
-@pytest.fixture(autouse=True)
-async def run_before_tests():
-    """Ensure the bonus status is initialized before each test in this module."""
-    await initialize_global_settings()
 
 class TestLandsraadBonus:
     """Test landsraad bonus conversion functionality."""

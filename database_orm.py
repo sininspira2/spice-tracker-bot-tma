@@ -5,12 +5,12 @@ Supports both PostgreSQL and SQLite through DATABASE_URL configuration.
 import os
 import asyncio
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from contextlib import asynccontextmanager
 from typing import Optional, List, Dict, Any
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from sqlalchemy.pool import NullPool
+from sqlalchemy.pool import NullPool, StaticPool
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy import String, Integer, Float, Boolean, DateTime, Text, ForeignKey, select, update, delete, func, Index
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -35,8 +35,8 @@ class User(Base):
     username: Mapped[str] = mapped_column(String(100), nullable=False)
     total_melange: Mapped[int] = mapped_column(Integer, default=0)
     paid_melange: Mapped[int] = mapped_column(Integer, default=0)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.utcnow())
-    last_updated: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.utcnow(), onupdate=lambda: datetime.utcnow())
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    last_updated: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     # Relationships
     deposits: Mapped[List["Deposit"]] = relationship("Deposit", back_populates="user")
@@ -62,7 +62,7 @@ class Deposit(Base):
     expedition_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("expeditions.id"))
     melange_amount: Mapped[Optional[int]] = mapped_column(Integer)
     conversion_rate: Mapped[Optional[float]] = mapped_column(Float)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.utcnow())
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     # Relationships
     user: Mapped["User"] = relationship("User", back_populates="deposits")
@@ -86,7 +86,7 @@ class Expedition(Base):
     total_sand: Mapped[int] = mapped_column(Integer, nullable=False)
     sand_per_melange: Mapped[Optional[int]] = mapped_column(Integer)
     guild_cut_percentage: Mapped[float] = mapped_column(Float, default=10.0)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.utcnow())
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     # Relationships
     initiator: Mapped["User"] = relationship("User", foreign_keys=[initiator_id])
@@ -124,8 +124,8 @@ class GuildTreasury(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     total_sand: Mapped[int] = mapped_column(Integer, default=0)
     total_melange: Mapped[int] = mapped_column(Integer, default=0)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.utcnow())
-    last_updated: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.utcnow(), onupdate=lambda: datetime.utcnow())
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    last_updated: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     # Indices
     __table_args__ = (
@@ -147,7 +147,7 @@ class GuildTransaction(Base):
     target_user_id: Mapped[Optional[str]] = mapped_column(String(50))
     target_username: Mapped[Optional[str]] = mapped_column(String(100))
     description: Mapped[Optional[str]] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.utcnow())
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     # Indices
     __table_args__ = (
@@ -168,7 +168,7 @@ class MelangePayment(Base):
     admin_user_id: Mapped[Optional[str]] = mapped_column(String(50))
     admin_username: Mapped[Optional[str]] = mapped_column(String(100))
     description: Mapped[Optional[str]] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.utcnow())
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     # Relationships
     user: Mapped["User"] = relationship("User", back_populates="melange_payments")
@@ -188,8 +188,8 @@ class GlobalSetting(Base):
     setting_key: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
     setting_value: Mapped[str] = mapped_column(String(500), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.utcnow())
-    last_updated: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.utcnow(), onupdate=lambda: datetime.utcnow())
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    last_updated: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     # Indices
     __table_args__ = (
@@ -200,19 +200,30 @@ class GlobalSetting(Base):
 class Database:
     """Database class using SQLAlchemy ORM for transparent database abstraction."""
 
-    def __init__(self, database_url=None):
+    def __init__(self, database_url=None, for_testing=False):
         self.database_url = database_url or os.getenv('DATABASE_URL')
         if not self.database_url:
             raise ValueError("DATABASE_URL environment variable is required")
 
+        # Detect database type using URL scheme
+        from urllib.parse import urlparse
+        parsed_url = urlparse(self.database_url)
+        self.is_sqlite = parsed_url.scheme.startswith('sqlite')
+
+        engine_kwargs = {
+            "echo": False,
+            "future": True,
+        }
+
+        if for_testing and self.is_sqlite:
+            engine_kwargs["poolclass"] = StaticPool
+            engine_kwargs["connect_args"] = {"check_same_thread": False}
+        else:
+            engine_kwargs["poolclass"] = NullPool
+            engine_kwargs["pool_pre_ping"] = True
+
         # Create async engine
-        self.engine = create_async_engine(
-            self.database_url,
-            echo=False,  # Set to True for SQL debugging
-            future=True,
-            poolclass=NullPool,
-            pool_pre_ping=True,
-        )
+        self.engine = create_async_engine(self.database_url, **engine_kwargs)
 
         # Create session factory
         self.session_factory = async_sessionmaker(
@@ -359,7 +370,7 @@ class Database:
         stmt = insert_func(User).values(
             user_id=user_id,
             username=username,
-            last_updated=datetime.utcnow()
+            last_updated=datetime.now(timezone.utc)
         )
         stmt = stmt.on_conflict_do_update(
             index_elements=['user_id'],
@@ -512,7 +523,7 @@ class Database:
                 if treasury:
                     treasury.total_sand += sand_amount
                     treasury.total_melange += melange_amount
-                    treasury.last_updated = datetime.utcnow()
+                    treasury.last_updated = datetime.now(timezone.utc)
                 else:
                     treasury = GuildTreasury(
                         total_sand=sand_amount,
@@ -541,7 +552,7 @@ class Database:
                     .where(User.user_id == user_id)
                     .values(
                         total_melange=User.total_melange + melange_amount,
-                        last_updated=datetime.utcnow()
+                        last_updated=datetime.now(timezone.utc)
                     )
                 )
             await self._log_operation("update", "users", start_time, success=True,
@@ -949,7 +960,7 @@ class Database:
                 )
                 update_data = {
                     'setting_value': stmt.excluded.setting_value,
-                    'last_updated': datetime.utcnow()
+                    'last_updated': datetime.now(timezone.utc)
                 }
                 if description is not None:
                     update_data['description'] = description
