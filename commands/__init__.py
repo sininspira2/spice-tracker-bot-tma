@@ -71,7 +71,8 @@ def discover_commands():
                     metadata[module_name] = getattr(module, 'COMMAND_METADATA')
 
             except ImportError as e:
-                print(f"Warning: Could not import {module_name}: {e}")
+                from utils.logger import logger
+                logger.warning(f"Could not import {module_name}", error=e)
 
     return commands, metadata, signatures, command_groups
 
