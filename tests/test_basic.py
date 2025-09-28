@@ -52,7 +52,7 @@ class TestCommandDiscovery:
         expected_commands = {
             'sand', 'refinery', 'leaderboard',
             'split', 'help', 'reset', 'ledger', 'expedition',
-            'pay', 'payroll', 'treasury', 'guild_withdraw', 'pending', 'water', 'perms', 'calc',
+            'pay', 'payroll', 'pending', 'water', 'perms', 'calc',
             'backfill'
         }
 
