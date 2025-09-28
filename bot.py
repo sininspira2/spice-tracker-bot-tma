@@ -130,8 +130,6 @@ async def on_ready():
 def register_commands():
     """Register all commands explicitly with their exact signatures"""
     from commands import sand, refinery, leaderboard, split, help, reset, ledger, expedition, pay, payroll, pending, water, perms, calc
-    from commands.settings import Settings
-    from commands.guild import Guild
 
     # Helper to allow env-based command renaming/prefixing
     # CMD_PREFIX: optional string prefix added to every command name
@@ -250,11 +248,14 @@ def register_commands():
     async def water_cmd(interaction: discord.Interaction, destination: str = "DD base"):  # noqa: F841
         await water(interaction, destination)
 
-    # Settings command group
-    bot.tree.add_command(Settings(bot))
-
-    # Guild command group
-    bot.tree.add_command(Guild(bot))
+    # Register discovered command groups
+    from commands import COMMAND_GROUPS
+    for group_name, group_class in COMMAND_GROUPS.items():
+        try:
+            bot.tree.add_command(group_class(bot))
+            logger.info(f"Registered command group: {group_name}")
+        except Exception as e:
+            logger.error(f"Failed to register command group {group_name}: {e}")
 
     # Sync command (slash command version)
     @bot.tree.command(name=cmd_name("sync"), description="Sync slash commands (Bot Owner Only)")
