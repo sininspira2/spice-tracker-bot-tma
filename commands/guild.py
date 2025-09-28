@@ -9,7 +9,7 @@ from discord import app_commands
 from utils.database_utils import timed_database_operation
 from utils.embed_utils import build_status_embed
 from utils.command_utils import log_command_metrics
-from utils.helpers import get_database, send_response, format_melange
+from utils.helpers import get_database, format_melange
 from utils.logger import logger
 from utils.permissions import check_permission
 
