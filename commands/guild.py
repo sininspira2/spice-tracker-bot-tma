@@ -68,24 +68,18 @@ class Guild(app_commands.Group):
                     ephemeral=True)
                 return
 
-            # Perform withdrawal
-            _, withdraw_time = await timed_database_operation(
+            # Perform withdrawal and get new balance
+            new_balance, withdraw_time = await timed_database_operation(
                 "guild_withdraw",
                 db.guild_withdraw,
                 str(interaction.user.id), interaction.user.display_name,
                 str(user.id), user.display_name, amount
             )
 
-            # Get updated treasury balance
-            updated_treasury, _ = await timed_database_operation(
-                "get_guild_treasury",
-                db.get_guild_treasury
-            )
-
             # Build response embed
             fields = {
                 "💸 Transaction": f"**Recipient:** {user.display_name} | **Amount:** {format_melange(amount)} melange | **Admin:** {interaction.user.display_name}",
-                "🏛️ Treasury": f"**Previous:** {format_melange(current_melange)} | **New:** {format_melange(updated_treasury.get('total_melange', 0))} | **Available:** {format_melange(updated_treasury.get('total_melange', 0))}"
+                "🏛️ Treasury": f"**Previous:** {format_melange(current_melange)} | **New:** {format_melange(new_balance)}"
             }
 
             embed = build_status_embed(
@@ -108,8 +102,6 @@ class Guild(app_commands.Group):
                 str(interaction.user.id),
                 interaction.user.display_name,
                 total_time,
-                admin_id=str(interaction.user.id),
-                admin_username=interaction.user.display_name,
                 target_user_id=str(user.id),
                 target_username=user.display_name,
                 get_treasury_time=f"{get_treasury_time:.3f}s",
@@ -117,7 +109,7 @@ class Guild(app_commands.Group):
                 response_time=f"{response_time:.3f}s",
                 withdrawal_amount=amount,
                 previous_balance=current_melange,
-                new_balance=updated_treasury.get('total_melange', 0)
+                new_balance=new_balance
             )
 
             # Log the withdrawal for audit
@@ -159,11 +151,6 @@ class Guild(app_commands.Group):
             last_updated = treasury_data.get('last_updated')
             updated_str = last_updated.strftime('%Y-%m-%d %H:%M UTC') if last_updated else 'Never'
 
-            fields = {
-                "💎 Melange": f"**{total_melange:,}** available",
-                "📊 Updated": updated_str
-            }
-
             # Determine color based on melange (primary currency)
             if total_melange >= 200:
                 color = 0xFFD700  # Gold - very wealthy
@@ -175,10 +162,12 @@ class Guild(app_commands.Group):
                 color = 0xFF4500  # Red - low funds
 
             embed = build_status_embed(
-                title="🏛️ Treasury",
-                description=f"💎 **{total_melange:,} melange** in treasury",
+                title="🏛️ Guild Treasury",
+                description=f"The guild treasury currently holds **{total_melange:,} melange**.",
                 color=color,
-                fields=fields,
+                fields={
+                    "📊 Last Updated": updated_str
+                },
                 timestamp=interaction.created_at
             )
 
