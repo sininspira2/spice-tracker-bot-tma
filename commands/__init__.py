@@ -8,6 +8,7 @@ import importlib
 import inspect
 from typing import Dict, Any, Callable, List, Tuple
 from discord import app_commands
+from utils.logger import logger
 
 # Import base classes that we will check against
 from discord.app_commands import Group as AppCommandGroup
@@ -71,8 +72,14 @@ def discover_commands():
                     metadata[module_name] = getattr(module, 'COMMAND_METADATA')
 
             except ImportError as e:
-                from utils.logger import logger
-                logger.warning(f"Could not import {module_name}", error=e)
+                logger.warning(f"Could not import command module: {module_name}", error=e)
+
+    # Prioritize command groups over functions in case of name collision
+    for group_name in list(command_groups.keys()):
+        if group_name in commands:
+            del commands[group_name]
+            if group_name in signatures:
+                del signatures[group_name]
 
     return commands, metadata, signatures, command_groups
 

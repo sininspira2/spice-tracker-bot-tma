@@ -250,12 +250,18 @@ def register_commands():
 
     # Register discovered command groups
     from commands import COMMAND_GROUPS
+    import traceback
     for group_name, group_class in COMMAND_GROUPS.items():
         try:
             bot.tree.add_command(group_class(bot))
             logger.info(f"Registered command group: {group_name}")
         except Exception as e:
-            logger.error(f"Failed to register command group {group_name}: {e}")
+            logger.error(
+                "Failed to register command group",
+                group_name=group_name,
+                error=str(e),
+                traceback=traceback.format_exc()
+            )
 
     # Sync command (slash command version)
     @bot.tree.command(name=cmd_name("sync"), description="Sync slash commands (Bot Owner Only)")
