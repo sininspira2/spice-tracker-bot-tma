@@ -1024,8 +1024,8 @@ class Database:
             raise e
 
     async def guild_withdraw(self, admin_user_id: str, admin_username: str, target_user_id: str,
-                           target_username: str, melange_amount: int):
-        """Withdraw melange from guild treasury and give to user"""
+                           target_username: str, melange_amount: int) -> int:
+        """Withdraw melange from guild treasury, give to user, and return the new treasury balance."""
         start_time = time.time()
         try:
             async with self.transaction() as session:
@@ -1079,9 +1079,12 @@ class Database:
                 )
                 session.add(deposit)
 
+                # Capture the new balance before the transaction commits
+                new_treasury_balance = treasury.total_melange
+
             await self._log_operation("guild_withdraw", "guild_treasury, users, deposits, guild_transactions", start_time, success=True,
                                     admin_user_id=admin_user_id, target_user_id=target_user_id, melange_amount=melange_amount)
-            return True
+            return new_treasury_balance
         except Exception as e:
             await self._log_operation("guild_withdraw", "guild_treasury, users, deposits, guild_transactions", start_time, success=False,
                                     admin_user_id=admin_user_id, target_user_id=target_user_id, melange_amount=melange_amount, error=str(e))

@@ -129,8 +129,9 @@ async def on_ready():
 # Register commands with the bot's command tree
 def register_commands():
     """Register all commands explicitly with their exact signatures"""
-    from commands import sand, refinery, leaderboard, split, help, reset, ledger, expedition, pay, payroll, treasury, guild_withdraw, pending, water, perms, calc
+    from commands import sand, refinery, leaderboard, split, help, reset, ledger, expedition, pay, payroll, pending, water, perms, calc
     from commands.settings import Settings
+    from commands.guild import Guild
 
     # Helper to allow env-based command renaming/prefixing
     # CMD_PREFIX: optional string prefix added to every command name
@@ -238,20 +239,6 @@ def register_commands():
     async def payroll_cmd(interaction: discord.Interaction):  # noqa: F841
         await payroll(interaction)
 
-    # Treasury command
-    @bot.tree.command(name=cmd_name("treasury"), description="View guild treasury balance and statistics")
-    async def treasury_cmd(interaction: discord.Interaction):  # noqa: F841
-        await treasury(interaction)
-
-    # Guild Withdraw command
-    @bot.tree.command(name=cmd_name("guild_withdraw"), description="Withdraw melange from guild treasury to give to a user (Admin only)")
-    @app_commands.describe(
-        user="The user whose ledger to credit melange",
-        amount="Amount of melange to credit from guild treasury"
-    )
-    async def guild_withdraw_cmd(interaction: discord.Interaction, user: discord.Member, amount: int):  # noqa: F841
-        await guild_withdraw(interaction, user, amount)
-
     # Pending command
     @bot.tree.command(name=cmd_name("pending"), description="View all users with pending melange payments (Admin only)")
     async def pending_cmd(interaction: discord.Interaction):  # noqa: F841
@@ -265,6 +252,9 @@ def register_commands():
 
     # Settings command group
     bot.tree.add_command(Settings(bot))
+
+    # Guild command group
+    bot.tree.add_command(Guild(bot))
 
     # Sync command (slash command version)
     @bot.tree.command(name=cmd_name("sync"), description="Sync slash commands (Bot Owner Only)")
