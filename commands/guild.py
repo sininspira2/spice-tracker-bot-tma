@@ -12,6 +12,79 @@ from utils.command_utils import log_command_metrics
 from utils.helpers import get_database, format_melange
 from utils.logger import logger
 from utils.permissions import check_permission
+from utils.pagination_utils import PaginatedView, build_paginated_embed
+
+
+def format_transaction_item(transaction: dict) -> str:
+    """Formats a single guild transaction item for display."""
+    date_str = f"<t:{int(transaction['created_at'].timestamp())}:R>"
+
+    if transaction['melange_amount'] > 0:
+        amount_str = f"**{format_melange(transaction['melange_amount'])} melange**"
+    else:
+        amount_str = f"**{transaction['sand_amount']:,} sand**"
+
+    type_str = transaction['transaction_type'].replace('_', ' ').title()
+
+    description = ""
+    if transaction['transaction_type'] == 'guild_cut':
+        description = f"from expedition `{transaction['expedition_id']}`"
+    elif transaction['transaction_type'] == 'guild_withdraw':
+        description = f"to **{transaction['target_username']}** by **{transaction['admin_username']}**"
+    else:
+        description = f"by **{transaction['admin_username']}**"
+
+    return f"**{type_str}**: {amount_str} {description} - {date_str}"
+
+async def build_transactions_embed(
+    interaction: discord.Interaction,
+    data: list[dict],
+    current_page: int,
+    total_pages: int,
+    extra_data: dict | None = None,
+) -> discord.Embed:
+    """Builds the embed for guild transactions."""
+    return await build_paginated_embed(
+        interaction=interaction,
+        data=data,
+        current_page=current_page,
+        total_pages=total_pages,
+        title="🏛️ Guild Transaction History",
+        no_results_message="No guild transactions found.",
+        format_item_func=format_transaction_item,
+        color=0x2ECC71
+    )
+
+
+def format_payout_item(payout: dict) -> str:
+    """Formats a single melange payout item for display."""
+    date_str = f"<t:{int(payout['created_at'].timestamp())}:R>"
+    amount_str = f"**{format_melange(payout['melange_amount'])} melange**"
+
+    description = f"to **{payout['username']}**"
+    if payout.get('admin_username'):
+        description += f" by **{payout['admin_username']}**"
+
+    return f"**Payout**: {amount_str} {description} - {date_str}"
+
+async def build_payouts_embed(
+    interaction: discord.Interaction,
+    data: list[dict],
+    current_page: int,
+    total_pages: int,
+    extra_data: dict | None = None,
+) -> discord.Embed:
+    """Builds the embed for melange payouts."""
+    return await build_paginated_embed(
+        interaction=interaction,
+        data=data,
+        current_page=current_page,
+        total_pages=total_pages,
+        title="💸 Melange Payout History",
+        no_results_message="No melange payouts found.",
+        format_item_func=format_payout_item,
+        color=0xE67E22
+    )
 
 
 class Guild(app_commands.Group):
@@ -195,3 +268,105 @@ class Guild(app_commands.Group):
                         username=interaction.user.display_name,
                         total_time=f"{total_time:.3f}s")
             await self.send_response(interaction, "❌ An error occurred while fetching guild treasury data.", ephemeral=True)
+
+    @app_commands.command(name="transactions", description="View the guild's transaction history.")
+    async def transactions(self, interaction: discord.Interaction):
+        """View the guild's transaction history."""
+        command_start = time.time()
+        await interaction.response.defer(ephemeral=True)
+
+        db = get_database()
+
+        try:
+            total_transactions, count_time = await timed_database_operation(
+                "get_guild_transactions_count", db.get_guild_transactions_count
+            )
+
+            if total_transactions == 0:
+                embed = await build_transactions_embed(interaction, [], 1, 1)
+                await self.send_response(interaction, embed=embed, ephemeral=True)
+                return
+
+            view = PaginatedView(
+                interaction=interaction,
+                total_items=total_transactions,
+                fetch_data_func=db.get_guild_transactions_paginated,
+                format_embed_func=build_transactions_embed,
+            )
+
+            initial_data, fetch_time = await timed_database_operation(
+                "get_guild_transactions_paginated", db.get_guild_transactions_paginated, page=1
+            )
+
+            embed = await build_transactions_embed(interaction, initial_data, 1, view.total_pages)
+            await self.send_response(interaction, embed=embed, view=view, ephemeral=True)
+
+            total_time = time.time() - command_start
+            log_command_metrics(
+                "Guild Transactions",
+                str(interaction.user.id),
+                interaction.user.display_name,
+                total_time,
+                count_time=f"{count_time:.3f}s",
+                fetch_time=f"{fetch_time:.3f}s",
+                result_count=total_transactions,
+            )
+
+        except Exception as error:
+            total_time = time.time() - command_start
+            logger.error(f"Error in guild transactions command: {error}",
+                        user_id=str(interaction.user.id),
+                        username=interaction.user.display_name,
+                        total_time=f"{total_time:.3f}s")
+            await self.send_response(interaction, "❌ An error occurred while fetching guild transactions.", ephemeral=True)
+
+    @app_commands.command(name="payouts", description="View the guild's melange payout history.")
+    async def payouts(self, interaction: discord.Interaction):
+        """View the guild's melange payout history."""
+        command_start = time.time()
+        await interaction.response.defer(ephemeral=True)
+
+        db = get_database()
+
+        try:
+            total_payouts, count_time = await timed_database_operation(
+                "get_melange_payouts_count", db.get_melange_payouts_count
+            )
+
+            if total_payouts == 0:
+                embed = await build_payouts_embed(interaction, [], 1, 1)
+                await self.send_response(interaction, embed=embed, ephemeral=True)
+                return
+
+            view = PaginatedView(
+                interaction=interaction,
+                total_items=total_payouts,
+                fetch_data_func=db.get_melange_payouts,
+                format_embed_func=build_payouts_embed,
+            )
+
+            initial_data, fetch_time = await timed_database_operation(
+                "get_melange_payouts", db.get_melange_payouts, page=1
+            )
+
+            embed = await build_payouts_embed(interaction, initial_data, 1, view.total_pages)
+            await self.send_response(interaction, embed=embed, view=view, ephemeral=True)
+
+            total_time = time.time() - command_start
+            log_command_metrics(
+                "Guild Payouts",
+                str(interaction.user.id),
+                interaction.user.display_name,
+                total_time,
+                count_time=f"{count_time:.3f}s",
+                fetch_time=f"{fetch_time:.3f}s",
+                result_count=total_payouts,
+            )
+
+        except Exception as error:
+            total_time = time.time() - command_start
+            logger.error(f"Error in guild payouts command: {error}",
+                        user_id=str(interaction.user.id),
+                        username=interaction.user.display_name,
+                        total_time=f"{total_time:.3f}s")
+            await self.send_response(interaction, "❌ An error occurred while fetching melange payouts.", ephemeral=True)

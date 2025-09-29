@@ -463,6 +463,80 @@ class Database:
                 await self._log_operation("count", "deposits", start_time, success=False, user_id=user_id, error=str(e))
                 raise e
 
+    async def get_guild_transactions_paginated(self, page: int = 1, per_page: int = 10) -> List[Dict[str, Any]]:
+        """Get a paginated list of all guild transactions."""
+        start_time = time.time()
+        async with self._get_session() as session:
+            try:
+                offset = (page - 1) * per_page
+                query = (
+                    select(GuildTransaction)
+                    .order_by(GuildTransaction.created_at.desc())
+                    .offset(offset)
+                    .limit(per_page)
+                )
+                result = await session.execute(query)
+                transactions = result.scalars().all()
+                transaction_list = [t.to_dict() for t in transactions]
+
+                await self._log_operation("select_paginated", "guild_transactions", start_time, success=True,
+                                        result_count=len(transaction_list))
+                return transaction_list
+            except Exception as e:
+                await self._log_operation("select_paginated", "guild_transactions", start_time, success=False, error=str(e))
+                raise e
+
+    async def get_guild_transactions_count(self) -> int:
+        """Get the total number of guild transactions."""
+        start_time = time.time()
+        async with self._get_session() as session:
+            try:
+                query = select(func.count()).select_from(GuildTransaction)
+                result = await session.execute(query)
+                count = result.scalar_one()
+                await self._log_operation("count", "guild_transactions", start_time, success=True, count=count)
+                return count
+            except Exception as e:
+                await self._log_operation("count", "guild_transactions", start_time, success=False, error=str(e))
+                raise e
+
+    async def get_melange_payouts(self, page: int = 1, per_page: int = 10) -> List[Dict[str, Any]]:
+        """Get a paginated list of all melange payouts."""
+        start_time = time.time()
+        async with self._get_session() as session:
+            try:
+                offset = (page - 1) * per_page
+                query = (
+                    select(MelangePayment)
+                    .order_by(MelangePayment.created_at.desc())
+                    .offset(offset)
+                    .limit(per_page)
+                )
+                result = await session.execute(query)
+                payouts = result.scalars().all()
+                payout_list = [p.to_dict() for p in payouts]
+
+                await self._log_operation("select_paginated", "melange_payments", start_time, success=True,
+                                        result_count=len(payout_list))
+                return payout_list
+            except Exception as e:
+                await self._log_operation("select_paginated", "melange_payments", start_time, success=False, error=str(e))
+                raise e
+
+    async def get_melange_payouts_count(self) -> int:
+        """Get the total number of melange payouts."""
+        start_time = time.time()
+        async with self._get_session() as session:
+            try:
+                query = select(func.count()).select_from(MelangePayment)
+                result = await session.execute(query)
+                count = result.scalar_one()
+                await self._log_operation("count", "melange_payments", start_time, success=True, count=count)
+                return count
+            except Exception as e:
+                await self._log_operation("count", "melange_payments", start_time, success=False, error=str(e))
+                raise e
+
     async def create_expedition(self, initiator_id: str, initiator_username: str, total_sand: int,
                               sand_per_melange: Optional[int] = None, guild_cut_percentage: float = 10.0) -> int:
         """Create a new expedition record"""
@@ -682,7 +756,7 @@ class Database:
                                         user_id=user_id, error=str(e))
                 raise e
 
-    async def get_guild_transactions(self, expedition_id: int) -> List[Dict[str, Any]]:
+    async def get_guild_transactions_by_expedition_id(self, expedition_id: int) -> List[Dict[str, Any]]:
         """Get all transactions for a specific expedition."""
         start_time = time.time()
         async with self._get_session() as session:

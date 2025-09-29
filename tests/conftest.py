@@ -29,10 +29,13 @@ async def test_database():
     async with database.engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
 
+import datetime
+
 @pytest.fixture
 def mock_interaction():
     """Fixture to create a mock interaction object."""
     interaction = MagicMock()
+    interaction.created_at = datetime.datetime.now()
     interaction.user.id = "123456789"
     interaction.user.display_name = "TestUser"
     interaction.guild.id = "987654321"
