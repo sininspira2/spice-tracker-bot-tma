@@ -1,5 +1,11 @@
 name: CI Pipeline
 
+permissions:
+  security-events: write
+  packages: read
+  actions: read
+  contents: read
+
 on:
   push:
     branches: [ main-testing ]
