@@ -62,9 +62,9 @@ async def on_ready():
             db_init_time = time.time() - db_init_start
             logger.bot_event("Database connection verified", db_init_time=f"{db_init_time:.3f}s")
 
-            # Initialize landsraad bonus status cache
-            from utils.helpers import initialize_bonus_status
-            await initialize_bonus_status()
+            # Initialize global settings cache
+            from utils.helpers import initialize_global_settings
+            await initialize_global_settings()
 
         except Exception as error:
             db_init_time = time.time() - db_init_start
@@ -129,7 +129,7 @@ async def on_ready():
 # Register commands with the bot's command tree
 def register_commands():
     """Register all commands explicitly with their exact signatures"""
-    from commands import sand, refinery, leaderboard, split, help, reset, ledger, expedition, pay, payroll, treasury, guild_withdraw, pending, water, landsraad, perms, calc
+    from commands import sand, refinery, leaderboard, split, help, reset, ledger, expedition, pay, payroll, pending, water, perms, calc
 
     # Helper to allow env-based command renaming/prefixing
     # CMD_PREFIX: optional string prefix added to every command name
@@ -190,10 +190,10 @@ def register_commands():
     @app_commands.describe(
         total_sand="Total spice sand to split and convert",
         users="Users to include in the split (e.g., '@user1 @user2')",
-        guild="Guild cut percentage (default: 10)",
-        user_cut="Optional: Assign a uniform percentage to all users (e.g., 20 for 20%)"
+        guild="Guild cut percentage (overrides global default).",
+        user_cut="Optional: Assign a uniform percentage to all users (overrides global default)."
     )
-    async def split_cmd(interaction: discord.Interaction, total_sand: int, users: str, guild: int = 10, user_cut: int = None):  # noqa: F841
+    async def split_cmd(interaction: discord.Interaction, total_sand: int, users: str, guild: Optional[int] = None, user_cut: Optional[int] = None):  # noqa: F841
         await split(interaction, total_sand, users, guild, user_cut)
 
     # Help command
@@ -237,20 +237,6 @@ def register_commands():
     async def payroll_cmd(interaction: discord.Interaction):  # noqa: F841
         await payroll(interaction)
 
-    # Treasury command
-    @bot.tree.command(name=cmd_name("treasury"), description="View guild treasury balance and statistics")
-    async def treasury_cmd(interaction: discord.Interaction):  # noqa: F841
-        await treasury(interaction)
-
-    # Guild Withdraw command
-    @bot.tree.command(name=cmd_name("guild_withdraw"), description="Withdraw melange from guild treasury to give to a user (Admin only)")
-    @app_commands.describe(
-        user="The user whose ledger to credit melange",
-        amount="Amount of melange to credit from guild treasury"
-    )
-    async def guild_withdraw_cmd(interaction: discord.Interaction, user: discord.Member, amount: int):  # noqa: F841
-        await guild_withdraw(interaction, user, amount)
-
     # Pending command
     @bot.tree.command(name=cmd_name("pending"), description="View all users with pending melange payments (Admin only)")
     async def pending_cmd(interaction: discord.Interaction):  # noqa: F841
@@ -262,14 +248,20 @@ def register_commands():
     async def water_cmd(interaction: discord.Interaction, destination: str = "DD base"):  # noqa: F841
         await water(interaction, destination)
 
-    # Landsraad command
-    @bot.tree.command(name=cmd_name("landsraad"), description="Manage the landsraad bonus for melange conversion")
-    @app_commands.describe(
-        action="Action to perform: 'status', 'enable', 'disable'",
-        confirm="Confirmation required for enable/disable actions"
-    )
-    async def landsraad_cmd(interaction: discord.Interaction, action: str, confirm: bool = False):  # noqa: F841
-        await landsraad(interaction, action, confirm)
+    # Register discovered command groups
+    from commands import COMMAND_GROUPS
+    import traceback
+    for group_name, group_class in COMMAND_GROUPS.items():
+        try:
+            bot.tree.add_command(group_class(bot))
+            logger.info(f"Registered command group: {group_name}")
+        except Exception as e:
+            logger.error(
+                "Failed to register command group",
+                group_name=group_name,
+                error=str(e),
+                traceback=traceback.format_exc()
+            )
 
     # Sync command (slash command version)
     @bot.tree.command(name=cmd_name("sync"), description="Sync slash commands (Bot Owner Only)")

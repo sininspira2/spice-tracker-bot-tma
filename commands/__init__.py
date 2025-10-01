@@ -7,81 +7,87 @@ import os
 import importlib
 import inspect
 from typing import Dict, Any, Callable, List, Tuple
+from discord import app_commands
+from utils.logger import logger
+
+# Import base classes that we will check against
+from discord.app_commands import Group as AppCommandGroup
 
 # Automatically discover and import all command modules
 def discover_commands():
-    """Automatically discover all command modules in this package"""
-    commands = {}
-    metadata = {}
-    signatures = {}  # New: store function signatures
+    """
+    Automatically discover all command modules in this package, separating them
+    into function-based commands and class-based command groups.
+    """
+    commands: Dict[str, Callable[..., Any]] = {}
+    metadata: Dict[str, Any] = {}
+    signatures: Dict[str, List[Dict[str, Any]]] = {}
+    command_groups: Dict[str, AppCommandGroup] = {}
 
-    # Get the directory this file is in
     current_dir = os.path.dirname(__file__)
 
-    # Find all .py files (excluding __init__.py and __pycache__)
     for filename in os.listdir(current_dir):
         if filename.endswith('.py') and filename != '__init__.py':
-            module_name = filename[:-3]  # Remove .py extension
+            module_name = filename[:-3]
 
             try:
-                # Import the module
                 module = importlib.import_module(f'.{module_name}', package=__name__)
 
-                # Get the command function - look for common patterns
+                # Discover function-based commands
                 command_func = None
-                if hasattr(module, module_name):  # Function same name as module
+                if hasattr(module, module_name):
                     command_func = getattr(module, module_name)
-                elif hasattr(module, f'{module_name}_command'):  # Function with _command suffix
+                elif hasattr(module, f'{module_name}_command'):
                     command_func = getattr(module, f'{module_name}_command')
-                elif hasattr(module, f'{module_name}_details'):  # Function with _details suffix
-                    command_func = getattr(module, f'{module_name}_details')
-                elif hasattr(module, 'help_command') and module_name == 'help':  # Special case for help
-                    command_func = getattr(module, 'help_command')
-                # No special cases needed - file name matches function name
 
-                if command_func:
+                if command_func and inspect.isfunction(command_func):
                     commands[module_name] = command_func
 
-                    # Extract function signature for Discord.py registration
-                    # Try to get the original function signature if it's been decorated
                     original_func = command_func
                     if hasattr(command_func, '__wrapped__'):
                         original_func = command_func.__wrapped__
 
                     sig = inspect.signature(original_func)
-                    params = list(sig.parameters.values())
+                    params = [
+                        {
+                            'name': param.name,
+                            'annotation': param.annotation,
+                            'default': param.default if param.default != inspect.Parameter.empty else None
+                        }
+                        for param in list(sig.parameters.values())[1:]  # Skip interaction
+                        if param.name != 'use_followup'
+                    ]
+                    signatures[module_name] = params
 
-                    # Skip the first parameter (interaction) and internal parameters
-                    discord_params = []
-                    for param in params[1:]:  # Skip interaction parameter
-                        if param.name != 'use_followup':  # Skip internal parameter
-                            discord_params.append({
-                                'name': param.name,
-                                'annotation': param.annotation,
-                                'default': param.default if param.default != inspect.Parameter.empty else None
-                            })
+                # Discover class-based command groups (subclasses of app_commands.Group)
+                for name, obj in inspect.getmembers(module):
+                    if inspect.isclass(obj) and issubclass(obj, AppCommandGroup) and obj is not AppCommandGroup:
+                        # Ensure the class name matches the module name convention
+                        # e.g., 'guild' module contains 'Guild' class
+                        if name.lower() == module_name:
+                            command_groups[module_name] = obj
 
-                    signatures[module_name] = discord_params
-
-                # Get the metadata
-                command_metadata = getattr(module, 'COMMAND_METADATA', None)
-                if command_metadata:
-                    metadata[module_name] = command_metadata
+                # Get metadata
+                if hasattr(module, 'COMMAND_METADATA'):
+                    metadata[module_name] = getattr(module, 'COMMAND_METADATA')
 
             except ImportError as e:
-                print(f"Warning: Could not import {module_name}: {e}")
+                logger.warning(f"Could not import command module: {module_name}", error=e)
 
-    return commands, metadata, signatures
+    # Prioritize command groups over functions in case of name collision
+    for group_name in list(command_groups.keys()):
+        if group_name in commands:
+            del commands[group_name]
+            if group_name in signatures:
+                del signatures[group_name]
 
-# Auto-discover commands, metadata, and signatures
-COMMANDS, COMMAND_METADATA, COMMAND_SIGNATURES = discover_commands()
+    return commands, metadata, signatures, command_groups
 
-# Export all discovered commands
-__all__ = list(COMMANDS.keys())
+# Auto-discover all commands and groups
+COMMANDS, COMMAND_METADATA, COMMAND_SIGNATURES, COMMAND_GROUPS = discover_commands()
 
-# Export all discovered metadata and signatures
-COMMAND_METADATA = COMMAND_METADATA
-COMMAND_SIGNATURES = COMMAND_SIGNATURES
+# Export all discovered items
+__all__ = list(COMMANDS.keys()) + list(COMMAND_GROUPS.keys())
 
 # Helper function to get commands by permission level
 def get_commands_by_permission_level(permission_level: str) -> List[str]:
