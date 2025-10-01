@@ -62,8 +62,8 @@ async def payroll(interaction, command_start, confirm: bool, use_followup: bool 
     if paid_users:
         paid_users_list = [f"**{user['username']}**: {user['amount_paid']:,} melange" for user in paid_users]
         paid_users_str = "\n".join(paid_users_list)
-        if len(paid_users_str) > 1024:  # Discord embed field value limit
-            paid_users_str = paid_users_str[:1024 - 4] + "\n..."
+        if len(paid_users_str) > 1024:
+            paid_users_str = paid_users_str[:1020] + "\n..."
         fields["💸 Paid Users"] = paid_users_str
 
 
