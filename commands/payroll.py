@@ -19,8 +19,19 @@ from utils.logger import logger
 
 
 @admin_command('payroll')
-async def payroll(interaction, command_start, use_followup: bool = True):
+async def payroll(interaction, command_start, confirm: bool, use_followup: bool = True):
     """Process payments for all unpaid harvesters (Admin only)"""
+
+    if not confirm:
+        embed = build_status_embed(
+            title="💰 Payroll Cancelled",
+            description="You must set the `confirm` parameter to `True` to proceed with the payroll.",
+            color=0xF39C12,
+            fields={"✅ How to Run Payroll": "Use `/payroll confirm:True` to confirm the payroll."},
+            timestamp=interaction.created_at
+        )
+        await send_response(interaction, embed=embed.build(), use_followup=use_followup, ephemeral=True)
+        return
 
     # Pay all users their pending melange
     payroll_result, payroll_time = await timed_database_operation(

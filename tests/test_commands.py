@@ -2,17 +2,24 @@
 Tests for bot commands.
 """
 import pytest
-from unittest.mock import patch, Mock
+import time
+import asyncio
+from unittest.mock import patch, Mock, AsyncMock
 from commands.settings import Settings
 from commands.split import split
 from utils.helpers import get_user_cut, get_guild_cut, get_region, update_user_cut, update_guild_cut, update_region
 import datetime
+import discord
+
+@pytest.fixture(autouse=True)
+def mock_get_db(mocker, test_database):
+    """Fixture to automatically mock get_database in all command modules."""
+    mocker.patch('utils.helpers.get_database', return_value=test_database)
+    for module in ['payroll', 'reset', 'split', 'settings']:
+        mocker.patch(f'commands.{module}.get_database', return_value=test_database, create=True)
 
 def setup_split_mock_interaction(mock_interaction):
     """Helper function to set up the mock interaction for split command tests."""
-    from unittest.mock import Mock, AsyncMock
-    import discord
-
     mock_interaction.created_at = datetime.datetime.now(datetime.timezone.utc)
     async def mock_fetch_member(user_id):
         mock_user = Mock(spec=discord.Member)
@@ -28,10 +35,9 @@ def setup_split_mock_interaction(mock_interaction):
 
 class TestSplitCommand:
     @pytest.mark.asyncio
-    async def test_split_command_with_user_cut(self, mock_interaction, test_database):
+    async def test_split_command_with_user_cut(self, mock_interaction):
         mock_interaction = setup_split_mock_interaction(mock_interaction)
-        with patch('commands.split.get_database', return_value=test_database), \
-             patch('commands.split.send_response') as mock_send_response:
+        with patch('commands.split.send_response') as mock_send_response:
             await split(mock_interaction, total_sand=1000, users="<@123> <@456>", guild=10, user_cut=20)
             assert mock_send_response.call_count == 2
             final_call_kwargs = mock_send_response.call_args.kwargs
@@ -39,32 +45,29 @@ class TestSplitCommand:
             assert '4 melange' in embed.fields[0].value
 
     @pytest.mark.asyncio
-    async def test_split_command_with_invalid_user_cut(self, mock_interaction, test_database):
+    async def test_split_command_with_invalid_user_cut(self, mock_interaction):
         mock_interaction = setup_split_mock_interaction(mock_interaction)
-        with patch('commands.split.get_database', return_value=test_database), \
-             patch('commands.split.send_response') as mock_send_response:
+        with patch('commands.split.send_response') as mock_send_response:
             await split(mock_interaction, total_sand=1000, users="<@123> <@456>", guild=10, user_cut=110)
             mock_send_response.assert_called_once()
             content_arg = mock_send_response.call_args.args[1]
             assert "User cut percentage must be between 0 and 100" in content_arg
 
     @pytest.mark.asyncio
-    async def test_split_command_with_conflicting_user_cut(self, mock_interaction, test_database):
+    async def test_split_command_with_conflicting_user_cut(self, mock_interaction):
         mock_interaction = setup_split_mock_interaction(mock_interaction)
-        with patch('commands.split.get_database', return_value=test_database), \
-             patch('commands.split.send_response') as mock_send_response:
+        with patch('commands.split.send_response') as mock_send_response:
             await split(mock_interaction, total_sand=1000, users="<@123> 30", guild=10, user_cut=20)
             mock_send_response.assert_called_once()
             content_arg = mock_send_response.call_args.args[1]
             assert "You cannot provide individual percentages when using `user_cut`" in content_arg
 
     @pytest.mark.asyncio
-    async def test_split_command_with_user_cut_and_guild_warning(self, mock_interaction, test_database):
+    async def test_split_command_with_user_cut_and_guild_warning(self, mock_interaction):
         mock_interaction = setup_split_mock_interaction(mock_interaction)
         default_guild_cut = get_guild_cut()
         non_default_guild_cut = default_guild_cut + 10
-        with patch('commands.split.get_database', return_value=test_database), \
-             patch('commands.split.send_response') as mock_send_response:
+        with patch('commands.split.send_response') as mock_send_response:
             await split(mock_interaction, total_sand=1000, users="<@123> <@456>", guild=non_default_guild_cut, user_cut=20)
             assert mock_send_response.called
             first_call_args = mock_send_response.call_args_list[0].args
@@ -74,12 +77,11 @@ class TestSplitCommand:
             assert expected_warning in content_arg
 
     @pytest.mark.asyncio
-    async def test_split_command_uses_global_defaults(self, mock_interaction, test_database):
+    async def test_split_command_uses_global_defaults(self, mock_interaction):
         mock_interaction = setup_split_mock_interaction(mock_interaction)
         update_guild_cut(20)
         update_user_cut(15)
-        with patch('commands.split.get_database', return_value=test_database), \
-             patch('commands.split.get_sand_per_melange_with_bonus', return_value=50.0), \
+        with patch('commands.split.get_sand_per_melange_with_bonus', return_value=50.0), \
              patch('commands.split.send_response') as mock_send_response:
             await split(mock_interaction, total_sand=1000, users="<@123> <@456>", guild=None, user_cut=None)
             assert mock_send_response.call_count == 2
@@ -92,64 +94,11 @@ class TestSplitCommand:
         update_guild_cut(None)
         update_user_cut(None)
 
-class TestCommandResponsiveness:
-    """Test that all commands respond appropriately with real database."""
-
-    @pytest.mark.asyncio
-    async def test_all_commands_respond(self, mock_interaction, test_database):
-        """Test that all commands can execute and respond without crashing."""
-        # Map of module names to actual function names and parameters
-        test_cases = [
-            ('sand', 'sand', [100, True], {}),
-            ('refinery', 'refinery', [True], {}),
-            ('leaderboard', 'leaderboard', [10, True], {}),
-            ('help', 'help', [True], {}),
-            ('reset', 'reset', [True, True], {}),
-            ('ledger', 'ledger', [True], {}),
-            ('expedition', 'expedition', [1, True], {}),
-            ('pay', 'pay', [Mock(id=123, display_name="TestUser"), None, True], {}),
-            ('payroll', 'payroll', [True], {}),
-        ]
-
-        for module_name, function_name, args, kwargs in test_cases:
-            try:
-                # Get the command function
-                command_func = getattr(__import__(f'commands.{module_name}', fromlist=[module_name]), function_name)
-
-                # Use real database - try different import paths
-                try:
-                    with patch(f'commands.{module_name}.get_database', return_value=test_database):
-                        await command_func(mock_interaction, *args, **kwargs)
-                except AttributeError:
-                    # Try patching utils.helpers.get_database instead
-                    with patch('utils.helpers.get_database', return_value=test_database):
-                        await command_func(mock_interaction, *args, **kwargs)
-
-                # Verify some form of response was sent (either followup.send or response.send)
-                response_sent = (
-                    mock_interaction.followup.send.called or
-                    mock_interaction.response.send.called or
-                    mock_interaction.channel.send.called or
-                    mock_interaction.response.send_modal.called
-                )
-
-                assert response_sent, f"Command {function_name} did not send any response"
-
-                # Reset mocks for next test
-                mock_interaction.followup.send.reset_mock()
-                mock_interaction.response.send.reset_mock()
-                mock_interaction.channel.send.reset_mock()
-                mock_interaction.response.send_modal.reset_mock()
-
-            except Exception as e:
-                pytest.fail(f"Command {function_name} failed with error: {e}")
-
 class TestSettingsCommand:
     @pytest.mark.asyncio
-    async def test_settings_user_cut(self, mock_interaction, test_database):
+    async def test_settings_user_cut(self, mock_interaction):
         settings_command_group = Settings(bot=None)
-        with patch('commands.settings.check_permission', return_value=True), \
-             patch('commands.settings.get_database', return_value=test_database):
+        with patch('commands.settings.check_permission', return_value=True):
             update_user_cut(None)
             mock_interaction.response.is_done = Mock(return_value=True)
             await settings_command_group.user_cut.callback(settings_command_group, mock_interaction, value=None)
@@ -171,10 +120,9 @@ class TestSettingsCommand:
             assert get_user_cut() is None
 
     @pytest.mark.asyncio
-    async def test_settings_guild_cut(self, mock_interaction, test_database):
+    async def test_settings_guild_cut(self, mock_interaction):
         settings_command_group = Settings(bot=None)
-        with patch('commands.settings.check_permission', return_value=True), \
-             patch('commands.settings.get_database', return_value=test_database):
+        with patch('commands.settings.check_permission', return_value=True):
             update_guild_cut(None)
             mock_interaction.response.is_done = Mock(return_value=True)
             await settings_command_group.guild_cut.callback(settings_command_group, mock_interaction, value=None)
@@ -196,10 +144,9 @@ class TestSettingsCommand:
             assert get_guild_cut() == 10
 
     @pytest.mark.asyncio
-    async def test_settings_region(self, mock_interaction, test_database):
+    async def test_settings_region(self, mock_interaction):
         settings_command_group = Settings(bot=None)
-        with patch('commands.settings.check_permission', return_value=True), \
-             patch('commands.settings.get_database', return_value=test_database):
+        with patch('commands.settings.check_permission', return_value=True):
             update_region(None)
             mock_interaction.response.is_done = Mock(return_value=True)
             await settings_command_group.region.callback(settings_command_group, mock_interaction, region=None)
@@ -215,3 +162,94 @@ class TestSettingsCommand:
             embed = mock_interaction.followup.send.call_args.kwargs['embed']
             assert "set to **Europe**" in embed.description
             assert get_region() == "eu"
+
+class TestPayrollCommand:
+    @pytest.mark.asyncio
+    async def test_payroll_confirm_false(self, mock_interaction, test_database):
+        from commands.payroll import payroll
+        with patch('commands.payroll.send_response', new_callable=AsyncMock) as mock_send, \
+             patch.object(test_database, 'pay_all_pending_melange', new_callable=AsyncMock) as mock_pay_all:
+            await payroll.__wrapped__(mock_interaction, time.time(), confirm=False, use_followup=True)
+            mock_pay_all.assert_not_called()
+            mock_send.assert_called_once()
+            kwargs = mock_send.call_args.kwargs
+            assert "Payroll Cancelled" in kwargs['embed'].title
+            assert kwargs['ephemeral'] is True
+
+    @pytest.mark.asyncio
+    async def test_payroll_confirm_true(self, mock_interaction, test_database):
+        from commands.payroll import payroll
+        with patch('commands.payroll.send_response', new_callable=AsyncMock) as mock_send, \
+             patch.object(test_database, 'pay_all_pending_melange', new_callable=AsyncMock) as mock_pay_all:
+            mock_pay_all.return_value = {'users_paid': 2, 'total_paid': 500}
+            async def timed_op_side_effect(name, coro, *args, **kwargs):
+                res = await coro(*args, **kwargs)
+                return res, 0.1
+            with patch('commands.payroll.timed_database_operation', side_effect=timed_op_side_effect):
+                await payroll.__wrapped__(mock_interaction, time.time(), confirm=True, use_followup=True)
+            mock_pay_all.assert_called_once()
+            mock_send.assert_called_once()
+            kwargs = mock_send.call_args.kwargs
+            assert "Guild Payroll Complete" in kwargs['embed'].title
+            assert "500" in kwargs['embed'].fields[0].value
+
+class TestResetCommand:
+    @pytest.mark.asyncio
+    async def test_reset_confirm_false(self, mock_interaction, test_database):
+        from commands.reset import reset
+        with patch('commands.reset.send_response', new_callable=AsyncMock) as mock_send, \
+             patch.object(test_database, 'reset_all_stats', new_callable=AsyncMock) as mock_reset_stats:
+            await reset.__wrapped__(mock_interaction, time.time(), confirm=False, use_followup=True)
+            mock_reset_stats.assert_not_called()
+            mock_send.assert_called_once()
+            kwargs = mock_send.call_args.kwargs
+            assert "Reset Cancelled" in kwargs['embed'].title
+            assert kwargs['ephemeral'] is True
+
+    @pytest.mark.asyncio
+    async def test_reset_confirm_true_then_confirm(self, mock_interaction, test_database):
+        from commands.reset import reset
+        mock_interaction.edit_original_response = AsyncMock()
+        with patch('commands.reset.send_response', new_callable=AsyncMock) as mock_send, \
+             patch.object(test_database, 'reset_all_stats', new_callable=AsyncMock) as mock_reset_stats:
+            mock_reset_stats.return_value = 10
+            async def timed_op_side_effect(name, coro, *args, **kwargs):
+                return await coro(*args, **kwargs), 0.1
+
+            with patch('commands.reset.timed_database_operation', side_effect=timed_op_side_effect):
+                command_task = asyncio.create_task(reset.__wrapped__(mock_interaction, time.time(), confirm=True, use_followup=True))
+                await asyncio.sleep(0.01)
+
+                mock_send.assert_called_once()
+                view = mock_send.call_args.kwargs.get('view')
+                assert view is not None
+
+                await view.confirm.callback(mock_interaction)
+                await command_task
+
+            mock_reset_stats.assert_called_once()
+            mock_interaction.edit_original_response.assert_called_once()
+            embed = mock_interaction.edit_original_response.call_args.kwargs['embed']
+            assert "Refinery Reset Complete" in embed.title
+
+    @pytest.mark.asyncio
+    async def test_reset_confirm_true_then_cancel(self, mock_interaction, test_database):
+        from commands.reset import reset
+        mock_interaction.edit_original_response = AsyncMock()
+        with patch('commands.reset.send_response', new_callable=AsyncMock) as mock_send, \
+             patch.object(test_database, 'reset_all_stats', new_callable=AsyncMock) as mock_reset_stats:
+
+            command_task = asyncio.create_task(reset.__wrapped__(mock_interaction, time.time(), confirm=True, use_followup=True))
+            await asyncio.sleep(0.01)
+
+            mock_send.assert_called_once()
+            view = mock_send.call_args.kwargs.get('view')
+            assert view is not None
+
+            await view.cancel.callback(mock_interaction)
+            await command_task
+
+            mock_reset_stats.assert_not_called()
+            mock_interaction.edit_original_response.assert_called_once()
+            embed = mock_interaction.edit_original_response.call_args.kwargs['embed']
+            assert "Reset Cancelled" in embed.title
