@@ -7,7 +7,7 @@ def mock_get_db(mocker, test_database):
     """Fixture to automatically mock get_database in all command modules."""
     mocker.patch('utils.helpers.get_database', return_value=test_database)
     # Also patch it where it's directly imported in modules
-    for module in ['sand', 'refinery', 'leaderboard', 'ledger', 'expedition', 'pay']:
+    for module in ['sand', 'refinery', 'leaderboard', 'ledger', 'expedition', 'pay', 'split', 'settings']:
         mocker.patch(f'commands.{module}.get_database', return_value=test_database, create=True)
 
 @pytest.mark.parametrize(
