@@ -41,6 +41,22 @@ class TestPayrollCommand:
             assert "Guild Payroll Complete" in kwargs['embed'].title
             assert "500" in kwargs['embed'].fields[0].value
 
+    @pytest.mark.asyncio
+    async def test_payroll_confirm_true_no_one_to_pay(self, mock_interaction, test_database):
+        with patch('commands.payroll.send_response', new_callable=AsyncMock) as mock_send, \
+             patch.object(test_database, 'pay_all_pending_melange', new_callable=AsyncMock) as mock_pay_all:
+            mock_pay_all.return_value = {'users_paid': 0, 'total_paid': 0}
+            async def timed_op_side_effect(name, coro, *args, **kwargs):
+                res = await coro(*args, **kwargs)
+                return res, 0.1
+            with patch('commands.payroll.timed_database_operation', side_effect=timed_op_side_effect):
+                await payroll.__wrapped__(mock_interaction, time.time(), confirm=True, use_followup=True)
+            mock_pay_all.assert_called_once()
+            mock_send.assert_called_once()
+            kwargs = mock_send.call_args.kwargs
+            assert "Payroll Status" in kwargs['embed'].title
+            assert "There are no users with pending melange to pay" in kwargs['embed'].description
+
 class TestResetCommand:
     @pytest.mark.asyncio
     async def test_reset_confirm_false(self, mock_interaction, test_database):
