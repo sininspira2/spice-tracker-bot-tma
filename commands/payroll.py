@@ -42,6 +42,7 @@ async def payroll(interaction, command_start, confirm: bool, use_followup: bool 
 
     total_paid = payroll_result.get('total_paid', 0)
     users_paid = payroll_result.get('users_paid', 0)
+    paid_users = payroll_result.get('paid_users', [])
 
     if users_paid == 0:
         embed = build_status_embed(
@@ -57,6 +58,14 @@ async def payroll(interaction, command_start, confirm: bool, use_followup: bool 
     fields = {
         "💰 Payroll Summary": f"**Melange Paid:** {total_paid:,} | **Users Paid:** {users_paid} | **Admin:** {interaction.user.display_name}"
     }
+
+    if paid_users:
+        paid_users_list = [f"**{user['username']}**: {user['amount_paid']:,} melange" for user in paid_users]
+        paid_users_str = "\n".join(paid_users_list)
+        if len(paid_users_str) > 1024:  # Discord embed field value limit
+            paid_users_str = paid_users_str[:1024 - 4] + "\n..."
+        fields["💸 Paid Users"] = paid_users_str
+
 
     embed = build_status_embed(
         title="💰 Guild Payroll Complete",
