@@ -943,31 +943,6 @@ class Database:
         try:
             count = 0
             total_paid = 0
-            async with self.transaction() as session:
-                # Get all users
-                result = await session.execute(select(User))
-                users = result.scalars().all()
-
-                for user in users:
-                    pending = user.total_melange - user.paid_melange
-                    if pending > 0:
-                        # Update user's paid melange
-                        user.paid_melange += pending
-
-                        # Record the payment
-                        payment = MelangePayment(
-                            user_id=user.user_id,
-                            username=user.username,
-                            melange_amount=pending,
-                            admin_user_id=admin_user_id,
-                            admin_username=admin_username,
-                            description=f"Bulk payment of {pending} melange"
-                        )
-                        session.add(payment)
-
-                        count += 1
-                        total_paid += pending
-
             paid_users_details = []
             async with self.transaction() as session:
                 # Get all users
