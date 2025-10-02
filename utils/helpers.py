@@ -28,15 +28,8 @@ def parse_roles(roles_str: str) -> List[int]:
     # Find all numbers (for raw IDs) and all mentions (for <@&ID>)
     raw_ids = re.findall(r'\d+', roles_str)
 
-    # Use a set to store unique role IDs to avoid duplicates
-    unique_role_ids = set()
-    for role_id in raw_ids:
-        try:
-            unique_role_ids.add(int(role_id))
-        except (ValueError, TypeError):
-            continue # Ignore if not a valid number
-
-    return sorted(list(unique_role_ids))
+    # Convert to a set of integers to get unique IDs, then to a sorted list.
+    return sorted(list(set(map(int, raw_ids))))
 
 
 # Sand to melange conversion rates (implementation detail)
