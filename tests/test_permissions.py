@@ -36,6 +36,27 @@ class TestPermissions:
         assert is_admin(mock_interaction) is False
 
     @pytest.mark.asyncio
+    async def test_is_admin_bot_owner(self, mock_interaction, mocker):
+        # Patch os.getenv in the permissions module to simulate BOT_OWNER_ID
+        mocker.patch('utils.permissions.os.getenv', return_value='987654321')
+
+        # Set the interaction user to be the bot owner
+        mock_interaction.user.id = 987654321
+        set_user_roles(mock_interaction, [111])  # A non-admin role
+
+        # The bot owner should always be an admin, regardless of roles
+        assert is_admin(mock_interaction) is True
+
+        # Now test a regular user who is not the owner
+        mock_interaction.user.id = 123456789
+        update_admin_roles([101])
+        set_user_roles(mock_interaction, [111])  # Not an admin role
+        assert is_admin(mock_interaction) is False  # Not owner, no role -> False
+
+        set_user_roles(mock_interaction, [101])  # Has admin role
+        assert is_admin(mock_interaction) is True  # Not owner, has role -> True
+
+    @pytest.mark.asyncio
     async def test_is_officer(self, mock_interaction):
         update_officer_roles([201, 202])
         set_user_roles(mock_interaction, [101, 201])

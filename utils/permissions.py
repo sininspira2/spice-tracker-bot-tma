@@ -1,7 +1,7 @@
 """
 Permission utilities for the Spice Tracker Bot.
 """
-
+import os
 import discord
 from typing import Callable, Any
 from functools import wraps
@@ -30,14 +30,21 @@ def _get_command_permission_level(command_name: str) -> str:
 
 def is_admin(interaction: discord.Interaction) -> bool:
     """
-    Check if user has admin permissions based on cached admin roles.
-    Returns True only if user has one of the specified admin role IDs.
+    Check if user has admin permissions.
+    An admin is either the bot owner or has a cached admin role.
     """
-    admin_role_ids = get_admin_roles()
+    # Check if the user is the bot owner
+    try:
+        owner_id = int(os.getenv('BOT_OWNER_ID', '0'))
+        if interaction.user.id == owner_id:
+            return True
+    except (ValueError, TypeError):
+        pass  # Ignore if BOT_OWNER_ID is not a valid integer
 
-    # If no admin roles configured, deny access (no admins)
+    # Check for admin roles
+    admin_role_ids = get_admin_roles()
     if not admin_role_ids:
-        return False
+        return False  # Owner check failed and no roles are set
 
     # Check if user has any of the specified admin roles
     if hasattr(interaction.user, 'roles'):
