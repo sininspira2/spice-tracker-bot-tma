@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import Mock, patch
-from utils.permissions import is_admin, is_officer, is_user, check_permission
+from utils.permissions import is_admin, is_officer, is_user, check_permission, _get_command_permission_level
 from utils.helpers import update_admin_roles, update_officer_roles, update_user_roles
 
 @pytest.fixture(autouse=True)
@@ -143,3 +143,23 @@ class TestPermissions:
         update_user_roles([])
         set_user_roles(mock_interaction, [401])
         assert check_permission(mock_interaction, "user") is True
+
+class TestCommandPermissionMapping:
+    @pytest.mark.parametrize("command_name, expected_level", [
+        # Admin commands
+        ("reset", "admin"),
+        ("pay", "admin"),
+        # User commands
+        ("sand", "user"),
+        ("split", "user"),
+        ("leaderboard", "user"),
+        # Any commands
+        ("help", "any"),
+        ("perms", "any"),
+        ("calc", "any"),
+        # Default case
+        ("some_unknown_command", "user"),
+    ])
+    def test_get_command_permission_level(self, command_name, expected_level):
+        """Tests the mapping of command names to permission levels."""
+        assert _get_command_permission_level(command_name) == expected_level
