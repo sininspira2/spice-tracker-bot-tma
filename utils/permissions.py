@@ -3,7 +3,7 @@ Permission utilities for the Spice Tracker Bot.
 """
 import os
 import discord
-from typing import Callable, Any
+from typing import Callable, Any, Set
 from functools import wraps
 from utils.helpers import get_admin_roles, get_officer_roles, get_user_roles
 
@@ -28,6 +28,13 @@ def _get_command_permission_level(command_name: str) -> str:
         return 'user'  # Default to user level
 
 
+def _get_user_role_id_set(interaction: discord.Interaction) -> Set[int]:
+    """Extracts a set of role IDs from the user in the interaction."""
+    if hasattr(interaction.user, 'roles') and interaction.user.roles:
+        return {role.id for role in interaction.user.roles}
+    return set()
+
+
 def is_admin(interaction: discord.Interaction) -> bool:
     """
     Check if user has admin permissions.
@@ -46,12 +53,8 @@ def is_admin(interaction: discord.Interaction) -> bool:
     if not admin_role_ids:
         return False  # Owner check failed and no roles are set
 
-    # Check if user has any of the specified admin roles
-    if hasattr(interaction.user, 'roles'):
-        user_role_ids = {role.id for role in interaction.user.roles}
-        return any(role_id in user_role_ids for role_id in admin_role_ids)
-
-    return False
+    user_role_ids = _get_user_role_id_set(interaction)
+    return any(role_id in user_role_ids for role_id in admin_role_ids)
 
 
 def is_user(interaction: discord.Interaction) -> bool:
@@ -59,18 +62,14 @@ def is_user(interaction: discord.Interaction) -> bool:
     Check if user is allowed to use the bot based on cached user roles.
     Returns True if no role restrictions OR user has allowed roles.
     """
-    user_role_ids = get_user_roles()
+    config_user_roles = get_user_roles()
 
     # If no role restrictions, allow all users
-    if not user_role_ids:
+    if not config_user_roles:
         return True
 
-    # Check if user has any allowed roles
-    if hasattr(interaction.user, 'roles'):
-        current_user_role_ids = {role.id for role in interaction.user.roles}
-        return any(role_id in current_user_role_ids for role_id in user_role_ids)
-
-    return False
+    user_role_ids = _get_user_role_id_set(interaction)
+    return any(role_id in user_role_ids for role_id in config_user_roles)
 
 
 def is_officer(interaction: discord.Interaction) -> bool:
@@ -84,12 +83,8 @@ def is_officer(interaction: discord.Interaction) -> bool:
     if not officer_role_ids:
         return False
 
-    # Check if user has any of the specified officer roles
-    if hasattr(interaction.user, 'roles'):
-        user_role_ids = {role.id for role in interaction.user.roles}
-        return any(role_id in user_role_ids for role_id in officer_role_ids)
-
-    return False
+    user_role_ids = _get_user_role_id_set(interaction)
+    return any(role_id in user_role_ids for role_id in officer_role_ids)
 
 
 def check_permission(interaction: discord.Interaction, permission_level: str) -> bool:

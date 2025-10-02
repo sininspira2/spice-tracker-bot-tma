@@ -297,7 +297,6 @@ def build_admin_officer_role_mentions() -> str:
         A space-separated string of role mentions like "<@&123> <@&456>", or an empty string
         if no roles are configured or on error.
     """
-    from utils.logger import logger
     try:
         admin_role_ids: List[int] = get_admin_roles()
         officer_role_ids: List[int] = get_officer_roles()
