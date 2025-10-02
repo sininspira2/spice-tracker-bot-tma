@@ -3,7 +3,7 @@ Perms command: show the caller's permission flags and relevant role matches.
 """
 
 from utils.base_command import command
-from utils.helpers import send_response
+from utils.helpers import send_response, format_roles
 from utils.embed_utils import build_status_embed
 from utils.permissions import (
     is_admin,
@@ -63,18 +63,18 @@ async def perms(interaction, command_start, use_followup: bool = True):
             f"**any:** ✅"
         ),
         "🧩 Configured Role IDs": (
-            f"admins: {', '.join(map(str, configured_admin_roles)) if configured_admin_roles else '—'}\n"
-            f"officers: {', '.join(map(str, configured_officer_roles)) if configured_officer_roles else '—'}\n"
-            f"allowed: {', '.join(map(str, configured_allowed_roles)) if configured_allowed_roles else '— (all users)'}"
+            f"admins: {', '.join(format_roles(configured_admin_roles)) if configured_admin_roles else '—'}\n"
+            f"officers: {', '.join(format_roles(configured_officer_roles)) if configured_officer_roles else '—'}\n"
+            f"allowed: {', '.join(format_roles(configured_allowed_roles)) if configured_allowed_roles else '— (all users)'}"
         ),
         "🧑 Your Roles": (
             f"names: {', '.join(user_role_names) if user_role_names else '—'}\n"
             f"ids: {', '.join(map(str, user_role_ids)) if user_role_ids else '—'}"
         ),
         "✅ Matches": (
-            f"admin roles: {', '.join(matched_admin_roles) if matched_admin_roles else '—'}\n"
-            f"officer roles: {', '.join(matched_officer_roles) if matched_officer_roles else '—'}\n"
-            f"allowed roles: {', '.join(matched_allowed_roles) if matched_allowed_roles else '—'}"
+            f"admin roles: {', '.join(format_roles(matched_admin_roles)) if matched_admin_roles else '—'}\n"
+            f"officer roles: {', '.join(format_roles(matched_officer_roles)) if matched_officer_roles else '—'}\n"
+            f"allowed roles: {', '.join(format_roles(matched_allowed_roles)) if matched_allowed_roles else '—'}"
         ),
     }
 

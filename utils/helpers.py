@@ -3,7 +3,7 @@ Helper functions used across multiple commands.
 """
 
 import os
-from typing import List, Optional
+from typing import List, Optional, Union
 from database_orm import Database
 from utils.logger import logger
 # Initialize database (lazy initialization)
@@ -261,3 +261,16 @@ def format_melange(amount: float) -> str:
         return f"{int(amount):,}"
     else:
         return f"{amount:,.2f}"
+
+
+def format_roles(role_ids: List[Union[int, str]]) -> List[str]:
+    """
+    Formats a list of role IDs into a list of Discord role mentions.
+
+    Args:
+        role_ids: A list of role IDs (can be integers or strings).
+
+    Returns:
+        A list of formatted role mention strings.
+    """
+    return [f"<@&{rid}>" for rid in role_ids]
