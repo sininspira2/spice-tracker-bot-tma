@@ -55,16 +55,23 @@ async def test_perms_command_formats_roles_as_mentions(mocker, mock_interaction)
     call_args = mock_send_response.call_args
     embed = call_args.kwargs['embed']
 
+    # Helper to find a field by name for robust testing
+    def get_field_by_name(embed_obj, name):
+        for field in embed_obj.fields:
+            if name in field.name:
+                return field
+        return None
+
     # Check "Configured Role IDs" field for correct formatting
-    configured_field = embed.fields[1]
-    assert "Configured Role IDs" in configured_field.name
+    configured_field = get_field_by_name(embed, "Configured Role IDs")
+    assert configured_field is not None, "Could not find 'Configured Role IDs' field"
     assert "<@&101>, <@&102>" in configured_field.value
     assert "<@&201>, <@&202>" in configured_field.value
     assert "<@&301>, <@&302>" in configured_field.value
 
     # Check "Matches" field for correct formatting
-    matches_field = embed.fields[3]
-    assert "Matches" in matches_field.name
+    matches_field = get_field_by_name(embed, "Matches")
+    assert matches_field is not None, "Could not find 'Matches' field"
     assert "admin roles: <@&101>" in matches_field.value
     assert "officer roles: <@&202>" in matches_field.value
     assert "allowed roles: <@&301>" in matches_field.value

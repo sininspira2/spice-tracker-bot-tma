@@ -3,7 +3,7 @@ Perms command: show the caller's permission flags and relevant role matches.
 """
 
 from utils.base_command import command
-from utils.helpers import send_response
+from utils.helpers import send_response, format_roles
 from utils.embed_utils import build_status_embed
 from utils.permissions import (
     is_admin,
@@ -52,10 +52,6 @@ async def perms(interaction, command_start, use_followup: bool = True):
         matched_admin_roles = [str(rid) for rid in user_role_ids if rid in configured_admin_roles]
         matched_officer_roles = [str(rid) for rid in user_role_ids if rid in configured_officer_roles]
         matched_allowed_roles = [str(rid) for rid in user_role_ids if rid in configured_allowed_roles]
-
-    # Helper to format role IDs as mentions
-    def format_roles(role_ids):
-        return [f"<@&{rid}>" for rid in role_ids]
 
     # Build fields for the embed
     fields = {
