@@ -66,6 +66,7 @@ async def test_help_command_pagination(mock_interaction):
     # Assertions
     assert sent_embed.title == "🏜️ Help: General Commands"
     assert "Commands available to everyone." in sent_embed.description
+    assert "**`/help`** - Show this list of commands." in sent_embed.description
     assert isinstance(sent_view, StaticPaginatedView)
     assert len(sent_view.pages) == 4
     assert sent_view.total_pages == 4
