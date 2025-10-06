@@ -16,7 +16,6 @@ def mock_get_db(mocker, test_database):
         ("sand", "sand", (100, True)),
         ("refinery", "refinery", (True,)),
         ("leaderboard", "leaderboard", (10, True)),
-        ("help", "help", (True,)),
         ("ledger", "ledger", (True,)),
         ("expedition", "expedition", (1, True)),
         ("pay", "pay", (Mock(id=123, display_name="TestUser"), None, True)),
@@ -40,3 +39,35 @@ async def test_command_responds(mock_interaction, command_module, command_name, 
             pytest.fail(f"Command '{command_name}' raised an exception: {e}")
 
     mock_send.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_help_command_pagination(mock_interaction):
+    """Verify that the help command uses the StaticPaginatedView."""
+    from commands.help import help as help_command
+    from utils.pagination_utils import StaticPaginatedView
+
+    # The @command decorator wraps the function. We call the decorator itself.
+    # The decorator handles deferring and passing command_start.
+    await help_command(mock_interaction)
+
+    # The @handle_interaction_expiration decorator calls defer(thinking=True).
+    # Let's ensure it was called. The mock_interaction fixture will capture this.
+    mock_interaction.response.defer.assert_called_once()
+
+    # Verify that a followup was sent, since the response was deferred.
+    mock_interaction.followup.send.assert_called_once()
+
+    # Get the arguments passed to the followup send
+    call_args = mock_interaction.followup.send.call_args
+    sent_embed = call_args.kwargs['embed']
+    sent_view = call_args.kwargs['view']
+
+    # Assertions
+    assert sent_embed.title == "🏜️ Help: General Commands"
+    assert "Commands available to everyone." in sent_embed.description
+    assert "**`/help`** - Show this list of commands." in sent_embed.description
+    assert isinstance(sent_view, StaticPaginatedView)
+    assert len(sent_view.pages) == 4
+    assert sent_view.total_pages == 4
+    assert call_args.kwargs['ephemeral'] is True
