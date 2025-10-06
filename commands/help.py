@@ -21,33 +21,35 @@ async def help(interaction, command_start, use_followup: bool = True):
 
     # Use utility function for embed building
     fields = {
-        "📊 Harvester Commands": "**`/sand [amount]`** Convert sand→melange (1-10k, 50:1 ratio)\n"
-                                 "**`/refinery`** View melange status & payments\n"
-                                 "**`/ledger`** View conversion history & status\n"
-                                 "**`/expedition [id]`** View expedition details\n"
-                                 "**`/leaderboard [limit]`** Top refiners (5-25 users)\n"
-                                 "**`/split [sand] [@users]`** Split sand→melange with guild cut\n"
-                                 "**`/water [destination]`** Request water delivery\n"
-                                 "**`/help`** Show all commands",
-        "⚙️ Admin Commands": "**`/sync`** Sync commands (Owner)\n"
-                                   "**`/reset confirm:True`** Reset all data",
-        "🏛️ Officer Commands": "**`/pending`** View pending melange payments\n"
-                                   "**`/pay [user] [amount]`** Process user payment (full or partial)\n"
-                                   "**`/payroll`** Pay all users\n"
-                                   "**`/treasury`** View guild treasury\n"
-                                   "**`/guild_withdraw [user] [amount]`** Treasury withdrawal\n"
-                                   "**`/landsraad [action]`** Manage conversion bonus (37.5:1 rate)",
+        "**`General Commands`**":
+            "**`/help`**: Show this list of commands\n"
+            "**`/perms`**: Check your current permission level\n"
+            "**`/calc [amount]`**: Estimate melange from sand without saving",
 
-        "💡 Examples": "• `/sand 250` → 5 melange\n"
-                            "• `/split 1000 @user1 @user2` → 500 each\n"
-                            "• `/water Spice Fields` → request water delivery\n"
-                            "• `/pay @user` → pay pending melange\n"
-                            "• `/payroll` → pay all users"
+        "**`Harvester Commands`**":
+            "**`/sand [amount]`**: Convert your sand into melange\n"
+            "**`/refinery`**: View your melange production and payment status\n"
+            "**`/ledger`**: View your personal conversion history\n"
+            "**`/leaderboard [limit]`**: See the top melange producers\n"
+            "**`/split [sand] [users]`**: Split sand with others and convert it to melange\n"
+            "**`/expedition [id]`**: View the details of a specific split/expedition\n"
+            "**`/water [destination]`**: Request a water delivery",
+
+        "**`Admin & Officer Commands`**":
+            "**`/pending`**: View all users with pending (unpaid) melange\n"
+            "**`/pay [user] [amount]`**: Pay a user their pending melange\n"
+            "**`/payroll confirm:True`**: Pay all users with pending melange at once\n"
+            "**`/settings view`**: View all current bot settings\n"
+            "**`/settings [admin_roles|officer_roles|user_roles] [roles]`**: Set permission roles\n"
+            "**`/settings [landsraad|user_cut|guild_cut]`**: Configure conversion and split rates\n"
+            "**`/settings region [region]`**: Set the guild's primary region\n"
+            "**`/reset confirm:True`**: Reset all data (Admin Only)\n"
+            "**`/sync`**: Sync commands with Discord (Bot Owner Only)",
     }
 
     embed = build_status_embed(
-        title="🏜️ Spice Refinery Commands",
-        description="Sand→melange conversion & production tracking",
+        title="🏜️ Spice Tracker Commands",
+        description="A bot for tracking sand-to-melange conversions and guild payroll.",
         color=0xF39C12,
         fields=fields,
         timestamp=interaction.created_at
