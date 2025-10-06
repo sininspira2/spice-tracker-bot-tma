@@ -83,7 +83,7 @@ PAGES_CONTENT = [
                 "title": "Bot Settings",
                 "commands": [
                     {"name": "/settings [subcommand]", "desc": "View a setting by calling it without options."},
-                    {"name": "/settings [admin_roles|officer_roles|user_roles] [roles]", "desc": "Set or clear permission roles."},
+                    {"name": "/settings <admin_roles|officer_roles|user_roles> [roles]", "desc": "Set or clear permission roles."},
                     {"name": "/settings landsraad [action]", "desc": "Manage the Landsraad conversion bonus."},
                     {"name": "/settings <user_cut|guild_cut> [value]", "desc": "Set default percentages for `/split`."},
                     {"name": "/settings region [region]", "desc": "Set the guild's primary operational region."},
