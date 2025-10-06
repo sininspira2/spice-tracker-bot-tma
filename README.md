@@ -144,9 +144,9 @@ python bot.py               # Start the bot
 
 #### Bot Settings
 - **`/settings [subcommand]`**: View a setting by running the subcommand without any options (e.g., `/settings admin_roles`).
-- **`/settings [roles]`**: Set or clear the roles that grant bot permissions.
+- **`/settings <admin_roles|officer_roles|user_roles> [roles]`**: Set or clear the roles that grant bot permissions.
 - **`/settings landsraad [action]`**: Manage the Landsraad conversion bonus (`status`, `enable`, `disable`).
-- **`/settings [cuts]`**: Configure the default user and guild cut percentages for `/split`.
+- **`/settings <user_cut|guild_cut> [value]`**: Configure the default user and guild cut percentages for `/split`.
 - **`/settings region [region]`**: Set the guild's primary operational region.
 
 #### System Commands
