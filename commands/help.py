@@ -39,10 +39,11 @@ async def help(interaction, command_start, use_followup: bool = True):
             "**`/pending`**: View all users with pending (unpaid) melange\n"
             "**`/pay [user] [amount]`**: Pay a user their pending melange\n"
             "**`/payroll confirm:True`**: Pay all users with pending melange at once\n"
-            "**`/settings view`**: View all current bot settings\n"
-            "**`/settings [admin_roles|officer_roles|user_roles] [roles]`**: Set permission roles\n"
-            "**`/settings [landsraad|user_cut|guild_cut]`**: Configure conversion and split rates\n"
-            "**`/settings region [region]`**: Set the guild's primary region\n"
+            "**`/settings [subcommand]`**: View a setting by calling it without options (e.g., `/settings admin_roles`).\n"
+            "**`/settings [admin_roles|officer_roles|user_roles] [roles]`**: Set or clear permission roles.\n"
+            "**`/settings landsraad [action]`**: Manage the Landsraad conversion bonus (`status`, `enable`, `disable`).\n"
+            "**`/settings [user_cut|guild_cut] [value]`**: Set default percentages for `/split`.\n"
+            "**`/settings region [region]`**: Set the guild's primary operational region.\n"
             "**`/reset confirm:True`**: Reset all data (Admin Only)\n"
             "**`/sync`**: Sync commands with Discord (Bot Owner Only)",
     }

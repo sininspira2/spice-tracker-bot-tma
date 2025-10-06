@@ -133,9 +133,10 @@ python bot.py               # Start the bot
 - **`/pending`**: View a list of all users with pending (unpaid) melange.
 - **`/pay <user> [amount]`**: Pay a user their owed melange.
 - **`/payroll confirm:True`**: Initiate a payroll run to pay all users all their pending melange.
-- **`/settings view`**: Display all current bot settings.
-- **`/settings [admin_roles|officer_roles|user_roles] [roles]`**: Configure which Discord roles grant permissions.
-- **`/settings [landsraad|user_cut|guild_cut]`**: Manage conversion rates and default split percentages.
+- **`/settings [subcommand]`**: View a setting by running the subcommand without any options (e.g., `/settings admin_roles`).
+- **`/settings [admin_roles|officer_roles|user_roles] [roles]`**: Set or clear the roles that grant bot permissions.
+- **`/settings landsraad [action]`**: Manage the Landsraad conversion bonus (`status`, `enable`, `disable`).
+- **`/settings [user_cut|guild_cut] [value]`**: Configure the default user and guild cut percentages for `/split`.
 - **`/settings region [region]`**: Set the guild's primary operational region.
 - **`/reset confirm:True`**: **(Admin Only)** Reset all refinery and user data. This is irreversible.
 - **`/sync`**: **(Bot Owner Only)** Manually sync application commands with Discord.
