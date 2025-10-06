@@ -36,16 +36,24 @@ async def help(interaction, command_start, use_followup: bool = True):
             "**`/water [destination]`**: Request a water delivery",
 
         "**`Admin & Officer Commands`**":
-            "**`/pending`**: View all users with pending (unpaid) melange\n"
-            "**`/pay [user] [amount]`**: Pay a user their pending melange\n"
-            "**`/payroll confirm:True`**: Pay all users with pending melange at once\n"
+            "**`--- User & Payroll Management ---`**\n"
+            "**`/pending`**: View all users with pending (unpaid) melange.\n"
+            "**`/pay [user] [amount]`**: Pay a user their pending melange.\n"
+            "**`/payroll confirm:True`**: Pay all users with pending melange at once.\n\n"
+            "**`--- Guild Management ---`**\n"
+            "**`/guild treasury`**: View the guild's treasury balance.\n"
+            "**`/guild withdraw [user] [amount]`**: Withdraw melange from the treasury to a user.\n"
+            "**`/guild transactions`**: View the guild's transaction history.\n"
+            "**`/guild payouts`**: View the guild's melange payout history.\n\n"
+            "**`--- Bot Settings ---`**\n"
             "**`/settings [subcommand]`**: View a setting by calling it without options (e.g., `/settings admin_roles`).\n"
             "**`/settings [admin_roles|officer_roles|user_roles] [roles]`**: Set or clear permission roles.\n"
             "**`/settings landsraad [action]`**: Manage the Landsraad conversion bonus (`status`, `enable`, `disable`).\n"
             "**`/settings [user_cut|guild_cut] [value]`**: Set default percentages for `/split`.\n"
-            "**`/settings region [region]`**: Set the guild's primary operational region.\n"
-            "**`/reset confirm:True`**: Reset all data (Admin Only)\n"
-            "**`/sync`**: Sync commands with Discord (Bot Owner Only)",
+            "**`/settings region [region]`**: Set the guild's primary operational region.\n\n"
+            "**`--- System Commands ---`**\n"
+            "**`/reset confirm:True`**: Reset all data (Admin Only).\n"
+            "**`/sync`**: Sync commands with Discord (Bot Owner Only).",
     }
 
     embed = build_status_embed(
