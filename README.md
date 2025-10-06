@@ -134,7 +134,7 @@ python bot.py               # Start the bot
 #### User & Payroll Management
 - **`/pending`**: View a list of all users with pending (unpaid) melange.
 - **`/pay <user> [amount]`**: Pay a user their owed melange.
-- **`/payroll confirm:True`**: Initiate a payroll run to pay all users all their pending melange.
+- **`/payroll <confirm>`**: Initiate a payroll run to pay all users all their pending melange.
 
 #### Guild Management
 - **`/guild treasury`**: View the guild's current treasury balance.
@@ -144,13 +144,13 @@ python bot.py               # Start the bot
 
 #### Bot Settings
 - **`/settings [subcommand]`**: View a setting by running the subcommand without any options (e.g., `/settings admin_roles`).
-- **`/settings [admin_roles|officer_roles|user_roles] [roles]`**: Set or clear the roles that grant bot permissions.
+- **`/settings [roles]`**: Set or clear the roles that grant bot permissions.
 - **`/settings landsraad [action]`**: Manage the Landsraad conversion bonus (`status`, `enable`, `disable`).
-- **`/settings [user_cut|guild_cut] [value]`**: Configure the default user and guild cut percentages for `/split`.
+- **`/settings [cuts]`**: Configure the default user and guild cut percentages for `/split`.
 - **`/settings region [region]`**: Set the guild's primary operational region.
 
 #### System Commands
-- **`/reset confirm:True`**: **(Admin Only)** Reset all refinery and user data. This is irreversible.
+- **`/reset <confirm>`**: **(Admin Only)** Reset all refinery and user data. This is irreversible.
 - **`/sync`**: **(Bot Owner Only)** Manually sync application commands with Discord.
 
 ## 📊 How It Works

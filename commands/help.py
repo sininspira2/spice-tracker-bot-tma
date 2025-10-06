@@ -26,7 +26,7 @@ PAGES_CONTENT = [
                 "commands": [
                     {"name": "/help", "desc": "Show this list of commands."},
                     {"name": "/perms", "desc": "Check your current permission level."},
-                    {"name": "/calc `[amount]`", "desc": "Estimate melange from sand without saving."},
+                    {"name": "/calc [amount]", "desc": "Estimate melange from sand without saving."},
                 ]
             }
         ]
@@ -39,13 +39,13 @@ PAGES_CONTENT = [
             {
                 "title": "",
                 "commands": [
-                    {"name": "/sand `[amount]`", "desc": "Convert your sand into melange."},
+                    {"name": "/sand [amount]", "desc": "Convert your sand into melange."},
                     {"name": "/refinery", "desc": "View your melange production and payment status."},
                     {"name": "/ledger", "desc": "View your personal conversion history."},
-                    {"name": "/leaderboard `[limit]`", "desc": "See the top melange producers."},
-                    {"name": "/split `[sand] [users]`", "desc": "Split sand with others and convert it to melange."},
-                    {"name": "/expedition `[id]`", "desc": "View the details of a specific split/expedition."},
-                    {"name": "/water `[destination]`", "desc": "Request a water delivery."},
+                    {"name": "/leaderboard [limit]", "desc": "See the top melange producers."},
+                    {"name": "/split [sand] [users]", "desc": "Split sand with others and convert it to melange."},
+                    {"name": "/expedition [id]", "desc": "View the details of a specific split/expedition."},
+                    {"name": "/water [destination]", "desc": "Request a water delivery."},
                 ]
             }
         ]
@@ -59,15 +59,15 @@ PAGES_CONTENT = [
                 "title": "User & Payroll Management",
                 "commands": [
                     {"name": "/pending", "desc": "View all users with pending (unpaid) melange."},
-                    {"name": "/pay `[user] [amount]`", "desc": "Pay a user their pending melange."},
-                    {"name": "/payroll `confirm:True`", "desc": "Pay all users with pending melange at once."},
+                    {"name": "/pay [user] [amount]", "desc": "Pay a user their pending melange."},
+                    {"name": "/payroll [confirm]", "desc": "Pay all users with pending melange at once."},
                 ]
             },
             {
                 "title": "Guild Management",
                 "commands": [
                     {"name": "/guild treasury", "desc": "View the guild's treasury balance."},
-                    {"name": "/guild withdraw `[user] [amount]`", "desc": "Withdraw melange from the treasury to a user."},
+                    {"name": "/guild withdraw [user] [amount]", "desc": "Withdraw melange from the treasury to a user."},
                     {"name": "/guild transactions", "desc": "View the guild's transaction history."},
                     {"name": "/guild payouts", "desc": "View the guild's melange payout history."},
                 ]
@@ -82,17 +82,17 @@ PAGES_CONTENT = [
             {
                 "title": "Bot Settings",
                 "commands": [
-                    {"name": "/settings `[subcommand]`", "desc": "View a setting by calling it without options."},
-                    {"name": "/settings `[roles]`", "desc": "Set or clear permission roles (e.g., `admin_roles`)."},
-                    {"name": "/settings landsraad `[action]`", "desc": "Manage the Landsraad conversion bonus."},
-                    {"name": "/settings `[cuts]`", "desc": "Set default percentages for `/split` (e.g., `user_cut`)."},
-                    {"name": "/settings region `[region]`", "desc": "Set the guild's primary operational region."},
+                    {"name": "/settings [subcommand]", "desc": "View a setting by calling it without options."},
+                    {"name": "/settings [roles]", "desc": "Set or clear permission roles (e.g., `admin_roles`)."},
+                    {"name": "/settings landsraad [action]", "desc": "Manage the Landsraad conversion bonus."},
+                    {"name": "/settings [cuts]", "desc": "Set default percentages for `/split` (e.g., `user_cut`)."},
+                    {"name": "/settings region [region]", "desc": "Set the guild's primary operational region."},
                 ]
             },
             {
                 "title": "System Commands",
                 "commands": [
-                    {"name": "/reset `confirm:True`", "desc": "Reset all data (Admin Only)."},
+                    {"name": "/reset [confirm]", "desc": "Reset all data (Admin Only)."},
                     {"name": "/sync", "desc": "Sync commands with Discord (Bot Owner Only)."},
                 ]
             }
