@@ -18,60 +18,86 @@ COMMAND_METADATA = {
 PAGES_CONTENT = [
     {
         "title": "General Commands",
-        "description": "Commands available to everyone.",
+        "base_description": "Commands available to everyone.",
         "color": 0x3498DB,
-        "fields": {
-            "**`/help`**": "Show this list of commands.",
-            "**`/perms`**": "Check your current permission level.",
-            "**`/calc [amount]`**": "Estimate melange from sand without saving.",
-        },
+        "sections": [
+            {
+                "title": "",
+                "commands": [
+                    {"name": "/help", "desc": "Show this list of commands."},
+                    {"name": "/perms", "desc": "Check your current permission level."},
+                    {"name": "/calc `[amount]`", "desc": "Estimate melange from sand without saving."},
+                ]
+            }
+        ]
     },
     {
         "title": "Harvester Commands",
-        "description": "Commands for tracking sand and melange.",
+        "base_description": "Commands for tracking sand and melange.",
         "color": 0x2ECC71,
-        "fields": {
-            "**`/sand [amount]`**": "Convert your sand into melange.",
-            "**`/refinery`**": "View your melange production and payment status.",
-            "**`/ledger`**": "View your personal conversion history.",
-            "**`/leaderboard [limit]`**": "See the top melange producers.",
-            "**`/split [sand] [users]`**": "Split sand with others and convert it to melange.",
-            "**`/expedition [id]`**": "View the details of a specific split/expedition.",
-            "**`/water [destination]`**": "Request a water delivery.",
-        },
+        "sections": [
+            {
+                "title": "",
+                "commands": [
+                    {"name": "/sand `[amount]`", "desc": "Convert your sand into melange."},
+                    {"name": "/refinery", "desc": "View your melange production and payment status."},
+                    {"name": "/ledger", "desc": "View your personal conversion history."},
+                    {"name": "/leaderboard `[limit]`", "desc": "See the top melange producers."},
+                    {"name": "/split `[sand] [users]`", "desc": "Split sand with others and convert it to melange."},
+                    {"name": "/expedition `[id]`", "desc": "View the details of a specific split/expedition."},
+                    {"name": "/water `[destination]`", "desc": "Request a water delivery."},
+                ]
+            }
+        ]
     },
     {
         "title": "Admin & Officer Commands (1/2)",
-        "description": "Management commands for officers and admins.",
+        "base_description": "Management commands for officers and admins.",
         "color": 0xE74C3C,
-        "fields": {
-            "**`--- User & Payroll Management ---`**": "\u200b",
-            "**`/pending`**": "View all users with pending (unpaid) melange.",
-            "**`/pay [user] [amount]`**": "Pay a user their pending melange.",
-            "**`/payroll confirm:True`**": "Pay all users with pending melange at once.",
-            "**`--- Guild Management ---`**": "\u200b",
-            "**`/guild treasury`**": "View the guild's treasury balance.",
-            "**`/guild withdraw [user] [amount]`**": "Withdraw melange from the treasury to a user.",
-            "**`/guild transactions`**": "View the guild's transaction history.",
-            "**`/guild payouts`**": "View the guild's melange payout history.",
-        },
+        "sections": [
+            {
+                "title": "User & Payroll Management",
+                "commands": [
+                    {"name": "/pending", "desc": "View all users with pending (unpaid) melange."},
+                    {"name": "/pay `[user] [amount]`", "desc": "Pay a user their pending melange."},
+                    {"name": "/payroll `confirm:True`", "desc": "Pay all users with pending melange at once."},
+                ]
+            },
+            {
+                "title": "Guild Management",
+                "commands": [
+                    {"name": "/guild treasury", "desc": "View the guild's treasury balance."},
+                    {"name": "/guild withdraw `[user] [amount]`", "desc": "Withdraw melange from the treasury to a user."},
+                    {"name": "/guild transactions", "desc": "View the guild's transaction history."},
+                    {"name": "/guild payouts", "desc": "View the guild's melange payout history."},
+                ]
+            }
+        ]
     },
     {
         "title": "Admin & Officer Commands (2/2)",
-        "description": "Configuration and system commands for admins.",
+        "base_description": "Configuration and system commands for admins.",
         "color": 0xE74C3C,
-        "fields": {
-            "**`--- Bot Settings ---`**": "\u200b",
-            "**`/settings [subcommand]`**": "View a setting by calling it without options.",
-            "**`/settings [roles]`**": "Set or clear permission roles (e.g., `admin_roles`).",
-            "**`/settings landsraad [action]`**": "Manage the Landsraad conversion bonus.",
-            "**`/settings [cuts]`**": "Set default percentages for `/split` (e.g., `user_cut`).",
-            "**`/settings region [region]`**": "Set the guild's primary operational region.",
-            "**`--- System Commands ---`**": "\u200b",
-            "**`/reset confirm:True`**": "Reset all data (Admin Only).",
-            "**`/sync`**": "Sync commands with Discord (Bot Owner Only).",
-        },
-    },
+        "sections": [
+            {
+                "title": "Bot Settings",
+                "commands": [
+                    {"name": "/settings `[subcommand]`", "desc": "View a setting by calling it without options."},
+                    {"name": "/settings `[roles]`", "desc": "Set or clear permission roles (e.g., `admin_roles`)."},
+                    {"name": "/settings landsraad `[action]`", "desc": "Manage the Landsraad conversion bonus."},
+                    {"name": "/settings `[cuts]`", "desc": "Set default percentages for `/split` (e.g., `user_cut`)."},
+                    {"name": "/settings region `[region]`", "desc": "Set the guild's primary operational region."},
+                ]
+            },
+            {
+                "title": "System Commands",
+                "commands": [
+                    {"name": "/reset `confirm:True`", "desc": "Reset all data (Admin Only)."},
+                    {"name": "/sync", "desc": "Sync commands with Discord (Bot Owner Only)."},
+                ]
+            }
+        ]
+    }
 ]
 
 def build_help_pages(interaction: discord.Interaction) -> list[discord.Embed]:
@@ -79,14 +105,22 @@ def build_help_pages(interaction: discord.Interaction) -> list[discord.Embed]:
     pages = []
     total_pages = len(PAGES_CONTENT)
     for i, page_content in enumerate(PAGES_CONTENT):
-        # Create a dictionary of fields where the value is the description
-        fields_dict = {name: desc for name, desc in page_content["fields"].items()}
+        # Combine all sections into a single description string
+        description = page_content['base_description']
+
+        for section in page_content['sections']:
+            if section['title']:
+                description += f"\n\n**__{section['title']}__**"
+
+            command_list = []
+            for command in section['commands']:
+                command_list.append(f"**`{command['name']}`** - {command['desc']}")
+            description += "\n" + "\n".join(command_list)
 
         embed = build_status_embed(
             title=f"🏜️ Help: {page_content['title']}",
-            description=page_content['description'],
+            description=description,
             color=page_content['color'],
-            fields=fields_dict,
             timestamp=interaction.created_at
         )
         embed.set_footer(text=f"Page {i + 1}/{total_pages} • Use the buttons to navigate.")
