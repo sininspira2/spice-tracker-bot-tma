@@ -115,39 +115,31 @@ python bot.py               # Start the bot
 
 ## 🤖 Commands
 
-### 🏜️ Harvester Commands
-- **`/sand <amount>`** - Convert spice sand to melange (1-10,000). Primary currency conversion at 50:1 ratio
-- **`/refinery`** - View your melange production and payment status (private)
-- **`/ledger`** - View your sand conversion history and melange status (private)
-- **`/leaderboard [limit]`** - Display top spice refiners by melange production (optionally set a limit)
-- **`/expedition <expedition_id>`** - View details of a specific expedition
-- **`/help`** - Display all available commands (private)
- - **`/perms`** - Show your permission status and matched roles (private)
- - **`/water [destination]`** - Request a water delivery (default: "DD base")
+### General Commands
+- **`/help`**: Show the list of all available commands.
+- **`/perms`**: Check your current permission level and the roles that grant it.
+- **`/calc <amount>`**: Estimate the melange output for a given amount of sand without starting a conversion.
 
-### 🚀 Team Commands
-- **`/split <total_sand> <users> [guild]`** - Split spice sand among expedition members and convert to melange
-  - **Example:** `/split 10000 "@harvester 30 @scout @pilot" 15`
-  - **Guild Cut:** Percentage taken off the top (default: 10%)
-  - **User Percentages:** Users with percentages get exact amounts, others split equally
-  - **Creates:** Expedition records and tracks melange owed for payout
+### Harvester Commands
+- **`/sand <amount>`**: Convert your spice sand into melange.
+- **`/refinery`**: View your personal melange production statistics and current payment status.
+- **`/ledger`**: See a detailed history of your personal sand-to-melange conversions.
+- **`/leaderboard [limit]`**: Display the top melange producers in the guild.
+- **`/split <sand> <users>`**: Split a sand haul with other users, applying guild cuts and converting it to melange for everyone.
+- **`/expedition <id>`**: Look up the details of a past split/expedition.
+- **`/water [destination]`**: Request a water delivery to a specified location.
 
-### 🏛️ Guild Admin Commands
- - **`/reset confirm:True`** - Reset all refinery statistics (requires confirmation)
- - **`/pending`** - View all users with pending melange payments and amounts owed
- - **`/pay <user> [amount]`** - Process payment for a specific harvester (defaults to full pending)
- - **`/payroll`** - Process payments for all unpaid harvesters at once
- - **`/guild_withdraw <user> <amount>`** - Withdraw resources from guild treasury to give to a user
- - **`/landsraad <action> [confirm]`** - Manage landsraad bonus (status/enable/disable)
-  - **Status:** Check current conversion rate (50:1 or 37.5:1)
-  - **Enable:** Activate landsraad bonus (37.5 sand = 1 melange)
-  - **Disable:** Return to normal rate (50 sand = 1 melange)
-
-### 🧾 User/Finance Viewing
- - **`/treasury`** - View guild treasury balance and melange reserves
-
-### 🔧 Bot Owner Commands
-- **`/sync`** - Sync slash commands (Bot Owner Only)
+### Admin & Officer Commands
+- **`/pending`**: View a list of all users with pending (unpaid) melange.
+- **`/pay <user> [amount]`**: Pay a user their owed melange.
+- **`/payroll confirm:True`**: Initiate a payroll run to pay all users all their pending melange.
+- **`/settings [subcommand]`**: View a setting by running the subcommand without any options (e.g., `/settings admin_roles`).
+- **`/settings [admin_roles|officer_roles|user_roles] [roles]`**: Set or clear the roles that grant bot permissions.
+- **`/settings landsraad [action]`**: Manage the Landsraad conversion bonus (`status`, `enable`, `disable`).
+- **`/settings [user_cut|guild_cut] [value]`**: Configure the default user and guild cut percentages for `/split`.
+- **`/settings region [region]`**: Set the guild's primary operational region.
+- **`/reset confirm:True`**: **(Admin Only)** Reset all refinery and user data. This is irreversible.
+- **`/sync`**: **(Bot Owner Only)** Manually sync application commands with Discord.
 
 ## 📊 How It Works
 
