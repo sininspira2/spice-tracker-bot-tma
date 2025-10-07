@@ -107,3 +107,53 @@ async def build_paginated_embed(
     )
     embed.set_footer(text=f"Page {current_page}/{total_pages}")
     return embed.build()
+
+
+class StaticPaginatedView(discord.ui.View):
+    """
+    A paginated view for a static list of embeds.
+    """
+    def __init__(
+        self,
+        interaction: discord.Interaction,
+        pages: List[discord.Embed],
+        timeout: float = 180.0
+    ):
+        super().__init__(timeout=timeout)
+        self.interaction = interaction
+        self.pages = pages
+        self.current_page = 0
+        self.total_pages = len(pages)
+
+        if self.total_pages <= 1:
+            self.previous_button.disabled = True
+            self.next_button.disabled = True
+
+    async def update_view(self, interaction: discord.Interaction):
+        """Update the view with the new page content."""
+        self.previous_button.disabled = self.current_page == 0
+        self.next_button.disabled = self.current_page == self.total_pages - 1
+
+        await interaction.response.edit_message(embed=self.pages[self.current_page], view=self)
+
+    @discord.ui.button(label="Previous", style=discord.ButtonStyle.grey)
+    async def previous_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.current_page > 0:
+            self.current_page -= 1
+            await self.update_view(interaction)
+
+    @discord.ui.button(label="Next", style=discord.ButtonStyle.grey)
+    async def next_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.current_page < self.total_pages - 1:
+            self.current_page += 1
+            await self.update_view(interaction)
+
+    async def on_timeout(self):
+        """Disable buttons on timeout."""
+        self.previous_button.disabled = True
+        self.next_button.disabled = True
+        try:
+            message = await self.interaction.original_response()
+            await message.edit(view=self)
+        except discord.NotFound:
+            pass
