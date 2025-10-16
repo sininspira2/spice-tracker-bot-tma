@@ -6,6 +6,7 @@ from utils.embed_utils import build_status_embed
 from utils.command_utils import log_command_metrics
 from utils.helpers import get_database, send_response
 from utils.base_command import admin_command
+import os
 from utils.logger import logger
 
 COMMAND_METADATA = {
@@ -21,7 +22,6 @@ async def dbsync(interaction, command_start, **kwargs):
     Admin command to manually resynchronize all database primary key sequences.
     This is a maintenance command to fix sequences that are out of sync.
     """
-    import os
     if interaction.user.id != int(os.getenv('BOT_OWNER_ID', '0')):
         await send_response(interaction, "❌ Only the bot owner can use this command.", ephemeral=True)
         return
