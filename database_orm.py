@@ -12,7 +12,7 @@ from typing import Optional, List, Dict, Any
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.pool import NullPool, StaticPool
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
-from sqlalchemy import String, Integer, Float, Boolean, DateTime, Text, ForeignKey, select, update, delete, func, Index
+from sqlalchemy import String, Integer, Float, Boolean, DateTime, Text, ForeignKey, select, update, delete, func, Index, Identity
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
@@ -35,7 +35,7 @@ class User(Base):
     """User model."""
     __tablename__ = "users"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(Integer, Identity(start=1, cycle=False), primary_key=True)
     user_id: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
     username: Mapped[str] = mapped_column(String(100), nullable=False)
     total_melange: Mapped[int] = mapped_column(Integer, default=0)
@@ -59,7 +59,7 @@ class Deposit(Base):
     """Deposit model."""
     __tablename__ = "deposits"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(Integer, Identity(start=1, cycle=False), primary_key=True)
     user_id: Mapped[str] = mapped_column(String(50), ForeignKey("users.user_id"), nullable=False)
     username: Mapped[str] = mapped_column(String(100), nullable=False)
     sand_amount: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -85,7 +85,7 @@ class Expedition(Base):
     """Expedition model."""
     __tablename__ = "expeditions"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(Integer, Identity(start=1, cycle=False), primary_key=True)
     initiator_id: Mapped[str] = mapped_column(String(50), ForeignKey("users.user_id"), nullable=False)
     initiator_username: Mapped[str] = mapped_column(String(100), nullable=False)
     total_sand: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -103,7 +103,7 @@ class ExpeditionParticipant(Base):
     """Expedition participant model."""
     __tablename__ = "expedition_participants"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(Integer, Identity(start=1, cycle=False), primary_key=True)
     expedition_id: Mapped[int] = mapped_column(Integer, ForeignKey("expeditions.id"), nullable=False)
     user_id: Mapped[str] = mapped_column(String(50), ForeignKey("users.user_id"), nullable=False)
     username: Mapped[str] = mapped_column(String(100), nullable=False)
@@ -126,7 +126,7 @@ class GuildTreasury(Base):
     """Guild treasury model."""
     __tablename__ = "guild_treasury"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(Integer, Identity(start=1, cycle=False), primary_key=True)
     total_sand: Mapped[int] = mapped_column(Integer, default=0)
     total_melange: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_get_naive_utc_now)
@@ -142,7 +142,7 @@ class GuildTransaction(Base):
     """Guild transaction model."""
     __tablename__ = "guild_transactions"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(Integer, Identity(start=1, cycle=False), primary_key=True)
     transaction_type: Mapped[str] = mapped_column(String(50), nullable=False)
     sand_amount: Mapped[int] = mapped_column(Integer, nullable=False)
     melange_amount: Mapped[int] = mapped_column(Integer, default=0)
@@ -166,7 +166,7 @@ class MelangePayment(Base):
     """Melange payment model."""
     __tablename__ = "melange_payments"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(Integer, Identity(start=1, cycle=False), primary_key=True)
     user_id: Mapped[str] = mapped_column(String(50), ForeignKey("users.user_id"), nullable=False)
     username: Mapped[str] = mapped_column(String(100), nullable=False)
     melange_amount: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -189,7 +189,7 @@ class GlobalSetting(Base):
     """Global setting model."""
     __tablename__ = "global_settings"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(Integer, Identity(start=1, cycle=False), primary_key=True)
     setting_key: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
     setting_value: Mapped[str] = mapped_column(String(500), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text)
@@ -1165,6 +1165,50 @@ class Database:
             await self._log_operation("guild_withdraw", "guild_treasury, users, deposits, guild_transactions", start_time, success=False,
                                     admin_user_id=admin_user_id, target_user_id=target_user_id, melange_amount=melange_amount, error=str(e))
             raise e
+
+    async def resync_sequences(self) -> Dict[str, int]:
+        """
+        Resynchronizes all PostgreSQL primary key sequences with the maximum ID in their respective tables.
+        This is a preventative maintenance function to fix sequences that may have become out of sync,
+        for example, after a data import. This function is for PostgreSQL only.
+        """
+        start_time = time.time()
+        if self.is_sqlite:
+            logger.info("Sequence resynchronization is not applicable for SQLite.")
+            return {}
+
+        resynced_sequences = {}
+        async with self.transaction() as session:
+            # Need to import text for raw SQL
+            from sqlalchemy import text
+            for table in Base.metadata.sorted_tables:
+                table_name = table.name
+                # This assumes the primary key column is named 'id'
+                pk_column_name = "id"
+                sequence_name = f"{table_name}_{pk_column_name}_seq"
+
+                try:
+                    # Find the current maximum ID in the table
+                    max_id_result = await session.execute(select(func.max(table.c[pk_column_name])))
+                    max_id = max_id_result.scalar_one_or_none()
+
+                    # If table is empty, start sequence at 1, otherwise start at max_id + 1
+                    next_id = (max_id or 0) + 1
+
+                    # Formulate and execute the raw SQL to reset the sequence
+                    query = text(f"ALTER SEQUENCE {sequence_name} RESTART WITH {next_id}")
+                    await session.execute(query)
+
+                    resynced_sequences[sequence_name] = next_id
+                    logger.info(f"Resynced sequence '{sequence_name}' to start at {next_id}.")
+
+                except Exception as e:
+                    # This might fail if a table doesn't have an 'id' sequence or for other reasons.
+                    # We'll log it and continue, as some tables may not have sequences.
+                    logger.warning(f"Could not resync sequence for table '{table_name}': {e}")
+
+        await self._log_operation("resync_sequences", "all_tables", start_time, success=True, count=len(resynced_sequences))
+        return resynced_sequences
 
     # Compatibility aliases
     async def get_top_refiners(self, limit: int = 10):
