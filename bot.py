@@ -129,7 +129,7 @@ async def on_ready():
 # Register commands with the bot's command tree
 def register_commands():
     """Register all commands explicitly with their exact signatures"""
-    from commands import sand, refinery, leaderboard, split, help, reset, ledger, expedition, pay, payroll, pending, water, perms, calc
+    from commands import sand, refinery, leaderboard, split, help, reset, ledger, expedition, pay, payroll, pending, water, perms, calc, dbsync
 
     # Helper to allow env-based command renaming/prefixing
     # CMD_PREFIX: optional string prefix added to every command name
@@ -248,6 +248,11 @@ def register_commands():
     @app_commands.describe(destination="Destination for water delivery (default: DD base)")
     async def water_cmd(interaction: discord.Interaction, destination: str = "DD base"):  # noqa: F841
         await water(interaction, destination)
+
+    # DB Sync command
+    @bot.tree.command(name=cmd_name("dbsync"), description="Manually resynchronizes all database primary key sequences (Bot Owner only)")
+    async def dbsync_cmd(interaction: discord.Interaction):  # noqa: F841
+        await dbsync(interaction)
 
     # Register discovered command groups
     from commands import COMMAND_GROUPS
