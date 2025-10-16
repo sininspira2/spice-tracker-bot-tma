@@ -12,7 +12,7 @@ COMMAND_METADATA = {
     'aliases': [],
     'description': "Manually resynchronizes all database primary key sequences.",
     'params': {},
-    'permission_level': 'bot_owner'
+    'permission_level': 'any'
 }
 
 @admin_command('dbsync')
@@ -21,6 +21,10 @@ async def dbsync(interaction, command_start, **kwargs):
     Admin command to manually resynchronize all database primary key sequences.
     This is a maintenance command to fix sequences that are out of sync.
     """
+    import os
+    if interaction.user.id != int(os.getenv('BOT_OWNER_ID', '0')):
+        await send_response(interaction, "❌ Only the bot owner can use this command.", ephemeral=True)
+        return
     db = get_database()
 
     # This command is PostgreSQL-specific
