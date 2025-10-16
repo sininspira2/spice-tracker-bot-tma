@@ -47,17 +47,23 @@ class TestCommandDiscovery:
 
     def test_all_commands_discovered(self):
         """Test that all command files are discovered."""
-        from commands import COMMAND_METADATA
+        from commands import COMMANDS, COMMAND_GROUPS
 
         expected_commands = {
             'sand', 'refinery', 'leaderboard',
             'split', 'help', 'reset', 'ledger', 'expedition',
             'pay', 'payroll', 'pending', 'water', 'perms', 'calc',
-            'backfill'
+            'backfill', 'dbsync'
         }
 
-        discovered_commands = set(COMMAND_METADATA.keys())
+        # Command groups are discovered separately
+        expected_command_groups = {'guild', 'settings'}
+
+        discovered_commands = set(COMMANDS.keys())
         assert discovered_commands == expected_commands, f"Missing commands: {expected_commands - discovered_commands}"
+
+        discovered_groups = set(COMMAND_GROUPS.keys())
+        assert discovered_groups == expected_command_groups, f"Missing command groups: {expected_command_groups - discovered_groups}"
 
     def test_no_duplicate_aliases(self):
         """Test that there are no duplicate aliases across commands."""
