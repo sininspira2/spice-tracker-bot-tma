@@ -12,10 +12,12 @@ from pathlib import Path
 # Load environment variables from .env file
 try:
     from dotenv import load_dotenv
+
     load_dotenv()
 except ImportError:
     # dotenv not available, continue without it
     pass
+
 
 def run_alembic_command(command_args):
     """Run an alembic command with proper environment setup."""
@@ -24,17 +26,17 @@ def run_alembic_command(command_args):
         env = os.environ.copy()
 
         # Check if DATABASE_URL is available
-        if 'DATABASE_URL' in env and env['DATABASE_URL']:
+        if "DATABASE_URL" in env and env["DATABASE_URL"]:
             # Remove quotes if present
-            db_url = env['DATABASE_URL'].strip('"\'')
-            env['DATABASE_URL'] = db_url
+            db_url = env["DATABASE_URL"].strip("\"'")
+            env["DATABASE_URL"] = db_url
 
-            if 'postgresql://' in db_url:
+            if "postgresql://" in db_url:
                 print("🐘 Using PostgreSQL (Supabase)")
             else:
                 print(f"🔧 Using database: {db_url}")
         else:
-            env['DATABASE_URL'] = 'sqlite:///spice_tracker.db'
+            env["DATABASE_URL"] = "sqlite:///spice_tracker.db"
             print("🔧 Using SQLite for development (set DATABASE_URL for production)")
 
         # Debug: Show what DATABASE_URL is being used
@@ -48,7 +50,7 @@ def run_alembic_command(command_args):
             check=False,  # Don't raise exception on error
             capture_output=True,
             text=True,
-            cwd=os.getcwd()
+            cwd=os.getcwd(),
         )
 
         # Print the output
@@ -67,42 +69,48 @@ def run_alembic_command(command_args):
         print(f"❌ Error running Alembic: {e}")
         return None
 
+
 def generate_migration(message):
     """Generate a new migration from model changes."""
     print(f"🔄 Generating migration: {message}")
-    return run_alembic_command([
-        "revision", "--autogenerate", "-m", message
-    ])
+    return run_alembic_command(["revision", "--autogenerate", "-m", message])
+
 
 def apply_migrations():
     """Apply all pending migrations."""
     print("⬆️  Applying migrations...")
     return run_alembic_command(["upgrade", "head"])
 
+
 def show_status():
     """Show current migration status."""
     print("📊 Migration status:")
     return run_alembic_command(["current"])
+
 
 def show_history():
     """Show migration history."""
     print("📜 Migration history:")
     return run_alembic_command(["history"])
 
+
 def rollback_migration():
     """Rollback the last migration."""
     print("⬇️  Rolling back last migration...")
     return run_alembic_command(["downgrade", "-1"])
+
 
 def stamp_migration():
     """Stamp the current database state as the migration baseline."""
     print("🏷️  Stamping current database state...")
     return run_alembic_command(["stamp", "head"])
 
+
 def main():
     """Main CLI interface."""
     if len(sys.argv) < 2:
-        print("""
+        print(
+            """
 🚀 Alembic Migration Manager
 
 Usage:
@@ -116,7 +124,8 @@ Usage:
 Environment:
   DATABASE_URL - Set to your Supabase PostgreSQL URL for production
   (defaults to SQLite for development)
-        """)
+        """
+        )
         return
 
     command = sys.argv[1].lower()
@@ -147,6 +156,7 @@ Environment:
     else:
         print(f"❌ Unknown command: {command}")
         print("Run 'python migrate.py' for help")
+
 
 if __name__ == "__main__":
     main()

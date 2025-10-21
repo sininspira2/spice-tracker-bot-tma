@@ -4,9 +4,9 @@ Backfill command for data migration tasks.
 
 # Command metadata
 COMMAND_METADATA = {
-    'aliases': [],
-    'description': "Perform data backfill operations (admin only)",
-    'permission_level': 'admin'
+    "aliases": [],
+    "description": "Perform data backfill operations (admin only)",
+    "permission_level": "admin",
 }
 
 import time
@@ -17,7 +17,8 @@ from utils.helpers import get_database, send_response
 from sqlalchemy import select, update
 from database_orm import Deposit
 
-@command('backfill')
+
+@command("backfill")
 async def backfill(interaction, command_start, use_followup: bool = True):
     """Perform data backfill operations."""
 
@@ -29,7 +30,12 @@ async def backfill(interaction, command_start, use_followup: bool = True):
         deposits_to_update = result.scalars().all()
 
         if not deposits_to_update:
-            await send_response(interaction, "✅ No deposits to backfill.", use_followup=use_followup, ephemeral=True)
+            await send_response(
+                interaction,
+                "✅ No deposits to backfill.",
+                use_followup=use_followup,
+                ephemeral=True,
+            )
             return
 
         updated_count = 0
@@ -39,7 +45,10 @@ async def backfill(interaction, command_start, use_followup: bool = True):
             update_stmt = (
                 update(Deposit)
                 .where(Deposit.id == deposit.id)
-                .values(melange_amount=melange_amount, conversion_rate=default_conversion_rate)
+                .values(
+                    melange_amount=melange_amount,
+                    conversion_rate=default_conversion_rate,
+                )
             )
             await session.execute(update_stmt)
             updated_count += 1
@@ -49,6 +58,8 @@ async def backfill(interaction, command_start, use_followup: bool = True):
     embed = build_status_embed(
         title="📈 Backfill Complete",
         description=f"Updated **{updated_count}** deposit records with calculated melange amounts.",
-        color=0x2ECC71
+        color=0x2ECC71,
     )
-    await send_response(interaction, embed=embed.build(), use_followup=use_followup, ephemeral=True)
+    await send_response(
+        interaction, embed=embed.build(), use_followup=use_followup, ephemeral=True
+    )

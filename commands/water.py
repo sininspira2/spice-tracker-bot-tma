@@ -11,14 +11,16 @@ from utils.logger import logger
 
 # Command metadata
 COMMAND_METADATA = {
-    'aliases': ['delivery', 'water_delivery'],
-    'description': "Request a water delivery to a specific location",
-    'permission_level': 'user'
+    "aliases": ["delivery", "water_delivery"],
+    "description": "Request a water delivery to a specific location",
+    "permission_level": "user",
 }
 
 
-@command('water')
-async def water(interaction, command_start, destination: str = "DD base", use_followup: bool = True):
+@command("water")
+async def water(
+    interaction, command_start, destination: str = "DD base", use_followup: bool = True
+):
     """Request a water delivery to a specific location"""
 
     # Validate destination (basic sanitization)
@@ -38,17 +40,27 @@ async def water(interaction, command_start, destination: str = "DD base", use_fo
             "👤 Requester": f"{interaction.user.mention}",
             "📍 Destination": destination,
             "⏰ Requested": f"<t:{int(time.time())}:R>",
-            "📋 Status": "⏳ Pending admin approval"
+            "📋 Status": "⏳ Pending admin approval",
         },
         thumbnail=interaction.user.display_avatar.url,
-        timestamp=interaction.created_at if hasattr(interaction.created_at, 'timestamp') else None
+        timestamp=(
+            interaction.created_at
+            if hasattr(interaction.created_at, "timestamp")
+            else None
+        ),
     )
 
     # Send the water request message
     response_start = time.time()
     # Send a single message containing the role mentions and the embed
     mentions_text = build_admin_officer_role_mentions()
-    await send_response(interaction, content=mentions_text if mentions_text else None, embed=embed.build(), use_followup=use_followup, ephemeral=False)
+    await send_response(
+        interaction,
+        content=mentions_text if mentions_text else None,
+        embed=embed.build(),
+        use_followup=use_followup,
+        ephemeral=False,
+    )
     response_time = time.time() - response_start
 
     # Add checkmark reaction for admin approval
@@ -73,5 +85,5 @@ async def water(interaction, command_start, destination: str = "DD base", use_fo
         response_time=f"{response_time:.3f}s",
         destination=destination,
         guild_id=interaction.guild.id if interaction.guild else None,
-        guild_name=interaction.guild.name if interaction.guild else None
+        guild_name=interaction.guild.name if interaction.guild else None,
     )

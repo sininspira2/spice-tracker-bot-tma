@@ -1,6 +1,7 @@
 """
 Guild command group for managing guild-related commands.
 """
+
 import time
 import discord
 from discord import app_commands
@@ -19,22 +20,23 @@ def format_transaction_item(transaction: dict) -> str:
     """Formats a single guild transaction item for display."""
     date_str = f"<t:{int(transaction['created_at'].timestamp())}:R>"
 
-    if transaction['melange_amount'] > 0:
+    if transaction["melange_amount"] > 0:
         amount_str = f"**{format_melange(transaction['melange_amount'])} melange**"
     else:
         amount_str = f"**{transaction['sand_amount']:,} sand**"
 
-    type_str = transaction['transaction_type'].replace('_', ' ').title()
+    type_str = transaction["transaction_type"].replace("_", " ").title()
 
     description = ""
-    if transaction['transaction_type'] == 'guild_cut':
+    if transaction["transaction_type"] == "guild_cut":
         description = f"from expedition `{transaction['expedition_id']}`"
-    elif transaction['transaction_type'] == 'guild_withdraw':
+    elif transaction["transaction_type"] == "guild_withdraw":
         description = f"to **{transaction['target_username']}** by **{transaction['admin_username']}**"
     else:
         description = f"by **{transaction['admin_username']}**"
 
     return f"**{type_str}**: {amount_str} {description} - {date_str}"
+
 
 async def build_transactions_embed(
     interaction: discord.Interaction,
@@ -52,7 +54,7 @@ async def build_transactions_embed(
         title="🏛️ Guild Transaction History",
         no_results_message="No guild transactions found.",
         format_item_func=format_transaction_item,
-        color=0x2ECC71
+        color=0x2ECC71,
     )
 
 
@@ -62,10 +64,11 @@ def format_payout_item(payout: dict) -> str:
     amount_str = f"**{format_melange(payout['melange_amount'])} melange**"
 
     description = f"to **{payout['username']}**"
-    if payout.get('admin_username'):
+    if payout.get("admin_username"):
         description += f" by **{payout['admin_username']}**"
 
     return f"**Payout**: {amount_str} {description} - {date_str}"
+
 
 async def build_payouts_embed(
     interaction: discord.Interaction,
@@ -83,20 +86,23 @@ async def build_payouts_embed(
         title="💸 Melange Payout History",
         no_results_message="No melange payouts found.",
         format_item_func=format_payout_item,
-        color=0xE67E22
+        color=0xE67E22,
     )
 
 
 class Guild(app_commands.Group):
     """A command group for all guild-related commands."""
+
     def __init__(self, bot):
         super().__init__(name="guild", description="Manage guild settings and treasury")
         self.bot = bot
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         """Check if the user has the required permissions for any command in this group."""
-        if not check_permission(interaction, 'admin_or_officer'):
-            await interaction.response.send_message("❌ You do not have permission to use this command.", ephemeral=True)
+        if not check_permission(interaction, "admin_or_officer"):
+            await interaction.response.send_message(
+                "❌ You do not have permission to use this command.", ephemeral=True
+            )
             return False
         return True
 
@@ -107,12 +113,17 @@ class Guild(app_commands.Group):
         else:
             await interaction.followup.send(*args, **kwargs)
 
-    @app_commands.command(name="withdraw", description="Withdraw melange from guild treasury to give to a user.")
+    @app_commands.command(
+        name="withdraw",
+        description="Withdraw melange from guild treasury to give to a user.",
+    )
     @app_commands.describe(
         user="The user whose ledger to credit melange",
-        amount="Amount of melange to credit from guild treasury"
+        amount="Amount of melange to credit from guild treasury",
     )
-    async def withdraw(self, interaction: discord.Interaction, user: discord.Member, amount: int):
+    async def withdraw(
+        self, interaction: discord.Interaction, user: discord.Member, amount: int
+    ):
         """Withdraw melange from guild treasury and give to a user."""
         command_start = time.time()
         await interaction.response.defer()
@@ -120,39 +131,47 @@ class Guild(app_commands.Group):
         try:
             # Validate amount
             if amount < 1:
-                await self.send_response(interaction, "❌ Withdrawal amount must be at least 1 melange.", ephemeral=True)
+                await self.send_response(
+                    interaction,
+                    "❌ Withdrawal amount must be at least 1 melange.",
+                    ephemeral=True,
+                )
                 return
 
             db = get_database()
 
             # Get current guild treasury balance
             treasury_data, get_treasury_time = await timed_database_operation(
-                "get_guild_treasury",
-                db.get_guild_treasury
+                "get_guild_treasury", db.get_guild_treasury
             )
 
-            current_melange = treasury_data.get('total_melange', 0)
+            current_melange = treasury_data.get("total_melange", 0)
             if current_melange < amount:
-                await self.send_response(interaction,
+                await self.send_response(
+                    interaction,
                     f"❌ Insufficient guild treasury funds.\n\n"
                     f"**Available:** {format_melange(current_melange)} melange\n"
                     f"**Requested:** {format_melange(amount)} melange\n"
                     f"**Shortfall:** {format_melange(amount - current_melange)} melange",
-                    ephemeral=True)
+                    ephemeral=True,
+                )
                 return
 
             # Perform withdrawal and get new balance
             new_balance, withdraw_time = await timed_database_operation(
                 "guild_withdraw",
                 db.guild_withdraw,
-                str(interaction.user.id), interaction.user.display_name,
-                str(user.id), user.display_name, amount
+                str(interaction.user.id),
+                interaction.user.display_name,
+                str(user.id),
+                user.display_name,
+                amount,
             )
 
             # Build response embed
             fields = {
                 "💸 Transaction": f"**Recipient:** {user.display_name} | **Amount:** {format_melange(amount)} melange | **Admin:** {interaction.user.display_name}",
-                "🏛️ Treasury": f"**Previous:** {format_melange(current_melange)} | **New:** {format_melange(new_balance)}"
+                "🏛️ Treasury": f"**Previous:** {format_melange(current_melange)} | **New:** {format_melange(new_balance)}",
             }
 
             embed = build_status_embed(
@@ -160,7 +179,7 @@ class Guild(app_commands.Group):
                 description=f"💰 **{format_melange(amount)} melange** transferred from guild treasury to **{user.display_name}**",
                 color=0x00FF00,
                 fields=fields,
-                timestamp=interaction.created_at
+                timestamp=interaction.created_at,
             )
 
             # Send response
@@ -182,11 +201,13 @@ class Guild(app_commands.Group):
                 response_time=f"{response_time:.3f}s",
                 withdrawal_amount=amount,
                 previous_balance=current_melange,
-                new_balance=new_balance
+                new_balance=new_balance,
             )
 
             # Log the withdrawal for audit
-            logger.info(f"Guild withdrawal: {format_melange(amount)} melange from treasury to {user.display_name} ({user.id}) by {interaction.user.display_name} ({interaction.user.id})")
+            logger.info(
+                f"Guild withdrawal: {format_melange(amount)} melange from treasury to {user.display_name} ({user.id}) by {interaction.user.display_name} ({interaction.user.id})"
+            )
 
         except ValueError as ve:
             # Handle insufficient funds or other validation errors
@@ -194,16 +215,24 @@ class Guild(app_commands.Group):
 
         except Exception as error:
             total_time = time.time() - command_start
-            logger.error(f"Error in guild withdraw command: {error}",
-                        user_id=str(interaction.user.id),
-                        username=interaction.user.display_name,
-                        target_user_id=str(user.id),
-                        target_username=user.display_name,
-                        amount=amount,
-                        total_time=f"{total_time:.3f}s")
-            await self.send_response(interaction, "❌ An error occurred while processing the withdrawal.", ephemeral=True)
+            logger.error(
+                f"Error in guild withdraw command: {error}",
+                user_id=str(interaction.user.id),
+                username=interaction.user.display_name,
+                target_user_id=str(user.id),
+                target_username=user.display_name,
+                amount=amount,
+                total_time=f"{total_time:.3f}s",
+            )
+            await self.send_response(
+                interaction,
+                "❌ An error occurred while processing the withdrawal.",
+                ephemeral=True,
+            )
 
-    @app_commands.command(name="treasury", description="View guild treasury balance and statistics.")
+    @app_commands.command(
+        name="treasury", description="View guild treasury balance and statistics."
+    )
     async def treasury(self, interaction: discord.Interaction):
         """View guild treasury balance and statistics."""
         command_start = time.time()
@@ -213,16 +242,17 @@ class Guild(app_commands.Group):
             db = get_database()
             # Get guild treasury data
             treasury_data, get_treasury_time = await timed_database_operation(
-                "get_guild_treasury",
-                db.get_guild_treasury
+                "get_guild_treasury", db.get_guild_treasury
             )
 
             # Get treasury melange (primary currency)
-            total_melange = treasury_data.get('total_melange', 0)
+            total_melange = treasury_data.get("total_melange", 0)
 
             # Format timestamps
-            last_updated = treasury_data.get('last_updated')
-            updated_str = last_updated.strftime('%Y-%m-%d %H:%M UTC') if last_updated else 'Never'
+            last_updated = treasury_data.get("last_updated")
+            updated_str = (
+                last_updated.strftime("%Y-%m-%d %H:%M UTC") if last_updated else "Never"
+            )
 
             # Determine color based on melange (primary currency)
             if total_melange >= 200:
@@ -238,10 +268,8 @@ class Guild(app_commands.Group):
                 title="🏛️ Guild Treasury",
                 description=f"The guild treasury currently holds **{total_melange:,} melange**.",
                 color=color,
-                fields={
-                    "📊 Last Updated": updated_str
-                },
-                timestamp=interaction.created_at
+                fields={"📊 Last Updated": updated_str},
+                timestamp=interaction.created_at,
             )
 
             # Send response
@@ -258,18 +286,26 @@ class Guild(app_commands.Group):
                 total_time,
                 get_treasury_time=f"{get_treasury_time:.3f}s",
                 response_time=f"{response_time:.3f}s",
-                total_melange=total_melange
+                total_melange=total_melange,
             )
 
         except Exception as error:
             total_time = time.time() - command_start
-            logger.error(f"Error in guild treasury command: {error}",
-                        user_id=str(interaction.user.id),
-                        username=interaction.user.display_name,
-                        total_time=f"{total_time:.3f}s")
-            await self.send_response(interaction, "❌ An error occurred while fetching guild treasury data.", ephemeral=True)
+            logger.error(
+                f"Error in guild treasury command: {error}",
+                user_id=str(interaction.user.id),
+                username=interaction.user.display_name,
+                total_time=f"{total_time:.3f}s",
+            )
+            await self.send_response(
+                interaction,
+                "❌ An error occurred while fetching guild treasury data.",
+                ephemeral=True,
+            )
 
-    @app_commands.command(name="transactions", description="View the guild's transaction history.")
+    @app_commands.command(
+        name="transactions", description="View the guild's transaction history."
+    )
     async def transactions(self, interaction: discord.Interaction):
         """View the guild's transaction history."""
         command_start = time.time()
@@ -295,11 +331,17 @@ class Guild(app_commands.Group):
             )
 
             initial_data, fetch_time = await timed_database_operation(
-                "get_guild_transactions_paginated", db.get_guild_transactions_paginated, page=1
+                "get_guild_transactions_paginated",
+                db.get_guild_transactions_paginated,
+                page=1,
             )
 
-            embed = await build_transactions_embed(interaction, initial_data, 1, view.total_pages)
-            await self.send_response(interaction, embed=embed, view=view, ephemeral=True)
+            embed = await build_transactions_embed(
+                interaction, initial_data, 1, view.total_pages
+            )
+            await self.send_response(
+                interaction, embed=embed, view=view, ephemeral=True
+            )
 
             total_time = time.time() - command_start
             log_command_metrics(
@@ -314,13 +356,21 @@ class Guild(app_commands.Group):
 
         except Exception as error:
             total_time = time.time() - command_start
-            logger.error(f"Error in guild transactions command: {error}",
-                        user_id=str(interaction.user.id),
-                        username=interaction.user.display_name,
-                        total_time=f"{total_time:.3f}s")
-            await self.send_response(interaction, "❌ An error occurred while fetching guild transactions.", ephemeral=True)
+            logger.error(
+                f"Error in guild transactions command: {error}",
+                user_id=str(interaction.user.id),
+                username=interaction.user.display_name,
+                total_time=f"{total_time:.3f}s",
+            )
+            await self.send_response(
+                interaction,
+                "❌ An error occurred while fetching guild transactions.",
+                ephemeral=True,
+            )
 
-    @app_commands.command(name="payouts", description="View the guild's melange payout history.")
+    @app_commands.command(
+        name="payouts", description="View the guild's melange payout history."
+    )
     async def payouts(self, interaction: discord.Interaction):
         """View the guild's melange payout history."""
         command_start = time.time()
@@ -349,8 +399,12 @@ class Guild(app_commands.Group):
                 "get_melange_payouts", db.get_melange_payouts, page=1
             )
 
-            embed = await build_payouts_embed(interaction, initial_data, 1, view.total_pages)
-            await self.send_response(interaction, embed=embed, view=view, ephemeral=True)
+            embed = await build_payouts_embed(
+                interaction, initial_data, 1, view.total_pages
+            )
+            await self.send_response(
+                interaction, embed=embed, view=view, ephemeral=True
+            )
 
             total_time = time.time() - command_start
             log_command_metrics(
@@ -365,8 +419,14 @@ class Guild(app_commands.Group):
 
         except Exception as error:
             total_time = time.time() - command_start
-            logger.error(f"Error in guild payouts command: {error}",
-                        user_id=str(interaction.user.id),
-                        username=interaction.user.display_name,
-                        total_time=f"{total_time:.3f}s")
-            await self.send_response(interaction, "❌ An error occurred while fetching melange payouts.", ephemeral=True)
+            logger.error(
+                f"Error in guild payouts command: {error}",
+                user_id=str(interaction.user.id),
+                username=interaction.user.display_name,
+                total_time=f"{total_time:.3f}s",
+            )
+            await self.send_response(
+                interaction,
+                "❌ An error occurred while fetching melange payouts.",
+                ephemeral=True,
+            )

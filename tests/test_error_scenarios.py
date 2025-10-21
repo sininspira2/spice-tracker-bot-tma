@@ -24,8 +24,8 @@ class TestDatabaseColumnErrors:
         # This should not raise IndexError or KeyError
         assert user is not None
         assert isinstance(user, dict)
-        assert user['user_id'] == user_id
-        assert user['username'] == username
+        assert user["user_id"] == user_id
+        assert user["username"] == username
 
         # Test with non-existent user
         non_existent_user = await test_database.get_user("nonexistent")
@@ -44,12 +44,12 @@ class TestDatabaseColumnErrors:
         # Mock user object with expected attributes
         user_mock = Mock()
         user_mock.to_dict.return_value = {
-            'user_id': '123456789',
-            'username': 'TestUser',
-            'total_melange': 100,
-            'paid_melange': 50,
-            'created_at': '2024-01-01T00:00:00Z',
-            'last_updated': '2024-01-01T00:00:00Z'
+            "user_id": "123456789",
+            "username": "TestUser",
+            "total_melange": 100,
+            "paid_melange": 50,
+            "created_at": "2024-01-01T00:00:00Z",
+            "last_updated": "2024-01-01T00:00:00Z",
         }
 
         # Mock the result object
@@ -57,7 +57,7 @@ class TestDatabaseColumnErrors:
         result_mock.scalar_one_or_none.return_value = user_mock
         session.execute = AsyncMock(return_value=result_mock)
 
-        with patch.object(Database, '_get_session') as mock_get_conn:
+        with patch.object(Database, "_get_session") as mock_get_conn:
             mock_get_conn.return_value.__aenter__.return_value = session
 
             db = Database("sqlite+aiosqlite:///:memory:")
@@ -70,7 +70,9 @@ class TestDatabaseColumnErrors:
             except (IndexError, KeyError) as e:
                 pytest.fail(f"Database operation raised {type(e).__name__}: {e}")
 
-    @pytest.mark.skip(reason="Error scenario tests need to be updated for new ORM interface")
+    @pytest.mark.skip(
+        reason="Error scenario tests need to be updated for new ORM interface"
+    )
     @pytest.mark.asyncio
     async def test_schema_mismatch_handling(self):
         """Test handling of database schema mismatches."""
@@ -78,16 +80,18 @@ class TestDatabaseColumnErrors:
 
         # Simulate a row with different column order or missing columns
         mismatched_row = Mock()
-        mismatched_row.__getitem__ = Mock(side_effect=lambda key: {
-            'user_id': '123456789',
-            'username': 'TestUser',
-            'total_melange': 100,
-            # Missing paid_melange, created_at, last_updated
-        }.get(key, None))
+        mismatched_row.__getitem__ = Mock(
+            side_effect=lambda key: {
+                "user_id": "123456789",
+                "username": "TestUser",
+                "total_melange": 100,
+                # Missing paid_melange, created_at, last_updated
+            }.get(key, None)
+        )
 
         conn.fetchrow.return_value = mismatched_row
 
-        with patch.object(Database, '_get_connection') as mock_get_conn:
+        with patch.object(Database, "_get_connection") as mock_get_conn:
             mock_get_conn.return_value.__aenter__.return_value = conn
 
             db = Database("sqlite+aiosqlite:///:memory:")
@@ -97,14 +101,18 @@ class TestDatabaseColumnErrors:
 
             if result:
                 # Should have the columns that exist
-                assert 'user_id' in result
-                assert 'username' in result
-                assert 'total_melange' in result
+                assert "user_id" in result
+                assert "username" in result
+                assert "total_melange" in result
 
                 # Missing columns should be handled gracefully
-                assert result.get('paid_melange') is None or isinstance(result.get('paid_melange'), int)
+                assert result.get("paid_melange") is None or isinstance(
+                    result.get("paid_melange"), int
+                )
 
-    @pytest.mark.skip(reason="Error scenario tests need to be updated for new ORM interface")
+    @pytest.mark.skip(
+        reason="Error scenario tests need to be updated for new ORM interface"
+    )
     @pytest.mark.asyncio
     async def test_empty_database_response_handling(self):
         """Test handling of empty database responses."""
@@ -112,7 +120,7 @@ class TestDatabaseColumnErrors:
         conn.fetchrow.return_value = None
         conn.fetch.return_value = []
 
-        with patch.object(Database, '_get_connection') as mock_get_conn:
+        with patch.object(Database, "_get_connection") as mock_get_conn:
             mock_get_conn.return_value.__aenter__.return_value = conn
 
             db = Database("sqlite+aiosqlite:///:memory:")
@@ -124,12 +132,16 @@ class TestDatabaseColumnErrors:
             deposits_result = await db.get_user_deposits("nonexistent")
             assert deposits_result == []
 
-    @pytest.mark.skip(reason="Error scenario tests need to be updated for new ORM interface")
+    @pytest.mark.skip(
+        reason="Error scenario tests need to be updated for new ORM interface"
+    )
     @pytest.mark.asyncio
     async def test_database_connection_failure_handling(self):
         """Test handling of database connection failures."""
-        with patch.object(Database, '_get_connection') as mock_get_conn:
-            mock_get_conn.side_effect = asyncpg.ConnectionDoesNotExistError("Connection failed")
+        with patch.object(Database, "_get_connection") as mock_get_conn:
+            mock_get_conn.side_effect = asyncpg.ConnectionDoesNotExistError(
+                "Connection failed"
+            )
 
             db = Database("sqlite+aiosqlite:///:memory:")
 
@@ -159,13 +171,19 @@ class TestDiscordResponseErrors:
 
         # Mock broken response methods
         interaction.response = AsyncMock()
-        interaction.response.send = AsyncMock(side_effect=Exception("Response send failed"))
+        interaction.response.send = AsyncMock(
+            side_effect=Exception("Response send failed")
+        )
         interaction.response.defer = AsyncMock(side_effect=Exception("Defer failed"))
         interaction.followup = AsyncMock()
-        interaction.followup.send = AsyncMock(side_effect=Exception("Followup send failed"))
+        interaction.followup.send = AsyncMock(
+            side_effect=Exception("Followup send failed")
+        )
 
         # Mock broken channel methods
-        interaction.channel.send = AsyncMock(side_effect=Exception("Channel send failed"))
+        interaction.channel.send = AsyncMock(
+            side_effect=Exception("Channel send failed")
+        )
         interaction.channel.history = AsyncMock()
 
         return interaction
@@ -173,20 +191,23 @@ class TestDiscordResponseErrors:
     @pytest.mark.asyncio
     async def test_command_handles_broken_responses(self, mock_interaction_broken):
         """Test that commands handle broken Discord responses gracefully."""
-        with patch('utils.helpers.get_database') as mock_get_db, \
-             patch('utils.logger.logger') as mock_logger:
+        with (
+            patch("utils.helpers.get_database") as mock_get_db,
+            patch("utils.logger.logger") as mock_logger,
+        ):
 
             mock_db = AsyncMock()
             mock_db.get_user.return_value = {
-                'user_id': '123456789',
-                'username': 'TestUser',
-                'total_melange': 100,
-                'paid_melange': 50
+                "user_id": "123456789",
+                "username": "TestUser",
+                "total_melange": 100,
+                "paid_melange": 50,
             }
             mock_get_db.return_value = mock_db
 
             # Test that the command can be called (it may fail due to broken interaction)
             from commands.water import water
+
             try:
                 await water(mock_interaction_broken, "Test Location", use_followup=True)
                 # If we get here, the command handled the broken interaction
@@ -199,14 +220,17 @@ class TestDiscordResponseErrors:
     @pytest.mark.asyncio
     async def test_send_response_fallback_mechanism(self, mock_interaction_broken):
         """Test that send_response falls back to channel.send when followup fails."""
-        with patch('utils.helpers.send_response') as mock_send_response, \
-             patch('utils.logger.logger') as mock_logger:
+        with (
+            patch("utils.helpers.send_response") as mock_send_response,
+            patch("utils.logger.logger") as mock_logger,
+        ):
 
             # Make send_response raise an exception
             mock_send_response.side_effect = Exception("All response methods failed")
 
             # Test that the command can be called (it may fail due to broken interaction)
             from commands.water import water
+
             try:
                 await water(mock_interaction_broken, "Test Location", use_followup=True)
                 # If we get here, the command handled the broken interaction
@@ -231,7 +255,7 @@ class TestReactionHandlingErrors:
         reaction.message.embeds[0].description = "**Location:** Test Location"
         reaction.message.embeds[0].fields = [
             Mock(name="👤 Requester", value="<@123456789>"),
-            Mock(name="📋 Status", value="⏳ Pending admin approval")
+            Mock(name="📋 Status", value="⏳ Pending admin approval"),
         ]
         reaction.message.created_at = Mock()
         reaction.message.guild = Mock()
@@ -251,10 +275,11 @@ class TestReactionHandlingErrors:
         return user
 
     @pytest.mark.asyncio
-    async def test_reaction_handles_broken_message_edit(self, mock_reaction_broken, mock_user_broken):
+    async def test_reaction_handles_broken_message_edit(
+        self, mock_reaction_broken, mock_user_broken
+    ):
         """Test that reaction handling works when message editing fails."""
-        with patch('bot.bot') as mock_bot, \
-             patch('utils.logger.logger') as mock_logger:
+        with patch("bot.bot") as mock_bot, patch("utils.logger.logger") as mock_logger:
 
             from bot import on_reaction_add
 
@@ -275,7 +300,7 @@ class TestReactionHandlingErrors:
         reaction.message.embeds = []  # No embeds
         reaction.message.edit = AsyncMock()
 
-        with patch('bot.bot') as mock_bot:
+        with patch("bot.bot") as mock_bot:
             from bot import on_reaction_add
 
             # Should not raise an exception
@@ -294,7 +319,7 @@ class TestReactionHandlingErrors:
         reaction.message.embeds[0].title = "Wrong Title"  # Not a water request
         reaction.message.edit = AsyncMock()
 
-        with patch('bot.bot') as mock_bot:
+        with patch("bot.bot") as mock_bot:
             from bot import on_reaction_add
 
             # Should not raise an exception
@@ -333,17 +358,22 @@ class TestEdgeCaseHandling:
             "Location with\nNewlines\nAnd\tTabs",
             "Location with special chars !@#$%^&*()",
             "Location with unicode: 🏜️🌵💧",
-            None  # None value
+            None,  # None value
         ]
 
         for destination in extreme_inputs:
             try:
                 from commands.water import water
+
                 await water(interaction, destination, use_followup=True)
             except Exception as e:
-                pytest.fail(f"Water command failed with extreme input '{destination}': {e}")
+                pytest.fail(
+                    f"Water command failed with extreme input '{destination}': {e}"
+                )
 
-    @pytest.mark.skip(reason="Error scenario tests need to be updated for new ORM interface")
+    @pytest.mark.skip(
+        reason="Error scenario tests need to be updated for new ORM interface"
+    )
     @pytest.mark.asyncio
     async def test_database_with_malformed_data(self):
         """Test database operations with malformed data."""
@@ -351,16 +381,18 @@ class TestEdgeCaseHandling:
 
         # Create malformed row data
         malformed_row = Mock()
-        malformed_row.__getitem__ = Mock(side_effect=lambda key: {
-            'user_id': None,  # None value
-            'username': '',   # Empty string
-            'total_melange': 'not_a_number',  # Wrong type
-            'paid_melange': -1,  # Negative value
-        }.get(key, None))
+        malformed_row.__getitem__ = Mock(
+            side_effect=lambda key: {
+                "user_id": None,  # None value
+                "username": "",  # Empty string
+                "total_melange": "not_a_number",  # Wrong type
+                "paid_melange": -1,  # Negative value
+            }.get(key, None)
+        )
 
         conn.fetchrow.return_value = malformed_row
 
-        with patch.object(Database, '_get_connection') as mock_get_conn:
+        with patch.object(Database, "_get_connection") as mock_get_conn:
             mock_get_conn.return_value.__aenter__.return_value = conn
 
             db = Database("sqlite+aiosqlite:///:memory:")
@@ -373,7 +405,9 @@ class TestEdgeCaseHandling:
             except Exception as e:
                 pytest.fail(f"Database operation failed with malformed data: {e}")
 
-    @pytest.mark.skip(reason="Error scenario tests need to be updated for new ORM interface")
+    @pytest.mark.skip(
+        reason="Error scenario tests need to be updated for new ORM interface"
+    )
     @pytest.mark.asyncio
     async def test_concurrent_database_operations(self):
         """Test concurrent database operations don't cause issues."""
@@ -381,28 +415,31 @@ class TestEdgeCaseHandling:
 
         # Mock successful responses
         user_row = Mock()
-        user_row.__getitem__ = Mock(side_effect=lambda key: {
-            'user_id': '123456789',
-            'username': 'TestUser',
-            'total_melange': 100,
-            'paid_melange': 50,
-            'created_at': '2024-01-01T00:00:00Z',
-            'last_updated': '2024-01-01T00:00:00Z'
-        }.get(key, None))
+        user_row.__getitem__ = Mock(
+            side_effect=lambda key: {
+                "user_id": "123456789",
+                "username": "TestUser",
+                "total_melange": 100,
+                "paid_melange": 50,
+                "created_at": "2024-01-01T00:00:00Z",
+                "last_updated": "2024-01-01T00:00:00Z",
+            }.get(key, None)
+        )
 
         conn.fetchrow.return_value = user_row
 
-        with patch.object(Database, '_get_connection') as mock_get_conn:
+        with patch.object(Database, "_get_connection") as mock_get_conn:
             mock_get_conn.return_value.__aenter__.return_value = conn
 
             db = Database("sqlite+aiosqlite:///:memory:")
 
             # Run multiple operations concurrently
             import asyncio
+
             tasks = [
                 db.get_user("123456789"),
                 db.get_user("123456789"),
-                db.get_user("123456789")
+                db.get_user("123456789"),
             ]
 
             try:

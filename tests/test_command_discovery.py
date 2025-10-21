@@ -1,6 +1,7 @@
 import unittest
 from commands import discover_commands
 
+
 class TestCommandDiscovery(unittest.TestCase):
     def test_discover_class_based_command_groups(self):
         # When
