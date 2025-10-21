@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, AsyncMock
 from database_orm import Database, Base
 from sqlalchemy.ext.asyncio import create_async_engine
 
+
 # This fixture will be used by all tests
 @pytest.fixture(scope="session")
 def event_loop():
@@ -13,6 +14,7 @@ def event_loop():
     loop = asyncio.get_event_loop_policy().new_event_loop()
     yield loop
     loop.close()
+
 
 @pytest_asyncio.fixture(scope="function")
 async def test_database():
@@ -29,7 +31,9 @@ async def test_database():
     async with database.engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
 
+
 import datetime
+
 
 @pytest.fixture
 def mock_interaction():

@@ -5,18 +5,22 @@ Public command: anyone can use it. Does not modify the database.
 
 # Command metadata
 COMMAND_METADATA = {
-    'aliases': [],
-    'description': "Estimate melange from a sand deposit (no database update)",
-    'params': {'amount': "Amount of spice sand to calculate"},
-    'permission_level': 'any'
+    "aliases": [],
+    "description": "Estimate melange from a sand deposit (no database update)",
+    "params": {"amount": "Amount of spice sand to calculate"},
+    "permission_level": "any",
 }
 
 from utils.base_command import command
 from utils.embed_utils import build_status_embed
-from utils.helpers import convert_sand_to_melange, get_sand_per_melange_with_bonus, send_response
+from utils.helpers import (
+    convert_sand_to_melange,
+    get_sand_per_melange_with_bonus,
+    send_response,
+)
 
 
-@command('calc')
+@command("calc")
 async def calc(interaction, command_start, amount: int, use_followup: bool = True):
     """Calculate melange from a sand amount using the current conversion rate.
 

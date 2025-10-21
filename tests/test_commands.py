@@ -2,13 +2,17 @@ import pytest
 import time
 from unittest.mock import patch, Mock, AsyncMock
 
+
 @pytest.fixture(autouse=True)
 def mock_get_db(mocker, test_database):
     """Fixture to automatically mock get_database in all command modules."""
-    mocker.patch('utils.helpers.get_database', return_value=test_database)
+    mocker.patch("utils.helpers.get_database", return_value=test_database)
     # Also patch it where it's directly imported in modules
-    for module in ['sand', 'refinery', 'leaderboard', 'ledger', 'expedition', 'pay']:
-        mocker.patch(f'commands.{module}.get_database', return_value=test_database, create=True)
+    for module in ["sand", "refinery", "leaderboard", "ledger", "expedition", "pay"]:
+        mocker.patch(
+            f"commands.{module}.get_database", return_value=test_database, create=True
+        )
+
 
 @pytest.mark.parametrize(
     "command_module, command_name, args",
@@ -19,7 +23,7 @@ def mock_get_db(mocker, test_database):
         ("ledger", "ledger", (True,)),
         ("expedition", "expedition", (1, True)),
         ("pay", "pay", (Mock(id=123, display_name="TestUser"), None, True)),
-    ]
+    ],
 )
 @pytest.mark.asyncio
 async def test_command_responds(mock_interaction, command_module, command_name, args):
@@ -28,10 +32,12 @@ async def test_command_responds(mock_interaction, command_module, command_name, 
     command_func = getattr(module, command_name)
 
     # Use a generic send_response patch since we don't know the exact module
-    with patch(f'commands.{command_module}.send_response', new_callable=AsyncMock) as mock_send:
+    with patch(
+        f"commands.{command_module}.send_response", new_callable=AsyncMock
+    ) as mock_send:
         try:
             # Call the wrapped function if it exists, otherwise the raw function
-            if hasattr(command_func, '__wrapped__'):
+            if hasattr(command_func, "__wrapped__"):
                 await command_func.__wrapped__(mock_interaction, time.time(), *args)
             else:
                 await command_func(mock_interaction, *args)
@@ -60,8 +66,8 @@ async def test_help_command_pagination(mock_interaction):
 
     # Get the arguments passed to the followup send
     call_args = mock_interaction.followup.send.call_args
-    sent_embed = call_args.kwargs['embed']
-    sent_view = call_args.kwargs['view']
+    sent_embed = call_args.kwargs["embed"]
+    sent_view = call_args.kwargs["view"]
 
     # Assertions
     assert sent_embed.title == "🏜️ Help: General Commands"
@@ -70,4 +76,4 @@ async def test_help_command_pagination(mock_interaction):
     assert isinstance(sent_view, StaticPaginatedView)
     assert len(sent_view.pages) == 4
     assert sent_view.total_pages == 4
-    assert call_args.kwargs['ephemeral'] is True
+    assert call_args.kwargs["ephemeral"] is True

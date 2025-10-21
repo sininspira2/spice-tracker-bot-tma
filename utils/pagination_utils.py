@@ -1,6 +1,7 @@
 """
 Reusable pagination utilities for Discord views.
 """
+
 import math
 import discord
 from typing import Callable, Coroutine, List, Dict, Any, Optional
@@ -10,18 +11,31 @@ from utils.database_utils import timed_database_operation
 
 ITEMS_PER_PAGE = 10
 
+
 class PaginatedView(discord.ui.View):
     """
     A generic paginated view for displaying lists of items.
     """
+
     def __init__(
         self,
         interaction: discord.Interaction,
         total_items: int,
-        fetch_data_func: Callable[[int, int], Coroutine[Any, Any, List[Dict[str, Any]]]],
-        format_embed_func: Callable[[discord.Interaction, List[Dict[str, Any]], int, int, Optional[Dict[str, Any]]], Coroutine[Any, Any, discord.Embed]],
+        fetch_data_func: Callable[
+            [int, int], Coroutine[Any, Any, List[Dict[str, Any]]]
+        ],
+        format_embed_func: Callable[
+            [
+                discord.Interaction,
+                List[Dict[str, Any]],
+                int,
+                int,
+                Optional[Dict[str, Any]],
+            ],
+            Coroutine[Any, Any, discord.Embed],
+        ],
         extra_embed_data: Optional[Dict[str, Any]] = None,
-        timeout: float = 180.0
+        timeout: float = 180.0,
     ):
         super().__init__(timeout=timeout)
         self.interaction = interaction
@@ -45,22 +59,30 @@ class PaginatedView(discord.ui.View):
             f"fetch_paginated_data_page_{self.current_page}",
             self.fetch_data_func,
             page=self.current_page,
-            per_page=ITEMS_PER_PAGE
+            per_page=ITEMS_PER_PAGE,
         )
 
         embed = await self.format_embed_func(
-            interaction, data, self.current_page, self.total_pages, self.extra_embed_data
+            interaction,
+            data,
+            self.current_page,
+            self.total_pages,
+            self.extra_embed_data,
         )
         await interaction.response.edit_message(embed=embed, view=self)
 
     @discord.ui.button(label="Previous", style=discord.ButtonStyle.grey)
-    async def previous_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def previous_button(
+        self, interaction: discord.Interaction, button: discord.ui.Button
+    ):
         if self.current_page > 1:
             self.current_page -= 1
             await self.update_view(interaction)
 
     @discord.ui.button(label="Next", style=discord.ButtonStyle.grey)
-    async def next_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def next_button(
+        self, interaction: discord.Interaction, button: discord.ui.Button
+    ):
         if self.current_page < self.total_pages:
             self.current_page += 1
             await self.update_view(interaction)
@@ -75,6 +97,7 @@ class PaginatedView(discord.ui.View):
         except discord.NotFound:
             pass
 
+
 async def build_paginated_embed(
     interaction: discord.Interaction,
     data: List[Dict[str, Any]],
@@ -84,7 +107,7 @@ async def build_paginated_embed(
     no_results_message: str,
     format_item_func: Callable[[Dict[str, Any]], str],
     extra_embed_data: Optional[Dict[str, Any]] = None,
-    color: int = 0x3498DB
+    color: int = 0x3498DB,
 ) -> discord.Embed:
     """
     Builds a generic paginated embed.
@@ -103,7 +126,7 @@ async def build_paginated_embed(
         color=color,
         fields=fields,
         thumbnail=interaction.user.display_avatar.url,
-        timestamp=interaction.created_at
+        timestamp=interaction.created_at,
     )
     embed.set_footer(text=f"Page {current_page}/{total_pages}")
     return embed.build()
@@ -113,11 +136,12 @@ class StaticPaginatedView(discord.ui.View):
     """
     A paginated view for a static list of embeds.
     """
+
     def __init__(
         self,
         interaction: discord.Interaction,
         pages: List[discord.Embed],
-        timeout: float = 180.0
+        timeout: float = 180.0,
     ):
         super().__init__(timeout=timeout)
         self.interaction = interaction
@@ -134,16 +158,22 @@ class StaticPaginatedView(discord.ui.View):
         self.previous_button.disabled = self.current_page == 0
         self.next_button.disabled = self.current_page == self.total_pages - 1
 
-        await interaction.response.edit_message(embed=self.pages[self.current_page], view=self)
+        await interaction.response.edit_message(
+            embed=self.pages[self.current_page], view=self
+        )
 
     @discord.ui.button(label="Previous", style=discord.ButtonStyle.grey)
-    async def previous_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def previous_button(
+        self, interaction: discord.Interaction, button: discord.ui.Button
+    ):
         if self.current_page > 0:
             self.current_page -= 1
             await self.update_view(interaction)
 
     @discord.ui.button(label="Next", style=discord.ButtonStyle.grey)
-    async def next_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def next_button(
+        self, interaction: discord.Interaction, button: discord.ui.Button
+    ):
         if self.current_page < self.total_pages - 1:
             self.current_page += 1
             await self.update_view(interaction)
