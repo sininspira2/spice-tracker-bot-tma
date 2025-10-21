@@ -23,16 +23,16 @@ class TestDatabaseColumnAccess:
 
         # Verify the result structure matches expected column names
         assert user is not None
-        assert 'user_id' in user
-        assert 'username' in user
-        assert 'total_melange' in user
-        assert 'paid_melange' in user
-        assert 'created_at' in user
-        assert 'last_updated' in user
+        assert "user_id" in user
+        assert "username" in user
+        assert "total_melange" in user
+        assert "paid_melange" in user
+        assert "created_at" in user
+        assert "last_updated" in user
 
         # Verify column access was used (not positional)
-        assert user['user_id'] == user_id
-        assert user['username'] == username
+        assert user["user_id"] == user_id
+        assert user["username"] == username
 
         # Test deposit operations
         await test_database.add_deposit(user_id, username, 1000)
@@ -42,13 +42,13 @@ class TestDatabaseColumnAccess:
         assert isinstance(deposits, list)
         assert len(deposits) == 1
         deposit = deposits[0]
-        assert 'id' in deposit
-        assert 'user_id' in deposit
-        assert 'username' in deposit
-        assert 'sand_amount' in deposit
-        assert 'type' in deposit
-        assert 'expedition_id' in deposit
-        assert 'created_at' in deposit
+        assert "id" in deposit
+        assert "user_id" in deposit
+        assert "username" in deposit
+        assert "sand_amount" in deposit
+        assert "type" in deposit
+        assert "expedition_id" in deposit
+        assert "created_at" in deposit
 
     @pytest.fixture
     def mock_connection(self):
@@ -57,37 +57,43 @@ class TestDatabaseColumnAccess:
 
         # Mock user row with all expected columns
         user_row = Mock()
-        user_row.__getitem__ = Mock(side_effect=lambda key: {
-            'user_id': '123456789',
-            'username': 'TestUser',
-            'total_melange': 100,
-            'paid_melange': 50,
-            'created_at': '2024-01-01T00:00:00Z',
-            'last_updated': '2024-01-01T00:00:00Z'
-        }.get(key, None))
+        user_row.__getitem__ = Mock(
+            side_effect=lambda key: {
+                "user_id": "123456789",
+                "username": "TestUser",
+                "total_melange": 100,
+                "paid_melange": 50,
+                "created_at": "2024-01-01T00:00:00Z",
+                "last_updated": "2024-01-01T00:00:00Z",
+            }.get(key, None)
+        )
 
         # Mock deposit row
         deposit_row = Mock()
-        deposit_row.__getitem__ = Mock(side_effect=lambda key: {
-            'id': 1,
-            'user_id': '123456789',
-            'username': 'TestUser',
-            'sand_amount': 1000,
-            'type': 'solo',
-            'expedition_id': None,
-            'created_at': '2024-01-01T00:00:00Z'
-        }.get(key, None))
+        deposit_row.__getitem__ = Mock(
+            side_effect=lambda key: {
+                "id": 1,
+                "user_id": "123456789",
+                "username": "TestUser",
+                "sand_amount": 1000,
+                "type": "solo",
+                "expedition_id": None,
+                "created_at": "2024-01-01T00:00:00Z",
+            }.get(key, None)
+        )
 
         conn.fetchrow.return_value = user_row
         conn.fetch.return_value = [deposit_row]
 
         return conn
 
-    @pytest.mark.skip(reason="ORM uses SQLAlchemy sessions, not raw connections - test no longer applicable")
+    @pytest.mark.skip(
+        reason="ORM uses SQLAlchemy sessions, not raw connections - test no longer applicable"
+    )
     @pytest.mark.asyncio
     async def test_get_user_uses_column_names(self, mock_connection):
         """Test that get_user method uses column names instead of positional indexing."""
-        with patch.object(Database, '_get_session') as mock_get_conn:
+        with patch.object(Database, "_get_session") as mock_get_conn:
             mock_get_conn.return_value.__aenter__.return_value = mock_connection
 
             db = Database("sqlite+aiosqlite:///:memory:")
@@ -95,22 +101,24 @@ class TestDatabaseColumnAccess:
 
             # Verify the result structure matches expected column names
             assert result is not None
-            assert 'user_id' in result
-            assert 'username' in result
-            assert 'total_melange' in result
-            assert 'paid_melange' in result
-            assert 'created_at' in result
-            assert 'last_updated' in result
+            assert "user_id" in result
+            assert "username" in result
+            assert "total_melange" in result
+            assert "paid_melange" in result
+            assert "created_at" in result
+            assert "last_updated" in result
 
             # Verify column access was used (not positional)
-            assert result['user_id'] == '123456789'
-            assert result['username'] == 'TestUser'
+            assert result["user_id"] == "123456789"
+            assert result["username"] == "TestUser"
 
-    @pytest.mark.skip(reason="ORM uses SQLAlchemy sessions, not raw connections - test no longer applicable")
+    @pytest.mark.skip(
+        reason="ORM uses SQLAlchemy sessions, not raw connections - test no longer applicable"
+    )
     @pytest.mark.asyncio
     async def test_get_user_deposits_uses_column_names(self, mock_connection):
         """Test that get_user_deposits method uses column names."""
-        with patch.object(Database, '_get_session') as mock_get_conn:
+        with patch.object(Database, "_get_session") as mock_get_conn:
             mock_get_conn.return_value.__aenter__.return_value = mock_connection
 
             db = Database("sqlite+aiosqlite:///:memory:")
@@ -120,15 +128,17 @@ class TestDatabaseColumnAccess:
             assert isinstance(result, list)
             if result:  # If deposits exist
                 deposit = result[0]
-                assert 'id' in deposit
-                assert 'user_id' in deposit
-                assert 'username' in deposit
-                assert 'sand_amount' in deposit
-                assert 'type' in deposit
-                assert 'expedition_id' in deposit
-                assert 'created_at' in deposit
+                assert "id" in deposit
+                assert "user_id" in deposit
+                assert "username" in deposit
+                assert "sand_amount" in deposit
+                assert "type" in deposit
+                assert "expedition_id" in deposit
+                assert "created_at" in deposit
 
-    @pytest.mark.skip(reason="ORM uses SQLAlchemy sessions, not raw connections - test no longer applicable")
+    @pytest.mark.skip(
+        reason="ORM uses SQLAlchemy sessions, not raw connections - test no longer applicable"
+    )
     @pytest.mark.asyncio
     async def test_database_handles_missing_columns_gracefully(self):
         """Test that database operations handle missing columns gracefully."""
@@ -136,15 +146,17 @@ class TestDatabaseColumnAccess:
 
         # Mock row with missing columns (simulating schema mismatch)
         incomplete_row = Mock()
-        incomplete_row.__getitem__ = Mock(side_effect=lambda key: {
-            'user_id': '123456789',
-            'username': 'TestUser',
-            # Missing other columns
-        }.get(key, None))
+        incomplete_row.__getitem__ = Mock(
+            side_effect=lambda key: {
+                "user_id": "123456789",
+                "username": "TestUser",
+                # Missing other columns
+            }.get(key, None)
+        )
 
         conn.fetchrow.return_value = incomplete_row
 
-        with patch.object(Database, '_get_session') as mock_get_conn:
+        with patch.object(Database, "_get_session") as mock_get_conn:
             mock_get_conn.return_value.__aenter__.return_value = conn
 
             db = Database("sqlite+aiosqlite:///:memory:")
@@ -173,7 +185,7 @@ class TestDatabaseColumnAccess:
         deposits_result_mock = Mock()
         deposits_result_mock.scalars.return_value.all.return_value = []
 
-        with patch.object(Database, '_get_session') as mock_get_conn:
+        with patch.object(Database, "_get_session") as mock_get_conn:
             mock_get_conn.return_value.__aenter__.return_value = session
 
             db = Database("sqlite+aiosqlite:///:memory:")
@@ -189,12 +201,16 @@ class TestDatabaseColumnAccess:
             deposits = await db.get_user_deposits("nonexistent")
             assert deposits == []
 
-    @pytest.mark.skip(reason="ORM uses SQLAlchemy sessions, not raw connections - test no longer applicable")
+    @pytest.mark.skip(
+        reason="ORM uses SQLAlchemy sessions, not raw connections - test no longer applicable"
+    )
     @pytest.mark.asyncio
     async def test_database_handles_connection_errors(self):
         """Test that database operations handle connection errors gracefully."""
-        with patch.object(Database, '_get_session') as mock_get_conn:
-            mock_get_conn.side_effect = asyncpg.ConnectionDoesNotExistError("Connection failed")
+        with patch.object(Database, "_get_session") as mock_get_conn:
+            mock_get_conn.side_effect = asyncpg.ConnectionDoesNotExistError(
+                "Connection failed"
+            )
 
             db = Database("sqlite+aiosqlite:///:memory:")
 
@@ -215,12 +231,12 @@ class TestDatabaseSchemaCompatibility:
         # Mock user object with expected attributes
         user_mock = Mock()
         user_mock.to_dict.return_value = {
-            'user_id': '123456789',
-            'username': 'TestUser',
-            'total_melange': 100,
-            'paid_melange': 50,
-            'created_at': '2024-01-01T00:00:00Z',
-            'last_updated': '2024-01-01T00:00:00Z'
+            "user_id": "123456789",
+            "username": "TestUser",
+            "total_melange": 100,
+            "paid_melange": 50,
+            "created_at": "2024-01-01T00:00:00Z",
+            "last_updated": "2024-01-01T00:00:00Z",
         }
 
         # Mock the result object
@@ -228,14 +244,21 @@ class TestDatabaseSchemaCompatibility:
         result_mock.scalar_one_or_none.return_value = user_mock
         session.execute = AsyncMock(return_value=result_mock)
 
-        with patch.object(Database, '_get_session') as mock_get_conn:
+        with patch.object(Database, "_get_session") as mock_get_conn:
             mock_get_conn.return_value.__aenter__.return_value = session
 
             db = Database("sqlite+aiosqlite:///:memory:")
             result = await db.get_user("123456789")
 
             # Verify all expected columns are present
-            expected_columns = ['user_id', 'username', 'total_melange', 'paid_melange', 'created_at', 'last_updated']
+            expected_columns = [
+                "user_id",
+                "username",
+                "total_melange",
+                "paid_melange",
+                "created_at",
+                "last_updated",
+            ]
             for column in expected_columns:
                 assert column in result, f"Missing expected column: {column}"
 
@@ -248,15 +271,15 @@ class TestDatabaseSchemaCompatibility:
         # Mock deposit object with expected attributes
         deposit_mock = Mock()
         deposit_mock.to_dict.return_value = {
-            'id': 1,
-            'user_id': '123456789',
-            'username': 'TestUser',
-            'sand_amount': 1000,
-            'type': 'solo',
-            'expedition_id': None,
-            'melange_amount': None,
-            'conversion_rate': None,
-            'created_at': '2024-01-01T00:00:00Z'
+            "id": 1,
+            "user_id": "123456789",
+            "username": "TestUser",
+            "sand_amount": 1000,
+            "type": "solo",
+            "expedition_id": None,
+            "melange_amount": None,
+            "conversion_rate": None,
+            "created_at": "2024-01-01T00:00:00Z",
         }
 
         # Mock the result object for deposits
@@ -264,14 +287,22 @@ class TestDatabaseSchemaCompatibility:
         deposits_result_mock.scalars.return_value.all.return_value = [deposit_mock]
         session.execute = AsyncMock(return_value=deposits_result_mock)
 
-        with patch.object(Database, '_get_session') as mock_get_conn:
+        with patch.object(Database, "_get_session") as mock_get_conn:
             mock_get_conn.return_value.__aenter__.return_value = session
 
             db = Database("sqlite+aiosqlite:///:memory:")
             result = await db.get_user_deposits("123456789")
 
             # Verify all expected columns are present
-            expected_columns = ['id', 'user_id', 'username', 'sand_amount', 'type', 'expedition_id', 'created_at']
+            expected_columns = [
+                "id",
+                "user_id",
+                "username",
+                "sand_amount",
+                "type",
+                "expedition_id",
+                "created_at",
+            ]
             if result:
                 for column in expected_columns:
                     assert column in result[0], f"Missing expected column: {column}"
@@ -280,13 +311,17 @@ class TestDatabaseSchemaCompatibility:
 class TestDatabaseErrorHandling:
     """Test database error handling and recovery."""
 
-    @pytest.mark.skip(reason="ORM uses SQLAlchemy sessions, not raw connections - test no longer applicable")
+    @pytest.mark.skip(
+        reason="ORM uses SQLAlchemy sessions, not raw connections - test no longer applicable"
+    )
     @pytest.mark.asyncio
     async def test_database_connection_error_handling(self):
         """Test that database operations handle connection errors properly."""
-        with patch.object(Database, '_get_session') as mock_get_conn:
+        with patch.object(Database, "_get_session") as mock_get_conn:
             # Mock connection that raises an error
-            mock_get_conn.side_effect = asyncpg.ConnectionDoesNotExistError("Connection failed")
+            mock_get_conn.side_effect = asyncpg.ConnectionDoesNotExistError(
+                "Connection failed"
+            )
 
             db = Database("sqlite+aiosqlite:///:memory:")
 
@@ -297,11 +332,13 @@ class TestDatabaseErrorHandling:
             # Verify connection was attempted
             assert mock_get_conn.call_count == 1
 
-    @pytest.mark.skip(reason="ORM uses SQLAlchemy sessions, not raw connections - test no longer applicable")
+    @pytest.mark.skip(
+        reason="ORM uses SQLAlchemy sessions, not raw connections - test no longer applicable"
+    )
     @pytest.mark.asyncio
     async def test_database_logging_on_errors(self):
         """Test that database errors are properly logged."""
-        with patch.object(Database, '_get_session') as mock_get_conn:
+        with patch.object(Database, "_get_session") as mock_get_conn:
             # Create a mock connection that raises an error during fetchrow
             mock_conn = AsyncMock()
             mock_conn.fetchrow.side_effect = Exception("Database error")
@@ -319,7 +356,7 @@ class TestDatabaseErrorHandling:
 
             mock_get_conn.return_value = MockContextManager(mock_conn)
 
-            with patch('database.logger.database_operation') as mock_logger:
+            with patch("database.logger.database_operation") as mock_logger:
                 db = Database("sqlite+aiosqlite:///:memory:")
 
                 with pytest.raises(Exception):
@@ -328,5 +365,5 @@ class TestDatabaseErrorHandling:
                 # Verify error was logged
                 mock_logger.assert_called()
                 call_args = mock_logger.call_args
-                assert call_args[1]['success'] is False
-                assert 'error' in call_args[1]
+                assert call_args[1]["success"] is False
+                assert "error" in call_args[1]

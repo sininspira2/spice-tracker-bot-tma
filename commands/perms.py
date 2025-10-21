@@ -3,7 +3,13 @@ Perms command: show the caller's permission flags and relevant role matches.
 """
 
 from utils.base_command import command
-from utils.helpers import send_response, format_roles, get_admin_roles, get_officer_roles, get_user_roles
+from utils.helpers import (
+    send_response,
+    format_roles,
+    get_admin_roles,
+    get_officer_roles,
+    get_user_roles,
+)
 from utils.embed_utils import build_status_embed
 from utils.permissions import (
     is_admin,
@@ -14,13 +20,13 @@ from utils.permissions import (
 
 # Command metadata
 COMMAND_METADATA = {
-    'aliases': [],
-    'description': "Show your permission status (admin, officer, user) and matched roles",
-    'permission_level': 'any',
+    "aliases": [],
+    "description": "Show your permission status (admin, officer, user) and matched roles",
+    "permission_level": "any",
 }
 
 
-@command('perms')
+@command("perms")
 async def perms(interaction, command_start, use_followup: bool = True):
     """Display the user's permission flags and role matches for this server."""
 
@@ -42,16 +48,28 @@ async def perms(interaction, command_start, use_followup: bool = True):
     matched_officer_roles = []
     matched_user_roles = []
 
-    if hasattr(interaction.user, 'roles') and interaction.user.roles:
-        user_role_ids = [getattr(role, 'id', None) for role in interaction.user.roles if hasattr(role, 'id')]
-        user_role_names = [getattr(role, 'name', str(getattr(role, 'id', 'unknown'))) for role in interaction.user.roles]
+    if hasattr(interaction.user, "roles") and interaction.user.roles:
+        user_role_ids = [
+            getattr(role, "id", None)
+            for role in interaction.user.roles
+            if hasattr(role, "id")
+        ]
+        user_role_names = [
+            getattr(role, "name", str(getattr(role, "id", "unknown")))
+            for role in interaction.user.roles
+        ]
 
         # Convert to sets for efficient intersection
         user_role_id_set = set(user_role_ids)
-        matched_admin_roles = [str(rid) for rid in user_role_id_set.intersection(configured_admin_roles)]
-        matched_officer_roles = [str(rid) for rid in user_role_id_set.intersection(configured_officer_roles)]
-        matched_user_roles = [str(rid) for rid in user_role_id_set.intersection(configured_user_roles)]
-
+        matched_admin_roles = [
+            str(rid) for rid in user_role_id_set.intersection(configured_admin_roles)
+        ]
+        matched_officer_roles = [
+            str(rid) for rid in user_role_id_set.intersection(configured_officer_roles)
+        ]
+        matched_user_roles = [
+            str(rid) for rid in user_role_id_set.intersection(configured_user_roles)
+        ]
 
     # Build fields for the embed
     fields = {

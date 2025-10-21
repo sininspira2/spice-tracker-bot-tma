@@ -5,6 +5,7 @@ from datetime import datetime
 # Import the class to be tested
 from commands.guild import Guild
 
+
 @pytest.fixture
 def mock_interaction():
     """Provides a default mock interaction object."""
@@ -15,8 +16,9 @@ def mock_interaction():
     interaction.user = MagicMock()
     interaction.user.id = 12345
     interaction.user.display_name = "Test User"
-    interaction.created_at = datetime.now() # Use a real datetime
+    interaction.created_at = datetime.now()  # Use a real datetime
     return interaction
+
 
 @pytest.fixture
 def guild_cog(mocker):
@@ -28,10 +30,12 @@ def guild_cog(mocker):
         return result, 0.1
 
     mock_db_instance = AsyncMock()
-    mocker.patch('commands.guild.get_database', return_value=mock_db_instance)
-    mocker.patch('commands.guild.log_command_metrics')
-    mocker.patch('commands.guild.logger')
-    mocker.patch('commands.guild.timed_database_operation', side_effect=mock_timed_db_op)
+    mocker.patch("commands.guild.get_database", return_value=mock_db_instance)
+    mocker.patch("commands.guild.log_command_metrics")
+    mocker.patch("commands.guild.logger")
+    mocker.patch(
+        "commands.guild.timed_database_operation", side_effect=mock_timed_db_op
+    )
 
     # Create a more realistic mock for EmbedBuilder
     mock_embed_builder = MagicMock()
@@ -44,9 +48,10 @@ def guild_cog(mocker):
 
     # Patch build_status_embed where it is used. This is key.
     # The commands call functions in pagination_utils, which then call build_status_embed.
-    mocker.patch('utils.pagination_utils.build_status_embed', return_value=mock_embed_builder)
-    mocker.patch('commands.guild.build_status_embed', return_value=mock_embed_builder)
-
+    mocker.patch(
+        "utils.pagination_utils.build_status_embed", return_value=mock_embed_builder
+    )
+    mocker.patch("commands.guild.build_status_embed", return_value=mock_embed_builder)
 
     cog = Guild(mock_bot)
     cog.mock_db = mock_db_instance
@@ -54,10 +59,14 @@ def guild_cog(mocker):
     cog.built_embed = built_embed
     return cog
 
+
 @pytest.mark.asyncio
 async def test_guild_treasury_success(guild_cog, mock_interaction):
     # Given: Configure the mock database to return a specific treasury value
-    guild_cog.mock_db.get_guild_treasury.return_value = {'total_melange': 5000, 'last_updated': datetime.now()}
+    guild_cog.mock_db.get_guild_treasury.return_value = {
+        "total_melange": 5000,
+        "last_updated": datetime.now(),
+    }
 
     # When: The treasury command is executed
     await guild_cog.treasury.callback(guild_cog, mock_interaction)
@@ -68,10 +77,11 @@ async def test_guild_treasury_success(guild_cog, mock_interaction):
     # Check that the followup message was sent with the correct embed
     mock_interaction.followup.send.assert_called_once_with(embed=guild_cog.built_embed)
 
+
 @pytest.mark.asyncio
 async def test_guild_withdraw_success(guild_cog, mock_interaction):
     # Given: Configure the mock database for a successful withdrawal
-    guild_cog.mock_db.get_guild_treasury.return_value = {'total_melange': 5000}
+    guild_cog.mock_db.get_guild_treasury.return_value = {"total_melange": 5000}
     guild_cog.mock_db.guild_withdraw.return_value = 4000
 
     mock_user = MagicMock()
@@ -80,27 +90,35 @@ async def test_guild_withdraw_success(guild_cog, mock_interaction):
     amount = 1000
 
     # When: The withdraw command is executed
-    await guild_cog.withdraw.callback(guild_cog, mock_interaction, user=mock_user, amount=amount)
+    await guild_cog.withdraw.callback(
+        guild_cog, mock_interaction, user=mock_user, amount=amount
+    )
 
     # Then: Verify the command's behavior
     mock_interaction.response.defer.assert_called_once()
     guild_cog.mock_db.get_guild_treasury.assert_called_once()
     guild_cog.mock_db.guild_withdraw.assert_called_once_with(
-        str(mock_interaction.user.id), mock_interaction.user.display_name,
-        str(mock_user.id), mock_user.display_name, amount
+        str(mock_interaction.user.id),
+        mock_interaction.user.display_name,
+        str(mock_user.id),
+        mock_user.display_name,
+        amount,
     )
     mock_interaction.followup.send.assert_called_once_with(embed=guild_cog.built_embed)
+
 
 @pytest.mark.asyncio
 async def test_guild_withdraw_insufficient_funds(guild_cog, mock_interaction):
     # Given: Configure the mock database to have insufficient funds
-    guild_cog.mock_db.get_guild_treasury.return_value = {'total_melange': 500}
+    guild_cog.mock_db.get_guild_treasury.return_value = {"total_melange": 500}
 
     mock_user = MagicMock()
     amount = 1000
 
     # When: The withdraw command is executed
-    await guild_cog.withdraw.callback(guild_cog, mock_interaction, user=mock_user, amount=amount)
+    await guild_cog.withdraw.callback(
+        guild_cog, mock_interaction, user=mock_user, amount=amount
+    )
 
     # Then: Verify the command's behavior
     mock_interaction.response.defer.assert_called_once()
@@ -112,23 +130,26 @@ async def test_guild_withdraw_insufficient_funds(guild_cog, mock_interaction):
     sent_message = mock_interaction.followup.send.call_args.args[0]
     assert "Insufficient guild treasury funds" in sent_message
 
+
 @pytest.mark.asyncio
 async def test_guild_transactions_success(guild_cog, mock_interaction, mocker):
     """Test the guild transactions command with existing transactions."""
     # Given
     guild_cog.mock_db.get_guild_transactions_count.return_value = 1
     mock_transaction = {
-        'created_at': datetime.now(),
-        'melange_amount': 100,
-        'sand_amount': 0,
-        'transaction_type': 'guild_withdraw',
-        'target_username': 'some_user',
-        'admin_username': 'some_admin',
-        'expedition_id': None
+        "created_at": datetime.now(),
+        "melange_amount": 100,
+        "sand_amount": 0,
+        "transaction_type": "guild_withdraw",
+        "target_username": "some_user",
+        "admin_username": "some_admin",
+        "expedition_id": None,
     }
     guild_cog.mock_db.get_guild_transactions_paginated.return_value = [mock_transaction]
 
-    mock_view_instance = mocker.patch('commands.guild.PaginatedView', autospec=True).return_value
+    mock_view_instance = mocker.patch(
+        "commands.guild.PaginatedView", autospec=True
+    ).return_value
     mock_view_instance.total_pages = 1
 
     # When
@@ -137,7 +158,10 @@ async def test_guild_transactions_success(guild_cog, mock_interaction, mocker):
     # Then
     guild_cog.mock_db.get_guild_transactions_count.assert_called_once()
     guild_cog.mock_db.get_guild_transactions_paginated.assert_called_once()
-    mock_interaction.followup.send.assert_called_once_with(embed=guild_cog.built_embed, view=mock_view_instance, ephemeral=True)
+    mock_interaction.followup.send.assert_called_once_with(
+        embed=guild_cog.built_embed, view=mock_view_instance, ephemeral=True
+    )
+
 
 @pytest.mark.asyncio
 async def test_guild_transactions_no_results(guild_cog, mock_interaction):
@@ -153,8 +177,9 @@ async def test_guild_transactions_no_results(guild_cog, mock_interaction):
     guild_cog.mock_db.get_guild_transactions_count.assert_called_once()
     guild_cog.mock_db.get_guild_transactions_paginated.assert_not_called()
     mock_interaction.followup.send.assert_called_once()
-    sent_embed = mock_interaction.followup.send.call_args.kwargs['embed']
+    sent_embed = mock_interaction.followup.send.call_args.kwargs["embed"]
     assert "No guild transactions found" in sent_embed.description
+
 
 @pytest.mark.asyncio
 async def test_guild_payouts_success(guild_cog, mock_interaction, mocker):
@@ -162,14 +187,16 @@ async def test_guild_payouts_success(guild_cog, mock_interaction, mocker):
     # Given
     guild_cog.mock_db.get_melange_payouts_count.return_value = 1
     mock_payout = {
-        'created_at': datetime.now(),
-        'melange_amount': 200,
-        'username': 'recipient_user',
-        'admin_username': 'admin_user'
+        "created_at": datetime.now(),
+        "melange_amount": 200,
+        "username": "recipient_user",
+        "admin_username": "admin_user",
     }
     guild_cog.mock_db.get_melange_payouts.return_value = [mock_payout]
 
-    mock_view_instance = mocker.patch('commands.guild.PaginatedView', autospec=True).return_value
+    mock_view_instance = mocker.patch(
+        "commands.guild.PaginatedView", autospec=True
+    ).return_value
     mock_view_instance.total_pages = 1
 
     # When
@@ -178,7 +205,10 @@ async def test_guild_payouts_success(guild_cog, mock_interaction, mocker):
     # Then
     guild_cog.mock_db.get_melange_payouts_count.assert_called_once()
     guild_cog.mock_db.get_melange_payouts.assert_called_once()
-    mock_interaction.followup.send.assert_called_once_with(embed=guild_cog.built_embed, view=mock_view_instance, ephemeral=True)
+    mock_interaction.followup.send.assert_called_once_with(
+        embed=guild_cog.built_embed, view=mock_view_instance, ephemeral=True
+    )
+
 
 @pytest.mark.asyncio
 async def test_guild_payouts_no_results(guild_cog, mock_interaction):
@@ -194,5 +224,5 @@ async def test_guild_payouts_no_results(guild_cog, mock_interaction):
     guild_cog.mock_db.get_melange_payouts_count.assert_called_once()
     guild_cog.mock_db.get_melange_payouts.assert_not_called()
     mock_interaction.followup.send.assert_called_once()
-    sent_embed = mock_interaction.followup.send.call_args.kwargs['embed']
+    sent_embed = mock_interaction.followup.send.call_args.kwargs["embed"]
     assert "No melange payouts found" in sent_embed.description

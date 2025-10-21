@@ -1,8 +1,10 @@
 """
 Basic tests for the bot system that don't require complex mocking.
 """
+
 import pytest
 from unittest.mock import Mock, AsyncMock
+
 
 class TestBasicImports:
     """Test basic module imports and structure."""
@@ -10,6 +12,7 @@ class TestBasicImports:
     def test_commands_package_import(self):
         """Test that the commands package can be imported."""
         from commands import COMMAND_METADATA
+
         assert isinstance(COMMAND_METADATA, dict)
         assert len(COMMAND_METADATA) > 0
 
@@ -18,14 +21,21 @@ class TestBasicImports:
         from commands import COMMAND_METADATA
 
         for command_name, metadata in COMMAND_METADATA.items():
-            assert 'aliases' in metadata, f"Command {command_name} missing aliases"
-            assert 'description' in metadata, f"Command {command_name} missing description"
-            assert isinstance(metadata['aliases'], list), f"Command {command_name} aliases not a list"
-            assert isinstance(metadata['description'], str), f"Command {command_name} description not a string"
+            assert "aliases" in metadata, f"Command {command_name} missing aliases"
+            assert (
+                "description" in metadata
+            ), f"Command {command_name} missing description"
+            assert isinstance(
+                metadata["aliases"], list
+            ), f"Command {command_name} aliases not a list"
+            assert isinstance(
+                metadata["description"], str
+            ), f"Command {command_name} description not a string"
 
     def test_utils_package_import(self):
         """Test that utility modules can be imported."""
         from utils import embed_builder, helpers, database_utils, decorators
+
         assert embed_builder is not None
         assert helpers is not None
         assert database_utils is not None
@@ -34,13 +44,16 @@ class TestBasicImports:
     def test_database_module_import(self):
         """Test that the database module can be imported."""
         import database_orm
-        assert hasattr(database_orm, 'Database')
+
+        assert hasattr(database_orm, "Database")
 
     def test_bot_module_import(self):
         """Test that the bot module can be imported."""
         import bot
-        assert hasattr(bot, 'bot')
-        assert hasattr(bot, 'register_commands')
+
+        assert hasattr(bot, "bot")
+        assert hasattr(bot, "register_commands")
+
 
 class TestCommandDiscovery:
     """Test the automatic command discovery system."""
@@ -50,20 +63,36 @@ class TestCommandDiscovery:
         from commands import COMMANDS, COMMAND_GROUPS
 
         expected_commands = {
-            'sand', 'refinery', 'leaderboard',
-            'split', 'help', 'reset', 'ledger', 'expedition',
-            'pay', 'payroll', 'pending', 'water', 'perms', 'calc',
-            'backfill', 'dbsync'
+            "sand",
+            "refinery",
+            "leaderboard",
+            "split",
+            "help",
+            "reset",
+            "ledger",
+            "expedition",
+            "pay",
+            "payroll",
+            "pending",
+            "water",
+            "perms",
+            "calc",
+            "backfill",
+            "dbsync",
         }
 
         # Command groups are discovered separately
-        expected_command_groups = {'guild', 'settings'}
+        expected_command_groups = {"guild", "settings"}
 
         discovered_commands = set(COMMANDS.keys())
-        assert discovered_commands == expected_commands, f"Missing commands: {expected_commands - discovered_commands}"
+        assert (
+            discovered_commands == expected_commands
+        ), f"Missing commands: {expected_commands - discovered_commands}"
 
         discovered_groups = set(COMMAND_GROUPS.keys())
-        assert discovered_groups == expected_command_groups, f"Missing command groups: {expected_command_groups - discovered_groups}"
+        assert (
+            discovered_groups == expected_command_groups
+        ), f"Missing command groups: {expected_command_groups - discovered_groups}"
 
     def test_no_duplicate_aliases(self):
         """Test that there are no duplicate aliases across commands."""
@@ -71,18 +100,23 @@ class TestCommandDiscovery:
 
         all_aliases = []
         for metadata in COMMAND_METADATA.values():
-            all_aliases.extend(metadata['aliases'])
+            all_aliases.extend(metadata["aliases"])
 
         # Filter out empty aliases
         non_empty_aliases = [alias for alias in all_aliases if alias]
-        assert len(non_empty_aliases) == len(set(non_empty_aliases)), "Duplicate aliases found"
+        assert len(non_empty_aliases) == len(
+            set(non_empty_aliases)
+        ), "Duplicate aliases found"
 
     def test_command_descriptions_not_empty(self):
         """Test that all commands have non-empty descriptions."""
         from commands import COMMAND_METADATA
 
         for command_name, metadata in COMMAND_METADATA.items():
-            assert metadata['description'].strip(), f"Command {command_name} has empty description"
+            assert metadata[
+                "description"
+            ].strip(), f"Command {command_name} has empty description"
+
 
 class TestUtilityFunctions:
     """Test basic utility functions."""
@@ -112,10 +146,12 @@ class TestUtilityFunctions:
     def test_logger_import(self):
         """Test that the logger can be imported."""
         from utils.logger import logger
-        assert hasattr(logger, 'info')
-        assert hasattr(logger, 'error')
-        assert hasattr(logger, 'command_success')
-        assert hasattr(logger, 'command_error')
+
+        assert hasattr(logger, "info")
+        assert hasattr(logger, "error")
+        assert hasattr(logger, "command_success")
+        assert hasattr(logger, "command_error")
+
 
 class TestDatabaseStructure:
     """Test database class structure."""
@@ -125,14 +161,15 @@ class TestDatabaseStructure:
         from database_orm import Database
 
         # Check for essential methods
-        essential_methods = [
-            'initialize', 'upsert_user', 'add_deposit'
-        ]
+        essential_methods = ["initialize", "upsert_user", "add_deposit"]
 
         for method_name in essential_methods:
-            assert hasattr(Database, method_name), f"Database missing method: {method_name}"
+            assert hasattr(
+                Database, method_name
+            ), f"Database missing method: {method_name}"
             method = getattr(Database, method_name)
             assert callable(method), f"Database.{method_name} is not callable"
+
 
 class TestConfiguration:
     """Test configuration and environment setup."""
@@ -155,6 +192,7 @@ class TestConfiguration:
         # This should not raise an error
         assert pytest is not None
 
+
 class TestIntegrationBasics:
     """Test basic integration functionality."""
 
@@ -164,20 +202,26 @@ class TestIntegrationBasics:
 
         for command_name in COMMAND_METADATA.keys():
             # Import the command function
-            command_module = __import__(f'commands.{command_name}', fromlist=[command_name])
+            command_module = __import__(
+                f"commands.{command_name}", fromlist=[command_name]
+            )
 
             # Look for the command function with various naming patterns
             command_func = None
             if hasattr(command_module, command_name):
                 command_func = getattr(command_module, command_name)
-            elif hasattr(command_module, f'{command_name}_command'):
-                command_func = getattr(command_module, f'{command_name}_command')
-            elif hasattr(command_module, f'{command_name}_details'):
-                command_func = getattr(command_module, f'{command_name}_details')
+            elif hasattr(command_module, f"{command_name}_command"):
+                command_func = getattr(command_module, f"{command_name}_command")
+            elif hasattr(command_module, f"{command_name}_details"):
+                command_func = getattr(command_module, f"{command_name}_details")
             # No special cases needed - file name matches function name
 
-            assert command_func is not None, f"Command function {command_name} not found"
-            assert callable(command_func), f"Command function {command_name} is not callable"
+            assert (
+                command_func is not None
+            ), f"Command function {command_name} not found"
+            assert callable(
+                command_func
+            ), f"Command function {command_name} is not callable"
 
     def test_no_circular_imports(self):
         """Test that there are no circular import issues."""

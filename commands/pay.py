@@ -4,13 +4,13 @@ Pay command for processing melange payments (Admin only).
 
 # Command metadata
 COMMAND_METADATA = {
-    'aliases': [],  # formerly 'payment'
-    'description': "Process melange payment for a user (Admin/Officer only)",
-    'params': {
-        'user': "User to pay",
-        'amount': "Amount of melange to pay (optional, defaults to full pending amount)"
+    "aliases": [],  # formerly 'payment'
+    "description": "Process melange payment for a user (Admin/Officer only)",
+    "params": {
+        "user": "User to pay",
+        "amount": "Amount of melange to pay (optional, defaults to full pending amount)",
     },
-    'permission_level': 'admin_or_officer'
+    "permission_level": "admin_or_officer",
 }
 
 import time
@@ -22,28 +22,32 @@ from utils.base_command import admin_command
 from utils.logger import logger
 
 
-@admin_command('pay')
-async def pay(interaction, command_start, user, amount: int = None, use_followup: bool = True):
+@admin_command("pay")
+async def pay(
+    interaction, command_start, user, amount: int = None, use_followup: bool = True
+):
     """Process melange payment for a user (Admin only)"""
 
     # Get user's pending melange
     pending_data, get_pending_time = await timed_database_operation(
         "get_user_pending_melange",
         get_database().get_user_pending_melange,
-        str(user.id)
+        str(user.id),
     )
 
-    pending_melange = pending_data.get('pending_melange', 0)
-    total_melange = pending_data.get('total_melange', 0)
-    paid_melange = pending_data.get('paid_melange', 0)
+    pending_melange = pending_data.get("pending_melange", 0)
+    total_melange = pending_data.get("total_melange", 0)
+    paid_melange = pending_data.get("paid_melange", 0)
 
     if pending_melange <= 0:
         embed = build_status_embed(
             title="💰 No Payment Due",
             description=f"**{user.display_name}** has no pending melange.",
             color=0x95A5A6,
-            fields={"📊 Status": f"**Total:** {total_melange:,} | **Paid:** {paid_melange:,} | **Pending:** {pending_melange:,}"},
-            timestamp=interaction.created_at
+            fields={
+                "📊 Status": f"**Total:** {total_melange:,} | **Paid:** {paid_melange:,} | **Pending:** {pending_melange:,}"
+            },
+            timestamp=interaction.created_at,
         )
         await send_response(interaction, embed=embed.build(), use_followup=use_followup)
         return
@@ -55,10 +59,20 @@ async def pay(interaction, command_start, user, amount: int = None, use_followup
     else:
         # Validate partial payment amount
         if amount <= 0:
-            await send_response(interaction, "❌ Payment amount must be greater than 0.", use_followup=use_followup, ephemeral=True)
+            await send_response(
+                interaction,
+                "❌ Payment amount must be greater than 0.",
+                use_followup=use_followup,
+                ephemeral=True,
+            )
             return
         if amount > pending_melange:
-            await send_response(interaction, f"❌ Payment amount ({amount:,}) exceeds pending melange ({pending_melange:,}).", use_followup=use_followup, ephemeral=True)
+            await send_response(
+                interaction,
+                f"❌ Payment amount ({amount:,}) exceeds pending melange ({pending_melange:,}).",
+                use_followup=use_followup,
+                ephemeral=True,
+            )
             return
         payment_amount = amount
 
@@ -66,8 +80,11 @@ async def pay(interaction, command_start, user, amount: int = None, use_followup
     paid_amount, pay_melange_time = await timed_database_operation(
         "pay_user_melange",
         get_database().pay_user_melange,
-        str(user.id), user.display_name, payment_amount,
-        str(interaction.user.id), interaction.user.display_name
+        str(user.id),
+        user.display_name,
+        payment_amount,
+        str(interaction.user.id),
+        interaction.user.display_name,
     )
 
     # Calculate remaining pending after payment
@@ -76,7 +93,7 @@ async def pay(interaction, command_start, user, amount: int = None, use_followup
     # Build concise response
     fields = {
         "💰 Payment": f"**{paid_amount:,}** melange | **Admin:** {interaction.user.display_name}",
-        "📊 Status": f"**Total:** {total_melange:,} | **Paid:** {paid_melange + paid_amount:,} | **Pending:** {remaining_pending:,}"
+        "📊 Status": f"**Total:** {total_melange:,} | **Paid:** {paid_melange + paid_amount:,} | **Pending:** {remaining_pending:,}",
     }
 
     payment_type = "Full payment" if amount is None else "Partial payment"
@@ -85,7 +102,7 @@ async def pay(interaction, command_start, user, amount: int = None, use_followup
         description=f"**{user.display_name}** paid **{paid_amount:,}** melange",
         color=0x27AE60,
         fields=fields,
-        timestamp=interaction.created_at
+        timestamp=interaction.created_at,
     )
 
     # Send response using helper function
@@ -108,10 +125,14 @@ async def pay(interaction, command_start, user, amount: int = None, use_followup
         pay_melange_time=f"{pay_melange_time:.3f}s",
         response_time=f"{response_time:.3f}s",
         melange_paid=paid_amount,
-        total_melange=total_melange
+        total_melange=total_melange,
     )
 
-    logger.info(f'User {user.display_name} ({user.id}) paid {paid_amount:,} melange by {interaction.user.display_name} ({interaction.user.id})',
-                user_id=str(user.id), username=user.display_name,
-                admin_id=str(interaction.user.id), admin_username=interaction.user.display_name,
-                melange_paid=paid_amount)
+    logger.info(
+        f"User {user.display_name} ({user.id}) paid {paid_amount:,} melange by {interaction.user.display_name} ({interaction.user.id})",
+        user_id=str(user.id),
+        username=user.display_name,
+        admin_id=str(interaction.user.id),
+        admin_username=interaction.user.display_name,
+        melange_paid=paid_amount,
+    )
