@@ -8,3 +8,28 @@ dependencies = [
     "discord-py>=2.6.2",
     "python-dotenv>=1.1.1",
 ]
+
+[tool.black]
+line-length = 88
+target-version = ['py311']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | venv
+  | _build
+  | buck-out
+  | build
+  | dist
+  | alembic
+  | migrations
+  # files
+  | __pycache__
+)/
+'''

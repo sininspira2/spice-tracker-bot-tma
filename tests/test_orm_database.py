@@ -1,6 +1,7 @@
 """
 Test the SQLAlchemy ORM database implementation.
 """
+
 import pytest
 import pytest_asyncio
 from database_orm import Database
@@ -27,10 +28,10 @@ class TestORMDatabase:
         # Test get_user
         user = await test_database.get_user(user_id)
         assert user is not None
-        assert user['user_id'] == user_id
-        assert user['username'] == username
-        assert user['total_melange'] == 0
-        assert user['paid_melange'] == 0
+        assert user["user_id"] == user_id
+        assert user["username"] == username
+        assert user["total_melange"] == 0
+        assert user["paid_melange"] == 0
 
     @pytest.mark.asyncio
     async def test_deposit_operations(self, test_database):
@@ -48,8 +49,8 @@ class TestORMDatabase:
         # Test get_user_deposits
         deposits = await test_database.get_user_deposits(user_id)
         assert len(deposits) == 1
-        assert deposits[0]['sand_amount'] == sand_amount
-        assert deposits[0]['type'] == 'solo'
+        assert deposits[0]["sand_amount"] == sand_amount
+        assert deposits[0]["type"] == "solo"
 
     @pytest.mark.asyncio
     async def test_melange_operations(self, test_database):
@@ -66,13 +67,13 @@ class TestORMDatabase:
 
         # Test get_user
         user = await test_database.get_user(user_id)
-        assert user['total_melange'] == melange_amount
+        assert user["total_melange"] == melange_amount
 
         # Test get_user_pending_melange
         pending = await test_database.get_user_pending_melange(user_id)
-        assert pending['total_melange'] == melange_amount
-        assert pending['paid_melange'] == 0
-        assert pending['pending_melange'] == melange_amount
+        assert pending["total_melange"] == melange_amount
+        assert pending["paid_melange"] == 0
+        assert pending["pending_melange"] == melange_amount
 
     @pytest.mark.asyncio
     async def test_expedition_operations(self, test_database):
@@ -102,8 +103,8 @@ class TestORMDatabase:
         # Test get_expedition_participants
         expedition_data = await test_database.get_expedition_participants(expedition_id)
         assert expedition_data is not None
-        assert len(expedition_data['participants']) == 1
-        assert expedition_data['participants'][0]['user_id'] == participant_id
+        assert len(expedition_data["participants"]) == 1
+        assert expedition_data["participants"][0]["user_id"] == participant_id
 
     @pytest.mark.asyncio
     async def test_guild_treasury_operations(self, test_database):
@@ -113,16 +114,16 @@ class TestORMDatabase:
 
         # Test get_guild_treasury (should create initial record)
         treasury = await test_database.get_guild_treasury()
-        assert treasury['total_sand'] == 0
-        assert treasury['total_melange'] == 0
+        assert treasury["total_sand"] == 0
+        assert treasury["total_melange"] == 0
 
         # Test update_guild_treasry
         await test_database.update_guild_treasury(sand_amount, melange_amount)
 
         # Verify update
         treasury = await test_database.get_guild_treasury()
-        assert treasury['total_sand'] == sand_amount
-        assert treasury['total_melange'] == melange_amount
+        assert treasury["total_sand"] == sand_amount
+        assert treasury["total_melange"] == melange_amount
 
     @pytest.mark.asyncio
     async def test_leaderboard_operations(self, test_database):
@@ -131,7 +132,7 @@ class TestORMDatabase:
         users_data = [
             ("user1", "UserOne", 100),
             ("user2", "UserTwo", 50),
-            ("user3", "UserThree", 75)
+            ("user3", "UserThree", 75),
         ]
 
         for user_id, username, melange in users_data:
@@ -143,9 +144,9 @@ class TestORMDatabase:
         assert len(leaderboard) == 3
 
         # Should be sorted by melange amount descending
-        assert leaderboard[0]['total_melange'] == 100
-        assert leaderboard[1]['total_melange'] == 75
-        assert leaderboard[2]['total_melange'] == 50
+        assert leaderboard[0]["total_melange"] == 100
+        assert leaderboard[1]["total_melange"] == 75
+        assert leaderboard[2]["total_melange"] == 50
 
     @pytest.mark.asyncio
     async def test_database_cleanup(self, test_database):
@@ -186,8 +187,8 @@ class TestORMDatabase:
         # Test get_user_stats
         stats = await test_database.get_user_stats(user_id)
         assert stats is not None
-        assert stats['total_melange'] == 25
-        assert 'timing' in stats
+        assert stats["total_melange"] == 25
+        assert "timing" in stats
 
     @pytest.mark.asyncio
     async def test_database_isolation(self, test_database):
@@ -203,7 +204,7 @@ class TestORMDatabase:
         # Verify data exists
         user = await test_database.get_user(user_id)
         assert user is not None
-        assert user['username'] == username
+        assert user["username"] == username
 
 
 class TestPaginatedDepositOperations:
@@ -216,7 +217,9 @@ class TestPaginatedDepositOperations:
         username = "PaginationUser"
         await test_database.upsert_user(user_id, username)
         for i in range(25):
-            await test_database.add_deposit(user_id, username, 100 + i, melange_amount=2, conversion_rate=50.0)
+            await test_database.add_deposit(
+                user_id, username, 100 + i, melange_amount=2, conversion_rate=50.0
+            )
         return user_id
 
     @pytest.mark.asyncio
@@ -234,17 +237,17 @@ class TestPaginatedDepositOperations:
         # Test first page
         page1 = await test_database.get_user_deposits(user_id, page=1, per_page=10)
         assert len(page1) == 10
-        assert page1[0]['sand_amount'] == 124 # Most recent deposit
+        assert page1[0]["sand_amount"] == 124  # Most recent deposit
 
         # Test second page
         page2 = await test_database.get_user_deposits(user_id, page=2, per_page=10)
         assert len(page2) == 10
-        assert page2[0]['sand_amount'] == 114
+        assert page2[0]["sand_amount"] == 114
 
         # Test last page
         page3 = await test_database.get_user_deposits(user_id, page=3, per_page=10)
         assert len(page3) == 5
-        assert page3[0]['sand_amount'] == 104
+        assert page3[0]["sand_amount"] == 104
 
         # Test out of bounds page
         page4 = await test_database.get_user_deposits(user_id, page=4, per_page=10)

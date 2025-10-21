@@ -1,6 +1,7 @@
 """
 Permission utilities for the Spice Tracker Bot.
 """
+
 import os
 import discord
 from typing import Callable, Any, Set
@@ -14,23 +15,32 @@ def _get_command_permission_level(command_name: str) -> str:
     This is a simplified version that doesn't depend on the commands package.
     """
     # Default permission levels for known commands
-    admin_commands = {'reset', 'pending', 'payroll', 'pay', 'guild_withdraw'}
-    user_commands = {'sand', 'refinery', 'treasury', 'ledger', 'expedition', 'split', 'water', 'leaderboard'}
-    any_commands = {'help', 'perms', 'calc'}
+    admin_commands = {"reset", "pending", "payroll", "pay", "guild_withdraw"}
+    user_commands = {
+        "sand",
+        "refinery",
+        "treasury",
+        "ledger",
+        "expedition",
+        "split",
+        "water",
+        "leaderboard",
+    }
+    any_commands = {"help", "perms", "calc"}
 
     if command_name in admin_commands:
-        return 'admin'
+        return "admin"
     elif command_name in user_commands:
-        return 'user'
+        return "user"
     elif command_name in any_commands:
-        return 'any'
+        return "any"
     else:
-        return 'user'  # Default to user level
+        return "user"  # Default to user level
 
 
 def _get_user_role_id_set(interaction: discord.Interaction) -> Set[int]:
     """Extracts a set of role IDs from the user in the interaction."""
-    if hasattr(interaction.user, 'roles') and interaction.user.roles:
+    if hasattr(interaction.user, "roles") and interaction.user.roles:
         return {role.id for role in interaction.user.roles}
     return set()
 
@@ -42,7 +52,7 @@ def is_admin(interaction: discord.Interaction) -> bool:
     """
     # Check if the user is the bot owner
     try:
-        owner_id = int(os.getenv('BOT_OWNER_ID', '0'))
+        owner_id = int(os.getenv("BOT_OWNER_ID", "0"))
         if interaction.user.id == owner_id:
             return True
     except (ValueError, TypeError):
@@ -98,16 +108,16 @@ def check_permission(interaction: discord.Interaction, permission_level: str) ->
     Returns:
         True if user has required permission, False otherwise
     """
-    if permission_level == 'admin':
+    if permission_level == "admin":
         return is_admin(interaction)
-    elif permission_level == 'officer':
+    elif permission_level == "officer":
         return is_officer(interaction)
-    elif permission_level == 'admin_or_officer':
+    elif permission_level == "admin_or_officer":
         return is_admin(interaction) or is_officer(interaction)
-    elif permission_level == 'user':
+    elif permission_level == "user":
         # Admins and officers should always have access to user-level commands
         return is_admin(interaction) or is_officer(interaction) or is_user(interaction)
-    elif permission_level == 'any':
+    elif permission_level == "any":
         return True
     else:
         # Unknown permission level, deny access
@@ -122,6 +132,7 @@ def require_permission_from_metadata():
     Returns:
         Decorator function
     """
+
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         async def wrapper(interaction: discord.Interaction, *args, **kwargs) -> Any:
@@ -136,13 +147,19 @@ def require_permission_from_metadata():
             # Check permission before executing command
             if not check_permission(interaction, permission_level):
                 message = get_permission_denied_message(permission_level)
-                await send_response(interaction, message, use_followup=kwargs.get('use_followup', True), ephemeral=True)
+                await send_response(
+                    interaction,
+                    message,
+                    use_followup=kwargs.get("use_followup", True),
+                    ephemeral=True,
+                )
                 return
 
             # Execute the original function
             return await func(interaction, *args, **kwargs)
 
         return wrapper
+
     return decorator
 
 
@@ -157,6 +174,7 @@ def require_permission(permission_level: str):
     Returns:
         Decorator function
     """
+
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         async def wrapper(interaction: discord.Interaction, *args, **kwargs) -> Any:
@@ -166,13 +184,19 @@ def require_permission(permission_level: str):
                 from utils.helpers import send_response
 
                 message = get_permission_denied_message(permission_level)
-                await send_response(interaction, message, use_followup=kwargs.get('use_followup', True), ephemeral=True)
+                await send_response(
+                    interaction,
+                    message,
+                    use_followup=kwargs.get("use_followup", True),
+                    ephemeral=True,
+                )
                 return
 
             # Execute the original function
             return await func(interaction, *args, **kwargs)
 
         return wrapper
+
     return decorator
 
 
@@ -187,11 +211,13 @@ def get_permission_denied_message(permission_level: str) -> str:
         Appropriate error message
     """
     permission_messages = {
-        'admin': "❌ You need an admin role to use this command. Contact a server administrator.",
-        'officer': "❌ You need an officer role to use this command. Contact a server administrator.",
-        'admin_or_officer': "❌ You need an admin or officer role to use this command. Contact a server administrator.",
-        'user': "❌ You don't have permission to use this command. Use `/perms` to check your permission status.",
-        'any': "❌ You don't have permission to use this command."
+        "admin": "❌ You need an admin role to use this command. Contact a server administrator.",
+        "officer": "❌ You need an officer role to use this command. Contact a server administrator.",
+        "admin_or_officer": "❌ You need an admin or officer role to use this command. Contact a server administrator.",
+        "user": "❌ You don't have permission to use this command. Use `/perms` to check your permission status.",
+        "any": "❌ You don't have permission to use this command.",
     }
 
-    return permission_messages.get(permission_level, "❌ You don't have permission to use this command.")
+    return permission_messages.get(
+        permission_level, "❌ You don't have permission to use this command."
+    )

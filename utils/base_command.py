@@ -29,16 +29,16 @@ def get_permission_override(command_name: str) -> Optional[str]:
     Returns:
         Override permission level if found, None otherwise
     """
-    overrides_str = os.getenv('COMMAND_PERMISSION_OVERRIDES', '')
+    overrides_str = os.getenv("COMMAND_PERMISSION_OVERRIDES", "")
     if not overrides_str:
         return None
 
     try:
         # Parse comma-separated overrides
         overrides = {}
-        for override in overrides_str.split(','):
-            if ':' in override:
-                cmd, permission = override.strip().split(':', 1)
+        for override in overrides_str.split(","):
+            if ":" in override:
+                cmd, permission = override.strip().split(":", 1)
                 overrides[cmd.strip()] = permission.strip()
 
         return overrides.get(command_name)
@@ -54,15 +54,15 @@ def get_all_permission_overrides() -> Dict[str, str]:
     Returns:
         Dictionary mapping command names to their override permission levels
     """
-    overrides_str = os.getenv('COMMAND_PERMISSION_OVERRIDES', '')
+    overrides_str = os.getenv("COMMAND_PERMISSION_OVERRIDES", "")
     if not overrides_str:
         return {}
 
     try:
         overrides = {}
-        for override in overrides_str.split(','):
-            if ':' in override:
-                cmd, permission = override.strip().split(':', 1)
+        for override in overrides_str.split(","):
+            if ":" in override:
+                cmd, permission = override.strip().split(":", 1)
                 overrides[cmd.strip()] = permission.strip()
         return overrides
     except Exception as e:
@@ -92,6 +92,7 @@ class BaseCommand(ABC):
         """
         Decorator that wraps command functions with common functionality.
         """
+
         @wraps(func)
         @handle_interaction_expiration
         async def wrapper(interaction: discord.Interaction, *args, **kwargs) -> Any:
@@ -104,17 +105,30 @@ class BaseCommand(ABC):
                 # Use override permission
                 if not check_permission(interaction, override_permission):
                     from utils.permissions import get_permission_denied_message
+
                     message = get_permission_denied_message(override_permission)
-                    await send_response(interaction, message, use_followup=kwargs.get('use_followup', True), ephemeral=True)
+                    await send_response(
+                        interaction,
+                        message,
+                        use_followup=kwargs.get("use_followup", True),
+                        ephemeral=True,
+                    )
                     return
             else:
                 # Use metadata-based permission checking
                 from commands import get_command_permission_level
+
                 permission_level = get_command_permission_level(self.command_name)
                 if not check_permission(interaction, permission_level):
                     from utils.permissions import get_permission_denied_message
+
                     message = get_permission_denied_message(permission_level)
-                    await send_response(interaction, message, use_followup=kwargs.get('use_followup', True), ephemeral=True)
+                    await send_response(
+                        interaction,
+                        message,
+                        use_followup=kwargs.get("use_followup", True),
+                        ephemeral=True,
+                    )
                     return
 
             try:
@@ -124,17 +138,19 @@ class BaseCommand(ABC):
             except Exception as error:
                 # Log error and send user-friendly message
                 total_time = time.time() - command_start
-                logger.error(f"Error in {self.command_name} command: {error}",
-                           command=self.command_name,
-                           user_id=str(interaction.user.id),
-                           username=interaction.user.display_name,
-                           total_time=f"{total_time:.3f}s")
+                logger.error(
+                    f"Error in {self.command_name} command: {error}",
+                    command=self.command_name,
+                    user_id=str(interaction.user.id),
+                    username=interaction.user.display_name,
+                    total_time=f"{total_time:.3f}s",
+                )
 
                 await send_response(
                     interaction,
                     f"❌ An error occurred while executing the {self.command_name} command.",
-                    use_followup=kwargs.get('use_followup', True),
-                    ephemeral=True
+                    use_followup=kwargs.get("use_followup", True),
+                    ephemeral=True,
                 )
                 raise
 
@@ -160,11 +176,13 @@ class AdminCommand(BaseCommand):
 
     def log_admin_action(self, interaction: discord.Interaction, action: str, **kwargs):
         """Log admin actions with additional context."""
-        logger.info(f"Admin action: {action}",
-                   admin_id=str(interaction.user.id),
-                   admin_username=interaction.user.display_name,
-                   command=self.command_name,
-                   **kwargs)
+        logger.info(
+            f"Admin action: {action}",
+            admin_id=str(interaction.user.id),
+            admin_username=interaction.user.display_name,
+            command=self.command_name,
+            **kwargs,
+        )
 
 
 # Decorator functions for easy use
@@ -179,6 +197,7 @@ def command(command_name: str):
     """
     cmd = SimpleCommand(command_name)
     return cmd
+
 
 def admin_command(command_name: str):
     """
