@@ -1,6 +1,7 @@
 # Git
 .git
 .gitignore
+.gitattributes
 
 # Python
 __pycache__
@@ -8,7 +9,6 @@ __pycache__
 *.pyo
 *.pyd
 .Python
-env
 pip-log.txt
 pip-delete-this-directory.txt
 .tox
@@ -19,13 +19,19 @@ nosetests.xml
 coverage.xml
 *.cover
 *.log
-.git
 .mypy_cache
 .pytest_cache
 .hypothesis
+*.egg-info
+.eggs
+dist/
+build/
+*.egg
+.ruff_cache
 
 # Virtual environments
 .env
+.env.*
 .venv
 env/
 venv/
@@ -39,6 +45,7 @@ venv.bak/
 *.swp
 *.swo
 *~
+.editorconfig
 
 # OS
 .DS_Store
@@ -50,29 +57,49 @@ ehthumbs.db
 Thumbs.db
 
 # Project specific
-
 *.db
-.env.local
-.env.development
-.env.test
-.env.production
+*.sqlite
+*.sqlite3
 
 # Documentation
 README.md
-*.md
+AGENTS.md
+LICENSE
+CONTRIBUTING.md
+CHANGELOG.md
+CODE_OF_CONDUCT.md
 docs/
+*.md
+!requirements.md
 
 # Tests
 test_*.py
 *_test.py
 tests/
 .pytest_cache/
+pytest.ini
+.coveragerc
+conftest.py
 
 # CI/CD
 .github/
 .gitlab-ci.yml
 .travis.yml
 .circleci/
+.pre-commit-config.yaml
 
 # Supabase local development
 supabase/
+
+# Development tools
+Makefile
+.flake8
+.pylintrc
+pyproject.toml
+setup.py
+setup.cfg
+
+# Examples and samples
+examples/
+samples/
+demo/
